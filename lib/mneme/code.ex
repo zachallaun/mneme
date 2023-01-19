@@ -59,27 +59,23 @@ defmodule Mneme.Code do
   end
 
   defp assertion_patch(
-         %{type: :new, actual: actual},
+         %{type: type, actual: actual},
          {:auto_assert, _, [inner]} = assert,
          format_opts
        ) do
     replacement =
-      {:auto_assert, [], [{:=, [], [quote_actual(actual), inner]}]}
+      {:auto_assert, [], [update_match(type, inner, quote_actual(actual))]}
       |> Sourceror.to_string(format_opts)
 
     %{change: replacement, range: Sourceror.get_range(assert)}
   end
 
-  defp assertion_patch(
-         %{type: :replace, actual: actual},
-         {:auto_assert, _, [{:=, inner_meta, [_old, expected]}]} = assert,
-         format_opts
-       ) do
-    replacement =
-      {:auto_assert, [], [{:=, inner_meta, [quote_actual(actual), expected]}]}
-      |> Sourceror.to_string(format_opts)
+  defp update_match(:new, value, expected) do
+    {:=, [], [expected, value]}
+  end
 
-    %{change: replacement, range: Sourceror.get_range(assert)}
+  defp update_match(:replace, {:=, meta, [_old, value]}, expected) do
+    {:=, meta, [expected, value]}
   end
 
   defp quote_actual(value) when is_integer(value), do: value
