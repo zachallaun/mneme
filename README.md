@@ -1,6 +1,8 @@
 # Mneme
 
-**TODO: Add description**
+Mneme helps you write tests about the way things are so that you can remember how they were.
+
+Inspired by [Jane Street's expect-test](https://github.com/janestreet/ppx_expect), which you can [read about here](https://blog.janestreet.com/the-joy-of-expect-tests/).
 
 ## Installation
 
