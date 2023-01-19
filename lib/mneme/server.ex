@@ -2,6 +2,9 @@ defmodule Mneme.Server do
   @moduledoc false
   use GenServer
 
+  alias Mneme.Code
+  alias Mneme.Code.AssertionResult
+
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
@@ -10,8 +13,15 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, :after_suite)
   end
 
-  def new_assertion(value, expr, location) do
-    GenServer.cast(__MODULE__, {:new_assertion, {value, expr, location}})
+  def assertion(type, expr, actual, location) do
+    result = %AssertionResult{
+      type: type,
+      expr: expr,
+      actual: actual,
+      location: location
+    }
+
+    GenServer.cast(__MODULE__, {:result, result})
   end
 
   @impl true
@@ -21,13 +31,13 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call(:after_suite, _from, state) do
-    IO.inspect(state, prefix: "assertions")
-    {:reply, :ok, state}
+  def handle_call(:after_suite, _from, results) do
+    Code.handle_results(results)
+    {:reply, :ok, results}
   end
 
   @impl true
-  def handle_cast({:new_assertion, assertion}, state) do
-    {:noreply, [assertion | state]}
+  def handle_cast({:result, result}, results) do
+    {:noreply, [result | results]}
   end
 end
