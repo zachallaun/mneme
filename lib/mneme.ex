@@ -21,7 +21,7 @@ defmodule Mneme do
         ExUnit.Assertions.assert(unquote(expected) = actual)
       rescue
         error in [ExUnit.AssertionError] ->
-          Mneme.Server.assertion(:fail, unquote(Macro.escape(expr)), actual, location)
+          Mneme.Server.assertion(:replace, unquote(Macro.escape(expr)), actual, location)
           reraise error, __STACKTRACE__
       end
     end

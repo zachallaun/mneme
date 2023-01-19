@@ -8,7 +8,7 @@ defmodule Mneme.Code do
     defstruct [:type, :expr, :actual, :location]
 
     @type t :: %__MODULE__{
-            type: :new | :fail,
+            type: :new | :replace,
             expr: Macro.t(),
             actual: any(),
             location: keyword()
@@ -32,14 +32,15 @@ defmodule Mneme.Code do
   defp get_patches({file, results}) do
     source = file |> File.read!()
     ast = Sourceror.parse_string!(source)
+    {_formatter, format_opts} = Mix.Tasks.Format.formatter_for_file(file)
 
     {_, patches} =
       ast
       |> Zipper.zip()
       |> Zipper.traverse([], fn
-        {{:auto_assert, _, [inner]}, _} = zipper, patches ->
-          if result = find_matching_result(results, inner) do
-            {zipper, [assertion_patch(result, inner) | patches]}
+        {{:auto_assert, _, [_]} = assert, _} = zipper, patches ->
+          if result = find_matching_result(results, assert) do
+            {zipper, [assertion_patch(result, assert, format_opts) | patches]}
           else
             {zipper, patches}
           end
@@ -51,39 +52,43 @@ defmodule Mneme.Code do
     {file, source, patches}
   end
 
-  defp find_matching_result(results, expr) do
-    Enum.find(results, &result_matches?(&1, expr))
+  defp find_matching_result(results, {_, meta, _}) do
+    Enum.find(results, fn %{location: loc} ->
+      loc[:line] == meta[:line]
+    end)
   end
 
-  defp result_matches?(%{type: :new, location: loc}, {_, meta, _}) do
-    loc[:line] == meta[:line]
-  end
-
-  defp result_matches?(%{}, _expr), do: false
-
-  defp assertion_patch(%{type: :new, actual: actual}, ast) do
+  defp assertion_patch(
+         %{type: :new, actual: actual},
+         {:auto_assert, _, [inner]} = assert,
+         format_opts
+       ) do
     replacement =
-      {:=, [], [quote_actual(actual), ast]}
-      |> Sourceror.to_string()
+      {:auto_assert, [], [{:=, [], [quote_actual(actual), inner]}]}
+      |> Sourceror.to_string(format_opts)
 
-    %{change: replacement, range: Sourceror.get_range(ast)}
+    %{change: replacement, range: Sourceror.get_range(assert)}
+  end
+
+  defp assertion_patch(
+         %{type: :replace, actual: actual},
+         {:auto_assert, _, [{:=, inner_meta, [_old, expected]}]} = assert,
+         format_opts
+       ) do
+    replacement =
+      {:auto_assert, [], [{:=, inner_meta, [quote_actual(actual), expected]}]}
+      |> Sourceror.to_string(format_opts)
+
+    %{change: replacement, range: Sourceror.get_range(assert)}
   end
 
   defp quote_actual(value) when is_integer(value), do: value
   defp quote_actual(value) when is_binary(value), do: value
 
-  defp prompt_for_patch(%{type: :new} = result, ast) do
-    nil
-  end
-
-  defp prompt_for_patch(_, _) do
-    nil
-  end
+  defp patch_file({_, _, []}), do: :ok
 
   defp patch_file({file, source, patches}) do
     patched = Sourceror.patch_string(source, patches)
-
-    IO.puts(file)
-    IO.puts(patched)
+    File.write!(file, patched)
   end
 end
