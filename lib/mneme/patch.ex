@@ -70,7 +70,7 @@ defmodule Mneme.Patch do
          format_opts
        ) do
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
-    expectation = Serialize.to_match_expression(actual, meta)
+    expectation = Serialize.to_match_expressions(actual, meta)
 
     replacement =
       {:auto_assert, [], [update_match(type, inner, expectation)]}
@@ -82,11 +82,19 @@ defmodule Mneme.Patch do
   end
 
   defp update_match(:new, value, expected) do
-    {:=, [], [expected, value]}
+    match_expr(expected, value, [])
   end
 
   defp update_match(:replace, {:=, meta, [_old, value]}, expected) do
-    {:=, meta, [expected, value]}
+    match_expr(expected, value, meta)
+  end
+
+  defp match_expr({match_expr, nil}, value, meta) do
+    {:=, meta, [match_expr, value]}
+  end
+
+  defp match_expr({match_expr, conditions}, value, meta) do
+    {:when, meta, [match_expr, {:=, [], [conditions, value]}]}
   end
 
   defp patch_file!({_file, []}), do: :ok

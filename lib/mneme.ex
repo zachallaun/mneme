@@ -15,8 +15,13 @@ defmodule Mneme do
   @doc """
   Generates a match assertion.
   """
-  defmacro auto_assert({:=, _meta, [expected, actual]} = expr) do
-    code = __gen_assert_match__(expected)
+  defmacro auto_assert({:when, _, [expected, {:=, [], [guard, actual]}]} = expr) do
+    code = __gen_assert_match__({expected, guard})
+    __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
+  end
+
+  defmacro auto_assert({:=, _, [expected, actual]} = expr) do
+    code = __gen_assert_match__({expected, nil})
     __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
   end
 
@@ -53,9 +58,16 @@ defmodule Mneme do
   end
 
   @doc false
-  def __gen_assert_match__(expr) do
+  def __gen_assert_match__({expr, nil}) do
     quote do
       ExUnit.Assertions.assert(unquote(expr) = var!(actual))
+    end
+  end
+
+  def __gen_assert_match__({expr, guard}) do
+    quote do
+      ExUnit.Assertions.assert(unquote(expr) = var!(actual))
+      ExUnit.Assertions.assert(unquote(guard))
     end
   end
 end

@@ -4,10 +4,10 @@ defmodule Mneme.Serialize do
   alias Mneme.Serializer
 
   @doc """
-  Delegates to `Mneme.Serializer.to_match_expression/2`.
+  Delegates to `Mneme.Serializer.to_match_expressions/2`.
   """
-  @spec to_match_expression(Serializer.t(), keyword()) :: Macro.t()
-  defdelegate to_match_expression(value, meta), to: Serializer
+  @spec to_match_expressions(Serializer.t(), keyword()) :: {Macro.t(), Macro.t() | nil}
+  defdelegate to_match_expressions(value, meta), to: Serializer
 
   @doc """
   Returns `{:ok, pin_expr}` if the value can be found in the given
@@ -19,40 +19,78 @@ defmodule Mneme.Serialize do
       _ -> :error
     end
   end
+
+  @doc """
+  Maps a list of values to their match expressions, combining any guards
+  into a single clause with `and`.
+  """
+  def map_to_match_expressions(values, meta) do
+    Enum.map_reduce(values, nil, fn value, guard ->
+      case {guard, to_match_expressions(value, meta)} do
+        {nil, {expr, guard}} -> {expr, guard}
+        {guard, {expr, nil}} -> {expr, guard}
+        {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
+      end
+    end)
+  end
+
+  @doc """
+  Generate a quoted remote call. Requires fully expanded aliases.
+
+  ## Examples
+
+      iex> remote_call(:Kernel, :is_reference, [{:ref, [], nil}])
+      {
+        {:., [], [{:__aliases__, [alias: false], [:Kernel]}, :is_reference]},
+        [],
+        [{:ref, [], nil}]
+      }
+  """
+  def remote_call(module, fun, args) do
+    {{:., [], [{:__aliases__, [alias: false], [module]}, fun]}, [], args}
+  end
 end
 
 defprotocol Mneme.Serializer do
   @doc """
-  Generates an AST that can be embedded in a match (`=`) expression.
+  Generates ASTs that can be used to assert a match of the given value.
+
+  Must return `{match_expression, guard_expression}`, where the first
+  will be used in a `=` match, and the second will be a secondary
+  assertion with access to any bindings produced by the match.
+
+  Note that `guard_expression` can be `nil`, in which case the guard
+  check will not occur.
   """
-  @spec to_match_expression(t, keyword()) :: Macro.t()
-  def to_match_expression(value, meta)
+  @spec to_match_expressions(t, keyword()) :: {Macro.t(), Macro.t() | nil}
+  def to_match_expressions(value, meta)
 end
 
 defimpl Mneme.Serializer, for: Integer do
-  def to_match_expression(int, _meta), do: int
+  def to_match_expressions(int, _meta), do: {int, nil}
 end
 
 defimpl Mneme.Serializer, for: BitString do
-  def to_match_expression(str, _meta), do: str
+  def to_match_expressions(str, _meta), do: {str, nil}
 end
 
 defimpl Mneme.Serializer, for: Tuple do
-  def to_match_expression(tuple, meta) do
-    values =
-      tuple
-      |> Tuple.to_list()
-      |> Enum.map(&Mneme.Serializer.to_match_expression(&1, meta))
-
-    {:{}, [], values}
+  def to_match_expressions(tuple, meta) do
+    values = Tuple.to_list(tuple)
+    {value_matches, guard} = Mneme.Serialize.map_to_match_expressions(values, meta)
+    {{:{}, [], value_matches}, guard}
   end
 end
 
 defimpl Mneme.Serializer, for: Reference do
-  def to_match_expression(ref, meta) do
+  def to_match_expressions(ref, meta) do
     case Mneme.Serialize.fetch_pinned(ref, meta[:binding]) do
-      {:ok, pin} -> pin
-      _ -> raise "can't serialize non-pinned reference: #{inspect(ref)}"
+      {:ok, pin} ->
+        {pin, nil}
+
+      _ ->
+        var = {:ref, [], nil}
+        {var, {:is_reference, [], [var]}}
     end
   end
 end

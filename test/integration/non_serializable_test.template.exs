@@ -7,4 +7,8 @@ defmodule MnemeIntegration.NonSerializableTest do
 
     auto_assert Function.identity(my_ref)
   end
+
+  test "is_reference guard" do
+    auto_assert make_ref()
+  end
 end

@@ -7,4 +7,11 @@
 
 Accept change? (y/n) !{y
 }.
-1 test, 0 failures
+[Mneme] New assertion
+
+- auto_assert make_ref()
++ auto_assert ref when is_reference(ref) = make_ref()
+
+Accept change? (y/n) !{y
+}.
+2 tests, 0 failures
