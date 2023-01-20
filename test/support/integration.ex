@@ -22,16 +22,15 @@ defmodule Mneme.Integration do
   end
 
   def __run__(basename, tmp_dir) do
-    expected_source =
-      Path.join(@integration_test_dir, basename <> ".expected.exs") |> File.read!()
-
-    expected_output = Path.join(@integration_test_dir, basename <> ".output.txt") |> File.read!()
-
     template_file = Path.join(@integration_test_dir, basename <> ".template.exs")
     source_file = Path.join(tmp_dir, basename <> ".exs")
     File.cp!(template_file, source_file)
 
+    expected_source = File.read!(Path.join(@integration_test_dir, basename <> ".expected.exs"))
+    expected_output = File.read!(Path.join(@integration_test_dir, basename <> ".output.txt"))
+
     {output, exit_code} = System.shell("yes 2>/dev/null | mix test #{source_file}")
+
     actual_source = File.read!(source_file)
     actual_output = normalize_output(output)
 

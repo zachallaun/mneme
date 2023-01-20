@@ -2,8 +2,7 @@ defmodule Mneme.Server do
   @moduledoc false
   use GenServer
 
-  alias Mneme.Code
-  alias Mneme.Code.AssertionResult
+  alias Mneme.Patch
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -13,31 +12,22 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, :after_suite)
   end
 
-  def assertion(type, expr, actual, location) do
-    result = %AssertionResult{
-      type: type,
-      expr: expr,
-      actual: actual,
-      location: location
-    }
-
-    GenServer.cast(__MODULE__, {:result, result})
+  def await_assertion(type, expr, actual, location) do
+    GenServer.call(__MODULE__, {:assertion, {type, expr, actual, location}})
   end
 
   @impl true
   def init(_arg) do
     ExUnit.after_suite(&__MODULE__.after_suite/1)
-    {:ok, []}
+    {:ok, %Patch.SuiteResult{}}
   end
 
   @impl true
-  def handle_call(:after_suite, _from, results) do
-    Code.handle_results(results)
-    {:reply, :ok, results}
+  def handle_call({:assertion, assertion}, _from, state) do
+    {:reply, :ok, Patch.handle_assertion(state, assertion)}
   end
 
-  @impl true
-  def handle_cast({:result, result}, results) do
-    {:noreply, [result | results]}
+  def handle_call(:after_suite, _from, state) do
+    {:reply, :ok, Patch.apply_changes!(state)}
   end
 end

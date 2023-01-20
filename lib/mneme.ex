@@ -21,7 +21,12 @@ defmodule Mneme do
         ExUnit.Assertions.assert(unquote(expected) = actual)
       rescue
         error in [ExUnit.AssertionError] ->
-          Mneme.Server.assertion(:replace, unquote(Macro.escape(expr)), actual, location)
+          Mneme.Server.await_assertion(:replace, unquote(Macro.escape(expr)), actual, location)
+
+          IO.inspect(
+            ExUnit.Formatter.format_assertion_diff(error, 0, :infinity, fn _, msg -> msg end)
+          )
+
           reraise error, __STACKTRACE__
       end
     end
@@ -33,7 +38,7 @@ defmodule Mneme do
       expr = unquote(Macro.escape(expr))
       location = unquote(Macro.Env.location(__CALLER__))
 
-      Mneme.Server.assertion(:new, expr, actual, location)
+      Mneme.Server.await_assertion(:new, expr, actual, location)
     end
   end
 end
