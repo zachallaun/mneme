@@ -1,0 +1,31 @@
+# exit:2
+
+[Mneme] New assertion
+
+- auto_assert 2 + 2
++ auto_assert 4 = 2 + 2
+
+Accept change? (y/n) !{n
+}
+[Mneme] New assertion
+
+- auto_assert "foo" <> "bar"
++ auto_assert "foobar" = "foo" <> "bar"
+
+Accept change? (y/n) !{n
+}
+
+1) test integers (MnemeIntegration.LiteralsTest)
+auto_assert failed to construct a suitable assertion for 4
+code: auto_assert 2 + 2
+stacktrace:
+
+
+
+2) test strings (MnemeIntegration.LiteralsTest)
+auto_assert failed to construct a suitable assertion for "foobar"
+code: auto_assert "foo" <> "bar"
+stacktrace:
+
+
+2 tests, 2 failures
