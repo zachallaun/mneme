@@ -1,0 +1,10 @@
+# exit:0
+
+[Mneme] New assertion
+
+- auto_assert Function.identity(my_ref)
++ auto_assert ^my_ref = Function.identity(my_ref)
+
+Accept change? (y/n) !{y
+}.
+1 test, 0 failures

@@ -1,3 +1,26 @@
+defmodule Mneme.Serialize do
+  @moduledoc false
+
+  alias Mneme.Serializer
+
+  @doc """
+  Delegates to `Mneme.Serializer.to_match_expression/2`.
+  """
+  @spec to_match_expression(Serializer.t(), keyword()) :: Macro.t()
+  defdelegate to_match_expression(value, meta), to: Serializer
+
+  @doc """
+  Returns `{:ok, pin_expr}` if the value can be found in the given
+  context, or `:error` otherwise.
+  """
+  def fetch_pinned(value, binding) do
+    case List.keyfind(binding, value, 1) do
+      {name, ^value} -> {:ok, {:^, [], [{name, [], nil}]}}
+      _ -> :error
+    end
+  end
+end
+
 defprotocol Mneme.Serializer do
   @doc """
   Generates an AST that can be embedded in a match (`=`) expression.
@@ -25,6 +48,15 @@ defimpl Mneme.Serializer, for: Tuple do
   end
 end
 
+defimpl Mneme.Serializer, for: Reference do
+  def to_match_expression(ref, meta) do
+    case Mneme.Serialize.fetch_pinned(ref, meta[:binding]) do
+      {:ok, pin} -> pin
+      _ -> raise "can't serialize non-pinned reference: #{inspect(ref)}"
+    end
+  end
+end
+
 # defimpl Mneme.Serializer, for: Atom do
 # defimpl Mneme.Serializer, for: List do
 # defimpl Mneme.Serializer, for: Float do
@@ -32,5 +64,4 @@ end
 # defimpl Mneme.Serializer, for: PID do
 # defimpl Mneme.Serializer, for: Map do
 # defimpl Mneme.Serializer, for: Port do
-# defimpl Mneme.Serializer, for: Reference do
 # defimpl Mneme.Serializer, for: Any do

@@ -12,8 +12,8 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, :after_suite)
   end
 
-  def await_assertion(type, expr, actual, location) do
-    GenServer.call(__MODULE__, {:assertion, {type, expr, actual, location}})
+  def await_assertion(assertion) do
+    GenServer.call(__MODULE__, {:assertion, assertion})
   end
 
   @impl true

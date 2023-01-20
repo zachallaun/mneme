@@ -2,7 +2,7 @@ defmodule Mneme.Patch do
   @moduledoc false
 
   alias Mneme.Format
-  alias Mneme.Serializer
+  alias Mneme.Serialize
   alias Sourceror.Zipper
 
   defmodule SuiteResult do
@@ -25,8 +25,8 @@ defmodule Mneme.Patch do
       ast
       |> Zipper.zip()
       |> Zipper.traverse(nil, fn
-        {{:auto_assert, meta, [_]} = assert, _} = zipper, nil ->
-          if meta[:line] == line do
+        {{:auto_assert, assert_meta, [_]} = assert, _} = zipper, nil ->
+          if assert_meta[:line] == line do
             {zipper, assertion_patch(type, meta, actual, assert, format_opts)}
           else
             {zipper, nil}
@@ -70,7 +70,7 @@ defmodule Mneme.Patch do
          format_opts
        ) do
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
-    expectation = Serializer.to_match_expression(actual, meta)
+    expectation = Serialize.to_match_expression(actual, meta)
 
     replacement =
       {:auto_assert, [], [update_match(type, inner, expectation)]}

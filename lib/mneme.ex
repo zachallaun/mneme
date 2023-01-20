@@ -32,15 +32,15 @@ defmodule Mneme do
   @doc false
   def __gen_auto_assert__(type, env, expr, actual, code) do
     quote do
+      meta = [module: __MODULE__, binding: binding()] ++ unquote(Macro.Env.location(env))
       expr = unquote(Macro.escape(expr))
       var!(actual) = unquote(actual)
-      location = unquote(Macro.Env.location(env))
 
       try do
         unquote(code)
       rescue
         error in [ExUnit.AssertionError] ->
-          case Mneme.Server.await_assertion(unquote(type), expr, var!(actual), location) do
+          case Mneme.Server.await_assertion({unquote(type), expr, var!(actual), meta}) do
             {:ok, expected} ->
               Mneme.__gen_assert_match__(expected)
               |> Code.eval_quoted(binding(), __ENV__)
