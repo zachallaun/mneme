@@ -35,9 +35,9 @@ defmodule Mneme.Patch do
       end)
 
     if patch do
-      update_in(state.patches[file], &[patch | &1])
+      {true, update_in(state.patches[file], &[patch | &1])}
     else
-      state
+      {false, state}
     end
   end
 

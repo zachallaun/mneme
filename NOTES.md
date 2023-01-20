@@ -27,6 +27,16 @@ assert is_ref(x)
 assert is_pid(y)
 ```
 
+## Value diff
+
+We may be able to use ExUnit's formatter to show a nice diff:
+
+```elixir
+IO.inspect(
+  ExUnit.Formatter.format_assertion_diff(error, 0, :infinity, fn _, msg -> msg end)
+)
+```
+
 
 ## TODO / To Remember
 

@@ -21,13 +21,14 @@ defmodule Mneme do
         ExUnit.Assertions.assert(unquote(expected) = actual)
       rescue
         error in [ExUnit.AssertionError] ->
-          Mneme.Server.await_assertion(:replace, unquote(Macro.escape(expr)), actual, location)
+          accepted? =
+            Mneme.Server.await_assertion(:replace, unquote(Macro.escape(expr)), actual, location)
 
-          IO.inspect(
-            ExUnit.Formatter.format_assertion_diff(error, 0, :infinity, fn _, msg -> msg end)
-          )
-
-          reraise error, __STACKTRACE__
+          if accepted? do
+            :ok
+          else
+            reraise error, __STACKTRACE__
+          end
       end
     end
   end
@@ -37,8 +38,14 @@ defmodule Mneme do
       actual = unquote(expr)
       expr = unquote(Macro.escape(expr))
       location = unquote(Macro.Env.location(__CALLER__))
+      accepted? = Mneme.Server.await_assertion(:new, expr, actual, location)
 
-      Mneme.Server.await_assertion(:new, expr, actual, location)
+      if accepted? do
+        :ok
+      else
+        raise ExUnit.AssertionError,
+          message: "auto_assert failed to construct a suitable assertion for #{inspect(actual)}"
+      end
     end
   end
 end
