@@ -36,9 +36,9 @@ defmodule Mneme.Patch do
       end)
 
     if patch do
-      {true, update_in(state.patches[file], &[patch | &1])}
+      {{:ok, patch.expectation}, update_in(state.patches[file], &[patch | &1])}
     else
-      {false, state}
+      {:error, state}
     end
   end
 
@@ -70,12 +70,14 @@ defmodule Mneme.Patch do
        ) do
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
 
+    expectation = quoted_expectation(actual)
+
     replacement =
-      {:auto_assert, [], [update_match(type, inner, quote_actual(actual))]}
+      {:auto_assert, [], [update_match(type, inner, expectation)]}
       |> Sourceror.to_string(format_opts)
 
     if accept_change?(type, loc, original, replacement) do
-      %{change: replacement, range: Sourceror.get_range(assert)}
+      %{expectation: expectation, change: replacement, range: Sourceror.get_range(assert)}
     end
   end
 
@@ -87,8 +89,8 @@ defmodule Mneme.Patch do
     {:=, meta, [expected, value]}
   end
 
-  defp quote_actual(value) when is_integer(value), do: value
-  defp quote_actual(value) when is_binary(value), do: value
+  defp quoted_expectation(value) when is_integer(value), do: value
+  defp quoted_expectation(value) when is_binary(value), do: value
 
   defp patch_file!({_file, []}), do: :ok
 

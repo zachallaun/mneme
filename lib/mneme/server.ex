@@ -24,8 +24,8 @@ defmodule Mneme.Server do
 
   @impl true
   def handle_call({:assertion, assertion}, _from, state) do
-    {accepted?, state} = Patch.handle_assertion(state, assertion)
-    {:reply, accepted?, state}
+    {result, state} = Patch.handle_assertion(state, assertion)
+    {:reply, result, state}
   end
 
   def handle_call(:after_suite, _from, state) do
