@@ -1,3 +1,4 @@
-import Mneme.Integration, only: [integration_test: 1]
+import Mneme.Integration
 
-integration_test("literals_test")
+integration_test("literals_test", "literals_test.1")
+integration_test("literals_test", "literals_test.2")

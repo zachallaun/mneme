@@ -10,25 +10,27 @@ defmodule Mneme.Integration do
   @doc """
   Generate an integration test module that will be run by ExUnit.
   """
-  defmacro integration_test(basename) when is_binary(basename) do
+  defmacro integration_test(template_basename, expect_basename \\ nil) do
+    expect_basename = expect_basename || template_basename
+
     quote do
-      defmodule unquote(unique_module_name(basename)) do
+      defmodule unquote(module_name(expect_basename)) do
         use ExUnit.Case, async: true
 
         @tag :tmp_dir
-        test unquote(basename), %{tmp_dir: tmp_dir} do
-          Mneme.Integration.__run__(unquote(basename), tmp_dir)
+        test unquote(template_basename), %{tmp_dir: tmp_dir} do
+          Mneme.Integration.__run__(unquote(template_basename), unquote(expect_basename), tmp_dir)
         end
       end
     end
   end
 
-  def __run__(basename, tmp_dir) do
-    source_file = Path.join(tmp_dir, basename <> ".exs")
-    File.cp!(file(:template, basename), source_file)
+  def __run__(template_basename, expect_basename, tmp_dir) do
+    source_file = Path.join(tmp_dir, template_basename <> ".exs")
+    File.cp!(file(:template, template_basename), source_file)
 
-    {input, expected_output} = read_io_file!(basename)
-    expected_source = read!(:expected, basename)
+    {expected_exit_code, expected_output, input} = read_io_file!(expect_basename)
+    expected_source = read!(:expected, expect_basename)
 
     {output, exit_code} = System.shell(~s(echo "#{input}" | mix test #{source_file} --seed 0))
 
@@ -37,7 +39,8 @@ defmodule Mneme.Integration do
 
     errors =
       [
-        {exit_code == 0, "Exit code was not zero (was #{exit_code})"},
+        {exit_code == expected_exit_code,
+         "Exit code was #{exit_code} (expected #{expected_exit_code})"},
         {actual_source == expected_source,
          """
          Source does not match:
@@ -78,22 +81,26 @@ defmodule Mneme.Integration do
   defp read!(type, basename), do: file(type, basename) |> File.read!()
 
   defp read_io_file!(basename) do
+    [exit_string, contents] = read!(:io, basename) |> String.split("\n", parts: 2)
+    "# exit:" <> code = exit_string
+    {exit_code, ""} = Integer.parse(code)
+
     {outputs, inputs} =
-      read!(:io, basename)
+      contents
       |> String.split(~r/!\{[^}]+\}/, include_captures: true)
       |> alternate()
-
-    input =
-      inputs
-      |> Enum.map(&(&1 |> String.trim_leading("!{") |> String.trim_trailing("}")))
-      |> Enum.join()
 
     output =
       outputs
       |> Enum.join()
       |> normalize_output()
 
-    {input, output}
+    input =
+      inputs
+      |> Enum.map(&(&1 |> String.trim_leading("!{") |> String.trim_trailing("}")))
+      |> Enum.join()
+
+    {exit_code, output, input}
   end
 
   defp alternate(list), do: alternate(list, :left, {[], []})
@@ -115,19 +122,13 @@ defmodule Mneme.Integration do
     |> String.replace(~r/Finished in.+\n/, "")
     |> String.replace(~r/\nRandomized with seed.+\n/, "")
     |> String.replace(~r/\[Mneme\] ((Update)|(New)) assertion.+\n/, "[Mneme] \\1 assertion\n")
+    |> String.replace(~r/tmp\/.+\n/, "")
     |> String.split("\n")
     |> Enum.map(&String.trim/1)
     |> Enum.join("\n")
   end
 
-  defp unique_module_name(basename, i \\ 0) do
-    module = Module.concat([__MODULE__, Macro.camelize(basename), to_string(i)])
-
-    case function_exported?(module, :__info__, 1) do
-      true -> unique_module_name(basename, i + 1)
-      false -> module
-    end
-  end
+  defp module_name(name), do: Module.concat([__MODULE__, Macro.camelize(name)])
 
   defp indent(message, indentation) do
     Format.prefix_lines(message, indentation)
