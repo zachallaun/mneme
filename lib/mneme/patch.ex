@@ -1,6 +1,7 @@
 defmodule Mneme.Patch do
   @moduledoc false
 
+  alias Mneme.Format
   alias Sourceror.Zipper
 
   defmodule SuiteResult do
@@ -25,7 +26,7 @@ defmodule Mneme.Patch do
       |> Zipper.traverse(nil, fn
         {{:auto_assert, meta, [_]} = assert, _} = zipper, nil ->
           if meta[:line] == line do
-            {zipper, assertion_patch(type, actual, assert, format_opts)}
+            {zipper, assertion_patch(type, loc, actual, assert, format_opts)}
           else
             {zipper, nil}
           end
@@ -62,15 +63,20 @@ defmodule Mneme.Patch do
 
   defp assertion_patch(
          type,
+         loc,
          actual,
          {:auto_assert, _, [inner]} = assert,
          format_opts
        ) do
+    original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
+
     replacement =
       {:auto_assert, [], [update_match(type, inner, quote_actual(actual))]}
       |> Sourceror.to_string(format_opts)
 
-    %{change: replacement, range: Sourceror.get_range(assert)}
+    if accept_change?(type, loc, original, replacement) do
+      %{change: replacement, range: Sourceror.get_range(assert)}
+    end
   end
 
   defp update_match(:new, value, expected) do
@@ -90,5 +96,40 @@ defmodule Mneme.Patch do
     source = File.read!(file)
     patched = Sourceror.patch_string(source, patches)
     File.write!(file, patched)
+  end
+
+  defp accept_change?(type, meta, original, replacement) do
+    operation =
+      case type do
+        :new -> "New"
+        :replace -> "Update"
+      end
+
+    message = """
+    \n[Mneme] #{operation} assertion - #{meta[:file]}:#{meta[:line]}
+
+    #{Format.prefix_lines(original, "- ")}
+    #{Format.prefix_lines(replacement, "+ ")}
+    """
+
+    IO.puts(message)
+    prompt_action("Accept change? (y/n) ")
+  end
+
+  defp prompt_action(prompt) do
+    IO.gets(prompt)
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      "y" ->
+        true
+
+      "n" ->
+        false
+
+      other ->
+        IO.puts("unknown response: #{other}")
+        prompt_action(prompt)
+    end
   end
 end

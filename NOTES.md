@@ -40,6 +40,7 @@ IO.inspect(
 
 ## TODO / To Remember
 
+- [ ] Should eval an ExUnit assert after accepting a new match
 - [ ] Shouldn't prompt if `CI` env var is set
 - [ ] Should handle `=` and `==`, need to because `assert` still expects a truth value
 - [ ] Add LICENSE prior to release
