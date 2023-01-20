@@ -1,0 +1,10 @@
+# exit:0
+
+[Mneme] New assertion
+
+- auto_assert {1, 2, 3}
++ auto_assert {1, 2, 3} = {1, 2, 3}
+
+Accept change? (y/n) !{y
+}.
+1 test, 0 failures

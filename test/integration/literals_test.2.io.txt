@@ -31,7 +31,7 @@ Accept change? (y/n) !{n
 
 1) test integers (MnemeIntegration.LiteralsTest)
 match (=) failed
-code:  assert 4 = actual
+code:  assert 4 = var!(actual)
 left:  4
 right: 3
 stacktrace:
@@ -40,7 +40,7 @@ stacktrace:
 
 2) test strings (MnemeIntegration.LiteralsTest)
 match (=) failed
-code:  assert "foobar" = actual
+code:  assert "foobar" = var!(actual)
 left:  "foobar"
 right: "foobaz"
 stacktrace:

@@ -2,6 +2,7 @@ defmodule Mneme.Patch do
   @moduledoc false
 
   alias Mneme.Format
+  alias Mneme.Serializer
   alias Sourceror.Zipper
 
   defmodule SuiteResult do
@@ -14,9 +15,9 @@ defmodule Mneme.Patch do
     %{state | patches: %{}}
   end
 
-  def handle_assertion(state, {type, _expr, actual, loc}) do
-    file = loc[:file]
-    line = loc[:line]
+  def handle_assertion(state, {type, _expr, actual, meta}) do
+    file = meta[:file]
+    line = meta[:line]
 
     {ast, format_opts, state} = cache_file_data(state, file)
 
@@ -26,7 +27,7 @@ defmodule Mneme.Patch do
       |> Zipper.traverse(nil, fn
         {{:auto_assert, meta, [_]} = assert, _} = zipper, nil ->
           if meta[:line] == line do
-            {zipper, assertion_patch(type, loc, actual, assert, format_opts)}
+            {zipper, assertion_patch(type, meta, actual, assert, format_opts)}
           else
             {zipper, nil}
           end
@@ -63,20 +64,19 @@ defmodule Mneme.Patch do
 
   defp assertion_patch(
          type,
-         loc,
+         meta,
          actual,
          {:auto_assert, _, [inner]} = assert,
          format_opts
        ) do
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
-
-    expectation = quoted_expectation(actual)
+    expectation = Serializer.to_match_expression(actual, meta)
 
     replacement =
       {:auto_assert, [], [update_match(type, inner, expectation)]}
       |> Sourceror.to_string(format_opts)
 
-    if accept_change?(type, loc, original, replacement) do
+    if accept_change?(type, meta, original, replacement) do
       %{expectation: expectation, change: replacement, range: Sourceror.get_range(assert)}
     end
   end
@@ -88,9 +88,6 @@ defmodule Mneme.Patch do
   defp update_match(:replace, {:=, meta, [_old, value]}, expected) do
     {:=, meta, [expected, value]}
   end
-
-  defp quoted_expectation(value) when is_integer(value), do: value
-  defp quoted_expectation(value) when is_binary(value), do: value
 
   defp patch_file!({_file, []}), do: :ok
 
@@ -119,18 +116,24 @@ defmodule Mneme.Patch do
   end
 
   defp prompt_action(prompt) do
-    IO.gets(prompt)
-    |> String.trim()
-    |> String.downcase()
-    |> case do
-      "y" ->
-        true
+    case IO.gets(prompt) do
+      response when is_binary(response) ->
+        response
+        |> String.trim()
+        |> String.downcase()
+        |> case do
+          "y" ->
+            true
 
-      "n" ->
-        false
+          "n" ->
+            false
 
-      other ->
-        IO.puts("unknown response: #{other}")
+          other ->
+            IO.puts("unknown response: #{other}")
+            prompt_action(prompt)
+        end
+
+      :eof ->
         prompt_action(prompt)
     end
   end

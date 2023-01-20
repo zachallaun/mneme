@@ -12,8 +12,11 @@ defmodule Mneme do
     Supervisor.start_link(children, opts)
   end
 
+  @doc """
+  Generates a match assertion.
+  """
   defmacro auto_assert({:=, _meta, [expected, actual]} = expr) do
-    code = __gen_assert_match__(expected, quote(do: actual))
+    code = __gen_assert_match__(expected)
     __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
   end
 
@@ -30,16 +33,16 @@ defmodule Mneme do
   def __gen_auto_assert__(type, env, expr, actual, code) do
     quote do
       expr = unquote(Macro.escape(expr))
-      actual = unquote(actual)
+      var!(actual) = unquote(actual)
       location = unquote(Macro.Env.location(env))
 
       try do
         unquote(code)
       rescue
         error in [ExUnit.AssertionError] ->
-          case Mneme.Server.await_assertion(unquote(type), expr, actual, location) do
+          case Mneme.Server.await_assertion(unquote(type), expr, var!(actual), location) do
             {:ok, expected} ->
-              Mneme.__gen_assert_match__(expected, actual)
+              Mneme.__gen_assert_match__(expected)
               |> Code.eval_quoted(binding(), __ENV__)
 
             :error ->
@@ -50,9 +53,9 @@ defmodule Mneme do
   end
 
   @doc false
-  def __gen_assert_match__(expr, actual) do
+  def __gen_assert_match__(expr) do
     quote do
-      ExUnit.Assertions.assert(unquote(expr) = unquote(actual))
+      ExUnit.Assertions.assert(unquote(expr) = var!(actual))
     end
   end
 end
