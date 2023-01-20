@@ -16,14 +16,14 @@ Accept change? (y/n) !{n
 }
 
 1) test integers (MnemeIntegration.LiteralsTest)
-auto_assert failed to construct a suitable assertion for 4
+No match present
 code: auto_assert 2 + 2
 stacktrace:
 
 
 
 2) test strings (MnemeIntegration.LiteralsTest)
-auto_assert failed to construct a suitable assertion for "foobar"
+No match present
 code: auto_assert "foo" <> "bar"
 stacktrace:
 

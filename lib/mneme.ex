@@ -13,20 +13,31 @@ defmodule Mneme do
   end
 
   defmacro auto_assert({:=, _meta, [expected, actual]} = expr) do
+    code = __gen_assert_match__(expected, quote(do: actual))
+    __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
+  end
+
+  defmacro auto_assert(expr) do
+    code =
+      quote do
+        raise ExUnit.AssertionError, message: "No match present"
+      end
+
+    __gen_auto_assert__(:new, __CALLER__, expr, expr, code)
+  end
+
+  @doc false
+  def __gen_auto_assert__(type, env, expr, actual, code) do
     quote do
+      expr = unquote(Macro.escape(expr))
       actual = unquote(actual)
-      location = unquote(Macro.Env.location(__CALLER__))
+      location = unquote(Macro.Env.location(env))
 
       try do
-        unquote(__gen_assert_match__(expected, quote(do: actual)))
+        unquote(code)
       rescue
         error in [ExUnit.AssertionError] ->
-          case Mneme.Server.await_assertion(
-                 :replace,
-                 unquote(Macro.escape(expr)),
-                 actual,
-                 location
-               ) do
+          case Mneme.Server.await_assertion(unquote(type), expr, actual, location) do
             {:ok, expected} ->
               Mneme.__gen_assert_match__(expected, actual)
               |> Code.eval_quoted(binding(), __ENV__)
@@ -38,28 +49,10 @@ defmodule Mneme do
     end
   end
 
-  defmacro auto_assert(expr) do
-    quote do
-      actual = unquote(expr)
-      expr = unquote(Macro.escape(expr))
-      location = unquote(Macro.Env.location(__CALLER__))
-
-      case Mneme.Server.await_assertion(:new, expr, actual, location) do
-        {:ok, expected} ->
-          Mneme.__gen_assert_match__(expected, actual)
-          |> Code.eval_quoted(binding(), __ENV__)
-
-        :error ->
-          raise ExUnit.AssertionError,
-            message: "auto_assert failed to construct a suitable assertion for #{inspect(actual)}"
-      end
-    end
-  end
-
   @doc false
-  def __gen_assert_match__(expected_expr, actual_value) do
+  def __gen_assert_match__(expr, actual) do
     quote do
-      ExUnit.Assertions.assert(unquote(expected_expr) = unquote(actual_value))
+      ExUnit.Assertions.assert(unquote(expr) = unquote(actual))
     end
   end
 end
