@@ -42,6 +42,7 @@ defmodule Mneme.MixProject do
   defp deps do
     [
       {:sourceror, "~> 0.11"},
+      {:rewrite, "~> 0.3.0"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test}
     ]

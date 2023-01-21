@@ -19,7 +19,7 @@ defmodule Mneme.Server do
   @impl true
   def init(_arg) do
     ExUnit.after_suite(&__MODULE__.after_suite/1)
-    {:ok, %Patch.SuiteResult{}}
+    {:ok, Patch.project()}
   end
 
   @impl true

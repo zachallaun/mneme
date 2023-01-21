@@ -3,31 +3,32 @@ defmodule Mneme.Patch do
 
   alias Mneme.Format
   alias Mneme.Serialize
+  alias Rewrite.DotFormatter
+  alias Rewrite.Project
+  alias Rewrite.Source
   alias Sourceror.Zipper
 
-  defmodule SuiteResult do
-    @moduledoc false
-    defstruct asts: %{}, patches: %{}, format_opts: %{}
+  def project, do: %Project{}
+
+  def apply_changes!(project) do
+    :ok = Project.save(project)
+    project()
   end
 
-  def apply_changes!(%SuiteResult{patches: patches} = state) do
-    Enum.each(patches, &patch_file!/1)
-    %{state | patches: %{}}
-  end
-
-  def handle_assertion(state, {type, _expr, actual, meta}) do
+  def handle_assertion(project, {type, _expr, actual, meta}) do
     file = meta[:file]
     line = meta[:line]
 
-    {ast, format_opts, state} = cache_file_data(state, file)
+    {source, project} = get_source(project, file)
 
     {_, patch} =
-      ast
+      source
+      |> Source.ast()
       |> Zipper.zip()
       |> Zipper.traverse(nil, fn
         {{:auto_assert, assert_meta, [_]} = assert, _} = zipper, nil ->
           if assert_meta[:line] == line do
-            {zipper, assertion_patch(type, meta, actual, assert, format_opts)}
+            {zipper, assertion_patch(type, meta, actual, assert)}
           else
             {zipper, nil}
           end
@@ -43,22 +44,15 @@ defmodule Mneme.Patch do
     end
   end
 
-  defp cache_file_data(%{asts: asts} = state, file) do
-    case {asts, file} do
-      {%{^file => ast}, file} ->
-        {ast, state.format_opts[file], state}
+  defp get_source(project, file) do
+    case Project.source(project, file) do
+      {:ok, source} ->
+        {source, project}
 
-      {_asts, file} ->
-        ast = file |> File.read!() |> Sourceror.parse_string!()
-        {_, format_opts} = Mix.Tasks.Format.formatter_for_file(file)
-
-        state =
-          state
-          |> Map.update!(:asts, &Map.put(&1, file, ast))
-          |> Map.update!(:format_opts, &Map.put(&1, file, format_opts))
-          |> Map.update!(:patches, &Map.put(&1, file, []))
-
-        {ast, format_opts, state}
+      :error ->
+        source = Source.read!(file)
+        project = Project.update(project, source)
+        {source, project}
     end
   end
 
@@ -66,9 +60,9 @@ defmodule Mneme.Patch do
          type,
          meta,
          actual,
-         {:auto_assert, _, [inner]} = assert,
-         format_opts
+         {:auto_assert, _, [inner]} = assert
        ) do
+    format_opts = DotFormatter.opts()
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
     expr = update_match(type, inner, Serialize.to_match_expressions(actual, meta))
 
