@@ -37,7 +37,7 @@ defmodule Mneme.Patch do
       end)
 
     if patch do
-      {{:ok, patch.expectation}, update_in(state.patches[file], &[patch | &1])}
+      {{:ok, patch.expr}, update_in(state.patches[file], &[patch | &1])}
     else
       {:error, state}
     end
@@ -70,14 +70,14 @@ defmodule Mneme.Patch do
          format_opts
        ) do
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
-    expectation = Serialize.to_match_expressions(actual, meta)
+    expr = update_match(type, inner, Serialize.to_match_expressions(actual, meta))
 
     replacement =
-      {:auto_assert, [], [update_match(type, inner, expectation)]}
+      {:auto_assert, [], [expr]}
       |> Sourceror.to_string(format_opts)
 
     if accept_change?(type, meta, original, replacement) do
-      %{expectation: expectation, change: replacement, range: Sourceror.get_range(assert)}
+      %{expr: expr, change: replacement, range: Sourceror.get_range(assert)}
     end
   end
 

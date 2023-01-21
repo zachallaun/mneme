@@ -120,7 +120,10 @@ defimpl Mneme.Serializer, for: Reference do
   end
 end
 
-# defimpl Mneme.Serializer, for: Atom do
+defimpl Mneme.Serializer, for: Atom do
+  def to_match_expressions(atom, _meta), do: {atom, nil}
+end
+
 # defimpl Mneme.Serializer, for: Float do
 # defimpl Mneme.Serializer, for: Function do
 # defimpl Mneme.Serializer, for: PID do
