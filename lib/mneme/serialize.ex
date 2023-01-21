@@ -49,6 +49,25 @@ defmodule Mneme.Serialize do
   def remote_call(module, fun, args) do
     {{:., [], [{:__aliases__, [alias: false], [module]}, fun]}, [], args}
   end
+
+  @doc """
+  Generate a unique var expression for the current binding.
+
+  ## Examples
+
+      iex> unique_var(:ref, [])
+      {:ref, [], nil}
+
+      iex> unique_var(:ref, [ref: :foo])
+      {:ref2, [], nil}
+  """
+  def unique_var(name, binding, i \\ 2) do
+    if name in Keyword.keys(binding) do
+      unique_var(:"#{name}#{i}", binding, i + 1)
+    else
+      {name, [], nil}
+    end
+  end
 end
 
 defprotocol Mneme.Serializer do
@@ -74,6 +93,12 @@ defimpl Mneme.Serializer, for: BitString do
   def to_match_expressions(str, _meta), do: {str, nil}
 end
 
+defimpl Mneme.Serializer, for: List do
+  def to_match_expressions(list, meta) do
+    Mneme.Serialize.map_to_match_expressions(list, meta)
+  end
+end
+
 defimpl Mneme.Serializer, for: Tuple do
   def to_match_expressions(tuple, meta) do
     values = Tuple.to_list(tuple)
@@ -89,14 +114,13 @@ defimpl Mneme.Serializer, for: Reference do
         {pin, nil}
 
       _ ->
-        var = {:ref, [], nil}
+        var = Mneme.Serialize.unique_var(:ref, meta[:binding])
         {var, {:is_reference, [], [var]}}
     end
   end
 end
 
 # defimpl Mneme.Serializer, for: Atom do
-# defimpl Mneme.Serializer, for: List do
 # defimpl Mneme.Serializer, for: Float do
 # defimpl Mneme.Serializer, for: Function do
 # defimpl Mneme.Serializer, for: PID do

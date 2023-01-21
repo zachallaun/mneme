@@ -15,12 +15,12 @@ defmodule Mneme do
   @doc """
   Generates a match assertion.
   """
-  defmacro auto_assert({:when, _, [expected, {:=, [], [guard, actual]}]} = expr) do
+  defmacro auto_assert({:<-, _, [{:when, _, [expected, guard]}, actual]} = expr) do
     code = __gen_assert_match__({expected, guard})
     __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
   end
 
-  defmacro auto_assert({:=, _, [expected, actual]} = expr) do
+  defmacro auto_assert({:<-, _, [expected, actual]} = expr) do
     code = __gen_assert_match__({expected, nil})
     __gen_auto_assert__(:replace, __CALLER__, expr, actual, code)
   end
@@ -37,15 +37,17 @@ defmodule Mneme do
   @doc false
   def __gen_auto_assert__(type, env, expr, actual, code) do
     quote do
-      meta = [module: __MODULE__, binding: binding()] ++ unquote(Macro.Env.location(env))
-      expr = unquote(Macro.escape(expr))
       var!(actual) = unquote(actual)
+      locals = Keyword.delete(binding(), :actual)
+      meta = [module: __MODULE__, binding: locals] ++ unquote(Macro.Env.location(env))
 
       try do
         unquote(code)
       rescue
         error in [ExUnit.AssertionError] ->
-          case Mneme.Server.await_assertion({unquote(type), expr, var!(actual), meta}) do
+          assertion = {unquote(type), unquote(Macro.escape(expr)), var!(actual), meta}
+
+          case Mneme.Server.await_assertion(assertion) do
             {:ok, expected} ->
               Mneme.__gen_assert_match__(expected)
               |> Code.eval_quoted(binding(), __ENV__)

@@ -3,14 +3,28 @@
 [Mneme] New assertion
 
 - auto_assert Function.identity(my_ref)
-+ auto_assert ^my_ref = Function.identity(my_ref)
++ auto_assert ^my_ref <- Function.identity(my_ref)
+
+Accept change? (y/n) !{y
+}
+[Mneme] New assertion
+
+- auto_assert [my_ref]
++ auto_assert [^my_ref] <- [my_ref]
 
 Accept change? (y/n) !{y
 }.
 [Mneme] New assertion
 
 - auto_assert make_ref()
-+ auto_assert ref when is_reference(ref) = make_ref()
++ auto_assert ref when is_reference(ref) <- make_ref()
+
+Accept change? (y/n) !{y
+}
+[Mneme] New assertion
+
+- auto_assert [make_ref()]
++ auto_assert [ref] when is_reference(ref) <- [make_ref()]
 
 Accept change? (y/n) !{y
 }.

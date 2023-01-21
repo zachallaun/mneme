@@ -7,10 +7,10 @@ defmodule MnemeIntegration.LiteralsTest do
     auto_assert 2 + 2
 
     # correct assertion
-    auto_assert 4 = 2 + 2
+    auto_assert 4 <- 2 + 2
 
     # incorrect assertion
-    auto_assert 4 = 2 + 1
+    auto_assert 4 <- 2 + 1
   end
 
   test "strings" do
@@ -18,9 +18,9 @@ defmodule MnemeIntegration.LiteralsTest do
     auto_assert "foo" <> "bar"
 
     # correct assertion
-    auto_assert "foobar" = "foo" <> "bar"
+    auto_assert "foobar" <- "foo" <> "bar"
 
     # incorrect assertion
-    auto_assert "foobar" = "foo" <> "baz"
+    auto_assert "foobar" <- "foo" <> "baz"
   end
 end

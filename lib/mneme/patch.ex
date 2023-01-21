@@ -85,16 +85,16 @@ defmodule Mneme.Patch do
     match_expr(expected, value, [])
   end
 
-  defp update_match(:replace, {:=, meta, [_old, value]}, expected) do
+  defp update_match(:replace, {:<-, meta, [_old, value]}, expected) do
     match_expr(expected, value, meta)
   end
 
   defp match_expr({match_expr, nil}, value, meta) do
-    {:=, meta, [match_expr, value]}
+    {:<-, meta, [match_expr, value]}
   end
 
   defp match_expr({match_expr, conditions}, value, meta) do
-    {:when, meta, [match_expr, {:=, [], [conditions, value]}]}
+    {:<-, meta, [{:when, [], [match_expr, conditions]}, value]}
   end
 
   defp patch_file!({_file, []}), do: :ok

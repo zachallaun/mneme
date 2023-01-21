@@ -5,10 +5,14 @@ defmodule MnemeIntegration.NonSerializableTest do
   test "pinned reference" do
     my_ref = make_ref()
 
-    auto_assert ^my_ref = Function.identity(my_ref)
+    auto_assert ^my_ref <- Function.identity(my_ref)
+
+    auto_assert [^my_ref] <- [my_ref]
   end
 
   test "is_reference guard" do
-    auto_assert ref when is_reference(ref) = make_ref()
+    auto_assert ref when is_reference(ref) <- make_ref()
+
+    auto_assert [ref] when is_reference(ref) <- [make_ref()]
   end
 end
