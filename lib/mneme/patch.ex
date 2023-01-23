@@ -77,7 +77,11 @@ defmodule Mneme.Patch do
       |> Sourceror.to_string(format_opts)
 
     if accept_change?(type, meta, original, replacement) do
-      %{expr: expr, change: replacement, range: Sourceror.get_range(assert)}
+      %{
+        expr: expr,
+        change: replacement,
+        range: Sourceror.get_range(assert)
+      }
     end
   end
 
@@ -95,14 +99,6 @@ defmodule Mneme.Patch do
 
   defp match_expr({match_expr, conditions}, value, meta) do
     {:<-, meta, [{:when, [], [match_expr, conditions]}, value]}
-  end
-
-  defp patch_file!({_file, []}), do: :ok
-
-  defp patch_file!({file, patches}) do
-    source = File.read!(file)
-    patched = Sourceror.patch_string(source, patches)
-    File.write!(file, patched)
   end
 
   defp accept_change?(type, meta, original, replacement) do
@@ -144,5 +140,13 @@ defmodule Mneme.Patch do
       :eof ->
         prompt_action(prompt)
     end
+  end
+
+  defp patch_file!({_file, []}), do: :ok
+
+  defp patch_file!({file, patches}) do
+    source = File.read!(file)
+    patched = Sourceror.patch_string(source, patches)
+    File.write!(file, patched)
   end
 end

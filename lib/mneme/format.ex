@@ -7,8 +7,6 @@ defmodule Mneme.Format do
   def prefix_lines(message, prefix) do
     message
     |> String.split("\n")
-    |> Enum.map(&[prefix, &1])
-    |> Enum.intersperse("\n")
-    |> IO.iodata_to_binary()
+    |> Enum.map_join("\n", &(prefix <> &1))
   end
 end

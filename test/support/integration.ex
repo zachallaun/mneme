@@ -47,9 +47,8 @@ defmodule Mneme.Integration do
 
            Expected:
          #{indent(expected_source, "    ")}
-
            Actual:
-         #{indent(actual_source, "    ")}
+         #{indent(actual_source, "    ")}\
          """},
         {actual_output == expected_output,
          """
