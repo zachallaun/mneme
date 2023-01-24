@@ -23,17 +23,20 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:assertion, assertion}, _from, state) do
-    {patch, state} = Patch.patch_for_assertion(state, assertion)
+  def handle_call({:assertion, {_type, _value, context} = assertion}, _from, state) do
+    state = Patch.load_file!(state, context)
+    {patch, state} = Patch.patch_assertion(state, assertion)
 
-    if Patch.accept_patch?(patch) do
-      {:reply, {:ok, patch.expr}, Patch.accept(state, patch)}
-    else
-      {:reply, :error, Patch.reject(state, patch)}
+    case Patch.accept_patch?(state, patch) do
+      {true, state} ->
+        {:reply, {:ok, patch.expr}, Patch.accept(state, patch)}
+
+      {false, state} ->
+        {:reply, :error, Patch.reject(state, patch)}
     end
   end
 
   def handle_call(:after_suite, _from, state) do
-    {:reply, :ok, Patch.finalize(state)}
+    {:reply, :ok, Patch.finalize!(state)}
   end
 end

@@ -8,7 +8,8 @@ defmodule Mneme.Patch do
 
   defmodule SuiteResult do
     @moduledoc false
-    defstruct asts: %{},
+    defstruct sources: %{},
+              asts: %{},
               accepted_patches: %{},
               rejected_patches: %{},
               format_opts: [],
@@ -25,12 +26,12 @@ defmodule Mneme.Patch do
   @doc """
   Finalize all patches, writing all results to disk.
   """
-  def finalize(%SuiteResult{finalized: false, accepted_patches: patches} = state) do
+  def finalize!(%SuiteResult{finalized: false, accepted_patches: patches} = state) do
     Enum.each(patches, &patch_file!/1)
     %{state | finalized: true}
   end
 
-  def finalize(%SuiteResult{finalized: true} = state), do: state
+  def finalize!(%SuiteResult{finalized: true} = state), do: state
 
   @doc """
   Accepts a patch.
@@ -49,7 +50,14 @@ defmodule Mneme.Patch do
   @doc """
   Prompts the user to accept the patch.
   """
-  def accept_patch?(%{type: type, context: context, original: original, replacement: replacement}) do
+  def accept_patch?(%SuiteResult{} = state, patch) do
+    %{
+      type: type,
+      context: context,
+      original: original,
+      replacement: replacement
+    } = patch
+
     operation =
       case type do
         :new -> "New"
@@ -64,17 +72,38 @@ defmodule Mneme.Patch do
     """
 
     IO.puts(message)
-    prompt_action("Accept change? (y/n) ")
+    accept? = prompt_accept?("Accept change? (y/n) ")
+
+    {accept?, state}
+  end
+
+  @doc """
+  """
+  def load_file!(%SuiteResult{} = state, context) do
+    with {:ok, file} <- Keyword.fetch(context, :file),
+         nil <- state.sources[file] do
+      source = File.read!(file)
+      ast = Sourceror.parse_string!(source)
+
+      state
+      |> Map.update!(:sources, &Map.put(&1, file, ast))
+      |> Map.update!(:asts, &Map.put(&1, file, ast))
+      |> Map.update!(:accepted_patches, &Map.put(&1, file, []))
+      |> Map.update!(:rejected_patches, &Map.put(&1, file, []))
+    else
+      _ -> state
+    end
   end
 
   @doc """
   Construct the patch and updated state for the given assertion.
+
+  Returns `{patch, state}`.
   """
-  def patch_for_assertion(state, {type, actual, context}) do
+  def patch_assertion(%SuiteResult{asts: asts} = state, {type, actual, context}) do
     file = context[:file]
     line = context[:line]
-
-    {ast, state} = file_data(state, file)
+    ast = Map.fetch!(asts, file)
 
     {_, patch} =
       ast
@@ -92,24 +121,6 @@ defmodule Mneme.Patch do
       end)
 
     {patch, state}
-  end
-
-  defp file_data(%{asts: asts} = state, file) do
-    case {asts, file} do
-      {%{^file => ast}, _} ->
-        {ast, state}
-
-      {_asts, file} ->
-        ast = file |> File.read!() |> Sourceror.parse_string!()
-
-        state =
-          state
-          |> Map.update!(:asts, &Map.put(&1, file, ast))
-          |> Map.update!(:accepted_patches, &Map.put(&1, file, []))
-          |> Map.update!(:rejected_patches, &Map.put(&1, file, []))
-
-        {ast, state}
-    end
   end
 
   defp create_patch(
@@ -153,7 +164,7 @@ defmodule Mneme.Patch do
     {:<-, meta, [{:when, [], [match_expr, conditions]}, value]}
   end
 
-  defp prompt_action(prompt) do
+  defp prompt_accept?(prompt) do
     case IO.gets(prompt) do
       response when is_binary(response) ->
         response
@@ -168,11 +179,11 @@ defmodule Mneme.Patch do
 
           other ->
             IO.puts("unknown response: #{other}")
-            prompt_action(prompt)
+            prompt_accept?(prompt)
         end
 
       :eof ->
-        prompt_action(prompt)
+        prompt_accept?(prompt)
     end
   end
 
