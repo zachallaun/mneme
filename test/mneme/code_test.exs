@@ -24,7 +24,8 @@ defmodule Mneme.CodeTest do
                         {:=, [],
                          [
                            {:foo, [], Mneme.CodeTest},
-                           {:var!, [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
+                           {:var!,
+                            [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
                             [{:actual, [], Mneme.Code}]}
                          ]}
                       ]},

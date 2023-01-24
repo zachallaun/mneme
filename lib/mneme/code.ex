@@ -45,19 +45,11 @@ defmodule Mneme.Code do
     {:auto_assert, [], [pattern]}
   end
 
-  defp update_pattern(:new, value_expr, expected) do
-    pattern_expr(expected, value_expr, [])
+  defp update_pattern(:new, value_expr, pattern) do
+    {:<-, [], [pattern, value_expr]}
   end
 
-  defp update_pattern(:replace, {:<-, meta, [_pattern, value_expr]}, expected) do
-    pattern_expr(expected, value_expr, meta)
-  end
-
-  defp pattern_expr({match_expr, nil}, value_expr, meta) do
-    {:<-, meta, [match_expr, value_expr]}
-  end
-
-  defp pattern_expr({match_expr, conditions}, value_expr, meta) do
-    {:<-, meta, [{:when, [], [match_expr, conditions]}, value_expr]}
+  defp update_pattern(:replace, {:<-, meta, [_pattern, value_expr]}, pattern) do
+    {:<-, meta, [pattern, value_expr]}
   end
 end

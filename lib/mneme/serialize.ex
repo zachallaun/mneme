@@ -6,14 +6,19 @@ defmodule Mneme.Serialize do
   alias Mneme.Serializer
 
   @doc """
-  Delegates to `Mneme.Serializer.to_pattern/2`.
+  Generates a Mneme pattern expression from a runtime value.
   """
-  @spec to_pattern(Serializer.t(), keyword()) :: {Macro.t(), Macro.t() | nil}
-  defdelegate to_pattern(value, meta), to: Serializer
+  @spec to_pattern(Serializer.t(), keyword()) :: Macro.t()
+  def to_pattern(value, context \\ []) do
+    case Serializer.to_pattern(value, context) do
+      {pattern, nil} -> pattern
+      {pattern, guard} -> {:when, [], [pattern, guard]}
+    end
+  end
 
   @doc """
   Returns `{:ok, pin_expr}` if the value can be found in the given
-  context, or `:error` otherwise.
+  binding, or `:error` otherwise.
   """
   def fetch_pinned(value, binding) do
     case List.keyfind(binding, value, 1) do
@@ -28,7 +33,7 @@ defmodule Mneme.Serialize do
   """
   def list_to_pattern(values, meta) do
     Enum.map_reduce(values, nil, fn value, guard ->
-      case {guard, to_pattern(value, meta)} do
+      case {guard, Serializer.to_pattern(value, meta)} do
         {nil, {expr, guard}} -> {expr, guard}
         {guard, {expr, nil}} -> {expr, guard}
         {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
@@ -51,25 +56,6 @@ defmodule Mneme.Serialize do
   def remote_call(module, fun, args) do
     {{:., [], [{:__aliases__, [alias: false], [module]}, fun]}, [], args}
   end
-
-  @doc """
-  Generate a unique var expression for the current binding.
-
-  ## Examples
-
-      iex> unique_var(:ref, [])
-      {:ref, [], nil}
-
-      iex> unique_var(:ref, [ref: :foo])
-      {:ref2, [], nil}
-  """
-  def unique_var(name, binding, i \\ 2) do
-    if name in Keyword.keys(binding) do
-      unique_var(:"#{name}#{i}", binding, i + 1)
-    else
-      {name, [], nil}
-    end
-  end
 end
 
 defprotocol Mneme.Serializer do
@@ -89,6 +75,10 @@ end
 
 defimpl Mneme.Serializer, for: Integer do
   def to_pattern(int, _meta), do: {int, nil}
+end
+
+defimpl Mneme.Serializer, for: Float do
+  def to_pattern(float, _meta), do: {float, nil}
 end
 
 defimpl Mneme.Serializer, for: BitString do
@@ -111,12 +101,12 @@ end
 
 defimpl Mneme.Serializer, for: Reference do
   def to_pattern(ref, meta) do
-    case Mneme.Serialize.fetch_pinned(ref, meta[:binding]) do
+    case Mneme.Serialize.fetch_pinned(ref, meta[:binding] || []) do
       {:ok, pin} ->
         {pin, nil}
 
       _ ->
-        var = Mneme.Serialize.unique_var(:ref, meta[:binding])
+        var = {:ref, [], nil}
         {var, {:is_reference, [], [var]}}
     end
   end
