@@ -41,7 +41,8 @@ defmodule Mneme.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:sourceror, github: "zachallaun/sourceror", ref: "get-range-fix"},
+      {:sourceror, github: "doorgan/sourceror", ref: "main", override: true},
+      {:rewrite, github: "hrzndhrn/rewrite", ref: "main"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test}
     ]

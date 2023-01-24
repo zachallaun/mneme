@@ -4,7 +4,7 @@ defmodule Mneme.CodeTest do
   import Mneme.Code
 
   describe "mneme_to_exunit/1" do
-    test "constructs an assert expression" do
+    test "builds an assertion" do
       auto_assert {:assert, [],
                    [
                      {:=, [],
@@ -14,6 +14,27 @@ defmodule Mneme.CodeTest do
                          [{:actual, [], Mneme.Code}]}
                       ]}
                    ]} <- mneme_to_exunit(quote(do: 123 <- 123))
+    end
+
+    test "builds multiple assertions if guards are used" do
+      auto_assert {:__block__, [],
+                   [
+                     {:assert, [],
+                      [
+                        {:=, [],
+                         [
+                           {:foo, [], Mneme.CodeTest},
+                           {:var!,
+                            [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
+                            [{:actual, [], Mneme.Code}]}
+                         ]}
+                      ]},
+                     {:assert, [],
+                      [
+                        {:is_integer, [{:context, Mneme.CodeTest}, {:imports, [{1, Kernel}]}],
+                         [{:foo, [], Mneme.CodeTest}]}
+                      ]}
+                   ]} <- mneme_to_exunit(quote(do: foo when is_integer(foo) <- 123))
     end
   end
 end

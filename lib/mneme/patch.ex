@@ -7,7 +7,7 @@ defmodule Mneme.Patch do
 
   defmodule SuiteResult do
     @moduledoc false
-    defstruct asts: %{}, patches: %{}, format_opts: %{}
+    defstruct asts: %{}, patches: %{}
   end
 
   def apply_changes!(%SuiteResult{patches: patches} = state) do
@@ -19,7 +19,7 @@ defmodule Mneme.Patch do
     file = meta[:file]
     line = meta[:line]
 
-    {ast, format_opts, state} = cache_file_data(state, file)
+    {ast, state} = file_data(state, file)
 
     {_, patch} =
       ast
@@ -27,7 +27,7 @@ defmodule Mneme.Patch do
       |> Zipper.traverse(nil, fn
         {{:auto_assert, assert_meta, [_]} = assert, _} = zipper, nil ->
           if assert_meta[:line] == line do
-            {zipper, assertion_patch(type, meta, actual, assert, format_opts)}
+            {zipper, assertion_patch(type, meta, actual, assert)}
           else
             {zipper, nil}
           end
@@ -43,22 +43,20 @@ defmodule Mneme.Patch do
     end
   end
 
-  defp cache_file_data(%{asts: asts} = state, file) do
+  defp file_data(%{asts: asts} = state, file) do
     case {asts, file} do
-      {%{^file => ast}, file} ->
-        {ast, state.format_opts[file], state}
+      {%{^file => ast}, _} ->
+        {ast, state}
 
       {_asts, file} ->
         ast = file |> File.read!() |> Sourceror.parse_string!()
-        {_, format_opts} = Mix.Tasks.Format.formatter_for_file(file)
 
         state =
           state
           |> Map.update!(:asts, &Map.put(&1, file, ast))
-          |> Map.update!(:format_opts, &Map.put(&1, file, format_opts))
           |> Map.update!(:patches, &Map.put(&1, file, []))
 
-        {ast, format_opts, state}
+        {ast, state}
     end
   end
 
@@ -66,9 +64,9 @@ defmodule Mneme.Patch do
          type,
          meta,
          actual,
-         {:auto_assert, _, [inner]} = assert,
-         format_opts
+         {:auto_assert, _, [inner]} = assert
        ) do
+    format_opts = Rewrite.DotFormatter.opts()
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
     expr = update_match(type, inner, Serialize.to_match_expressions(actual, meta))
 
@@ -77,11 +75,7 @@ defmodule Mneme.Patch do
       |> Sourceror.to_string(format_opts)
 
     if accept_change?(type, meta, original, replacement) do
-      %{
-        expr: expr,
-        change: replacement,
-        range: Sourceror.get_range(assert)
-      }
+      %{expr: expr, change: replacement, range: Sourceror.get_range(assert)}
     end
   end
 
