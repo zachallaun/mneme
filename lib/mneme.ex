@@ -16,7 +16,7 @@ defmodule Mneme do
   Generates a match assertion.
   """
   defmacro auto_assert({:<-, _, [_, actual]} = expr) do
-    assertion = Mneme.Code.mneme_to_exunit(expr)
+    assertion = Mneme.Code.mneme_to_exunit({:auto_assert, [], [expr]})
     __gen_auto_assert__(:replace, __CALLER__, actual, assertion)
   end
 

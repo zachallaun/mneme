@@ -1,13 +1,15 @@
 defmodule Mneme.Serialize do
-  @moduledoc false
+  @moduledoc """
+  Helpers for converting runtime values to match patterns.
+  """
 
   alias Mneme.Serializer
 
   @doc """
-  Delegates to `Mneme.Serializer.to_match_expressions/2`.
+  Delegates to `Mneme.Serializer.to_pattern/2`.
   """
-  @spec to_match_expressions(Serializer.t(), keyword()) :: {Macro.t(), Macro.t() | nil}
-  defdelegate to_match_expressions(value, meta), to: Serializer
+  @spec to_pattern(Serializer.t(), keyword()) :: {Macro.t(), Macro.t() | nil}
+  defdelegate to_pattern(value, meta), to: Serializer
 
   @doc """
   Returns `{:ok, pin_expr}` if the value can be found in the given
@@ -24,9 +26,9 @@ defmodule Mneme.Serialize do
   Maps a list of values to their match expressions, combining any guards
   into a single clause with `and`.
   """
-  def map_to_match_expressions(values, meta) do
+  def list_to_pattern(values, meta) do
     Enum.map_reduce(values, nil, fn value, guard ->
-      case {guard, to_match_expressions(value, meta)} do
+      case {guard, to_pattern(value, meta)} do
         {nil, {expr, guard}} -> {expr, guard}
         {guard, {expr, nil}} -> {expr, guard}
         {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
@@ -81,34 +83,34 @@ defprotocol Mneme.Serializer do
   Note that `guard_expression` can be `nil`, in which case the guard
   check will not occur.
   """
-  @spec to_match_expressions(t, keyword()) :: {Macro.t(), Macro.t() | nil}
-  def to_match_expressions(value, meta)
+  @spec to_pattern(t, keyword()) :: {Macro.t(), Macro.t() | nil}
+  def to_pattern(value, meta)
 end
 
 defimpl Mneme.Serializer, for: Integer do
-  def to_match_expressions(int, _meta), do: {int, nil}
+  def to_pattern(int, _meta), do: {int, nil}
 end
 
 defimpl Mneme.Serializer, for: BitString do
-  def to_match_expressions(str, _meta), do: {str, nil}
+  def to_pattern(str, _meta), do: {str, nil}
 end
 
 defimpl Mneme.Serializer, for: List do
-  def to_match_expressions(list, meta) do
-    Mneme.Serialize.map_to_match_expressions(list, meta)
+  def to_pattern(list, meta) do
+    Mneme.Serialize.list_to_pattern(list, meta)
   end
 end
 
 defimpl Mneme.Serializer, for: Tuple do
-  def to_match_expressions(tuple, meta) do
+  def to_pattern(tuple, meta) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = Mneme.Serialize.map_to_match_expressions(values, meta)
+    {value_matches, guard} = Mneme.Serialize.list_to_pattern(values, meta)
     {{:{}, [], value_matches}, guard}
   end
 end
 
 defimpl Mneme.Serializer, for: Reference do
-  def to_match_expressions(ref, meta) do
+  def to_pattern(ref, meta) do
     case Mneme.Serialize.fetch_pinned(ref, meta[:binding]) do
       {:ok, pin} ->
         {pin, nil}
@@ -121,7 +123,7 @@ defimpl Mneme.Serializer, for: Reference do
 end
 
 defimpl Mneme.Serializer, for: Atom do
-  def to_match_expressions(atom, _meta), do: {atom, nil}
+  def to_pattern(atom, _meta), do: {atom, nil}
 end
 
 # defimpl Mneme.Serializer, for: Float do

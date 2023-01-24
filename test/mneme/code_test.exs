@@ -13,7 +13,7 @@ defmodule Mneme.CodeTest do
                         {:var!, [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
                          [{:actual, [], Mneme.Code}]}
                       ]}
-                   ]} <- mneme_to_exunit(quote(do: 123 <- 123))
+                   ]} <- mneme_to_exunit(quote(do: auto_assert(123 <- 123)))
     end
 
     test "builds multiple assertions if guards are used" do
@@ -24,8 +24,7 @@ defmodule Mneme.CodeTest do
                         {:=, [],
                          [
                            {:foo, [], Mneme.CodeTest},
-                           {:var!,
-                            [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
+                           {:var!, [{:context, Mneme.Code}, {:imports, [{1, Kernel}, {2, Kernel}]}],
                             [{:actual, [], Mneme.Code}]}
                          ]}
                       ]},
@@ -34,7 +33,7 @@ defmodule Mneme.CodeTest do
                         {:is_integer, [{:context, Mneme.CodeTest}, {:imports, [{1, Kernel}]}],
                          [{:foo, [], Mneme.CodeTest}]}
                       ]}
-                   ]} <- mneme_to_exunit(quote(do: foo when is_integer(foo) <- 123))
+                   ]} <- mneme_to_exunit(quote(do: auto_assert(foo when is_integer(foo) <- 123)))
     end
   end
 end
