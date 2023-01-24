@@ -6,14 +6,14 @@ defmodule Mneme.Patch do
   alias Rewrite.DotFormatter
   alias Sourceror.Zipper
 
+  defmodule FileResult do
+    @moduledoc false
+    defstruct [:file, :source, :ast, accepted: [], rejected: []]
+  end
+
   defmodule SuiteResult do
     @moduledoc false
-    defstruct sources: %{},
-              asts: %{},
-              accepted_patches: %{},
-              rejected_patches: %{},
-              format_opts: [],
-              finalized: false
+    defstruct [:format_opts, files: %{}, finalized: false]
   end
 
   @doc """
@@ -26,8 +26,12 @@ defmodule Mneme.Patch do
   @doc """
   Finalize all patches, writing all results to disk.
   """
-  def finalize!(%SuiteResult{finalized: false, accepted_patches: patches} = state) do
-    Enum.each(patches, &patch_file!/1)
+  def finalize!(%SuiteResult{finalized: false, files: files} = state) do
+    for {_, %FileResult{file: file, source: source, accepted: patches}} <- files do
+      patched = Sourceror.patch_string(source, patches)
+      File.write!(file, patched)
+    end
+
     %{state | finalized: true}
   end
 
@@ -37,14 +41,14 @@ defmodule Mneme.Patch do
   Accepts a patch.
   """
   def accept(%SuiteResult{} = state, patch) do
-    update_in(state.accepted_patches[patch.context[:file]], &[patch | &1])
+    update_in(state.files[patch.context[:file]].accepted, &[patch | &1])
   end
 
   @doc """
   Rejects a patch.
   """
   def reject(%SuiteResult{} = state, patch) do
-    update_in(state.rejected_patches[patch.context[:file]], &[patch | &1])
+    update_in(state.files[patch.context[:file]].rejected, &[patch | &1])
   end
 
   @doc """
@@ -79,17 +83,18 @@ defmodule Mneme.Patch do
 
   @doc """
   """
-  def load_file!(%SuiteResult{} = state, context) do
+  def load_file!(%SuiteResult{files: files} = state, context) do
     with {:ok, file} <- Keyword.fetch(context, :file),
-         nil <- state.sources[file] do
+         nil <- state.files[file] do
       source = File.read!(file)
-      ast = Sourceror.parse_string!(source)
 
-      state
-      |> Map.update!(:sources, &Map.put(&1, file, ast))
-      |> Map.update!(:asts, &Map.put(&1, file, ast))
-      |> Map.update!(:accepted_patches, &Map.put(&1, file, []))
-      |> Map.update!(:rejected_patches, &Map.put(&1, file, []))
+      file_result = %FileResult{
+        file: file,
+        source: source,
+        ast: Sourceror.parse_string!(source)
+      }
+
+      %{state | files: Map.put(files, file, file_result)}
     else
       _ -> state
     end
@@ -100,10 +105,10 @@ defmodule Mneme.Patch do
 
   Returns `{patch, state}`.
   """
-  def patch_assertion(%SuiteResult{asts: asts} = state, {type, actual, context}) do
+  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}) do
     file = context[:file]
     line = context[:line]
-    ast = Map.fetch!(asts, file)
+    ast = Map.fetch!(files, file).ast
 
     {_, patch} =
       ast
@@ -185,13 +190,5 @@ defmodule Mneme.Patch do
       :eof ->
         prompt_accept?(prompt)
     end
-  end
-
-  defp patch_file!({_file, []}), do: :ok
-
-  defp patch_file!({file, patches}) do
-    source = File.read!(file)
-    patched = Sourceror.patch_string(source, patches)
-    File.write!(file, patched)
   end
 end
