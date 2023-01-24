@@ -3,21 +3,76 @@ defmodule Mneme.Patch do
 
   alias Mneme.Format
   alias Mneme.Serialize
+  alias Rewrite.DotFormatter
   alias Sourceror.Zipper
 
   defmodule SuiteResult do
     @moduledoc false
-    defstruct asts: %{}, patches: %{}
+    defstruct asts: %{},
+              accepted_patches: %{},
+              rejected_patches: %{},
+              format_opts: [],
+              finalized: false
   end
 
-  def apply_changes!(%SuiteResult{patches: patches} = state) do
+  @doc """
+  Initialize patch state.
+  """
+  def init do
+    %SuiteResult{format_opts: DotFormatter.opts()}
+  end
+
+  @doc """
+  Finalize all patches, writing all results to disk.
+  """
+  def finalize(%SuiteResult{finalized: false, accepted_patches: patches} = state) do
     Enum.each(patches, &patch_file!/1)
-    %{state | patches: %{}}
+    %{state | finalized: true}
   end
 
-  def handle_assertion(state, {type, _expr, actual, meta}) do
-    file = meta[:file]
-    line = meta[:line]
+  def finalize(%SuiteResult{finalized: true} = state), do: state
+
+  @doc """
+  Accepts a patch.
+  """
+  def accept(%SuiteResult{} = state, patch) do
+    update_in(state.accepted_patches[patch.context[:file]], &[patch | &1])
+  end
+
+  @doc """
+  Rejects a patch.
+  """
+  def reject(%SuiteResult{} = state, patch) do
+    update_in(state.rejected_patches[patch.context[:file]], &[patch | &1])
+  end
+
+  @doc """
+  Prompts the user to accept the patch.
+  """
+  def accept_patch?(%{type: type, context: context, original: original, replacement: replacement}) do
+    operation =
+      case type do
+        :new -> "New"
+        :replace -> "Update"
+      end
+
+    message = """
+    \n[Mneme] #{operation} assertion - #{context[:file]}:#{context[:line]}
+
+    #{Format.prefix_lines(original, "- ")}
+    #{Format.prefix_lines(replacement, "+ ")}
+    """
+
+    IO.puts(message)
+    prompt_action("Accept change? (y/n) ")
+  end
+
+  @doc """
+  Construct the patch and updated state for the given assertion.
+  """
+  def patch_for_assertion(state, {type, actual, context}) do
+    file = context[:file]
+    line = context[:line]
 
     {ast, state} = file_data(state, file)
 
@@ -27,7 +82,7 @@ defmodule Mneme.Patch do
       |> Zipper.traverse(nil, fn
         {{:auto_assert, assert_meta, [_]} = assert, _} = zipper, nil ->
           if assert_meta[:line] == line do
-            {zipper, assertion_patch(type, meta, actual, assert)}
+            {zipper, create_patch(state, type, actual, context, assert)}
           else
             {zipper, nil}
           end
@@ -36,11 +91,7 @@ defmodule Mneme.Patch do
           {zipper, patch}
       end)
 
-    if patch do
-      {{:ok, patch.expr}, update_in(state.patches[file], &[patch | &1])}
-    else
-      {:error, state}
-    end
+    {patch, state}
   end
 
   defp file_data(%{asts: asts} = state, file) do
@@ -54,29 +105,36 @@ defmodule Mneme.Patch do
         state =
           state
           |> Map.update!(:asts, &Map.put(&1, file, ast))
-          |> Map.update!(:patches, &Map.put(&1, file, []))
+          |> Map.update!(:accepted_patches, &Map.put(&1, file, []))
+          |> Map.update!(:rejected_patches, &Map.put(&1, file, []))
 
         {ast, state}
     end
   end
 
-  defp assertion_patch(
+  defp create_patch(
+         %SuiteResult{format_opts: format_opts},
          type,
-         meta,
          actual,
+         context,
          {:auto_assert, _, [inner]} = assert
        ) do
-    format_opts = Rewrite.DotFormatter.opts()
     original = {:auto_assert, [], [inner]} |> Sourceror.to_string(format_opts)
-    expr = update_match(type, inner, Serialize.to_match_expressions(actual, meta))
+    expr = update_match(type, inner, Serialize.to_match_expressions(actual, context))
 
     replacement =
       {:auto_assert, [], [expr]}
       |> Sourceror.to_string(format_opts)
 
-    if accept_change?(type, meta, original, replacement) do
-      %{expr: expr, change: replacement, range: Sourceror.get_range(assert)}
-    end
+    %{
+      change: replacement,
+      range: Sourceror.get_range(assert),
+      type: type,
+      expr: expr,
+      context: context,
+      original: original,
+      replacement: replacement
+    }
   end
 
   defp update_match(:new, value, expected) do
@@ -93,24 +151,6 @@ defmodule Mneme.Patch do
 
   defp match_expr({match_expr, conditions}, value, meta) do
     {:<-, meta, [{:when, [], [match_expr, conditions]}, value]}
-  end
-
-  defp accept_change?(type, meta, original, replacement) do
-    operation =
-      case type do
-        :new -> "New"
-        :replace -> "Update"
-      end
-
-    message = """
-    \n[Mneme] #{operation} assertion - #{meta[:file]}:#{meta[:line]}
-
-    #{Format.prefix_lines(original, "- ")}
-    #{Format.prefix_lines(replacement, "+ ")}
-    """
-
-    IO.puts(message)
-    prompt_action("Accept change? (y/n) ")
   end
 
   defp prompt_action(prompt) do

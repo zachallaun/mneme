@@ -19,16 +19,21 @@ defmodule Mneme.Server do
   @impl true
   def init(_arg) do
     ExUnit.after_suite(&__MODULE__.after_suite/1)
-    {:ok, %Patch.SuiteResult{}}
+    {:ok, Patch.init()}
   end
 
   @impl true
   def handle_call({:assertion, assertion}, _from, state) do
-    {result, state} = Patch.handle_assertion(state, assertion)
-    {:reply, result, state}
+    {patch, state} = Patch.patch_for_assertion(state, assertion)
+
+    if Patch.accept_patch?(patch) do
+      {:reply, {:ok, patch.expr}, Patch.accept(state, patch)}
+    else
+      {:reply, :error, Patch.reject(state, patch)}
+    end
   end
 
   def handle_call(:after_suite, _from, state) do
-    {:reply, :ok, Patch.apply_changes!(state)}
+    {:reply, :ok, Patch.finalize(state)}
   end
 end

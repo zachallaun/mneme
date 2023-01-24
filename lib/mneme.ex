@@ -17,7 +17,7 @@ defmodule Mneme do
   """
   defmacro auto_assert({:<-, _, [_, actual]} = expr) do
     assertion = Mneme.Code.mneme_to_exunit(expr)
-    __gen_auto_assert__(:replace, __CALLER__, expr, actual, assertion)
+    __gen_auto_assert__(:replace, __CALLER__, actual, assertion)
   end
 
   defmacro auto_assert(expr) do
@@ -26,11 +26,11 @@ defmodule Mneme do
         raise ExUnit.AssertionError, message: "No match present"
       end
 
-    __gen_auto_assert__(:new, __CALLER__, expr, expr, assertion)
+    __gen_auto_assert__(:new, __CALLER__, expr, assertion)
   end
 
   @doc false
-  def __gen_auto_assert__(type, env, expr, actual, assertion) do
+  def __gen_auto_assert__(type, env, actual, assertion) do
     quote do
       var!(actual) = unquote(actual)
       locals = Keyword.delete(binding(), :actual)
@@ -40,7 +40,7 @@ defmodule Mneme do
         unquote(assertion)
       rescue
         error in [ExUnit.AssertionError] ->
-          assertion = {unquote(type), unquote(Macro.escape(expr)), var!(actual), meta}
+          assertion = {unquote(type), var!(actual), meta}
 
           case Mneme.Server.await_assertion(assertion) do
             {:ok, expr} ->
