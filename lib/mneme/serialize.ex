@@ -116,8 +116,6 @@ defimpl Mneme.Serializer, for: Atom do
   def to_pattern(atom, _meta), do: {atom, nil}
 end
 
-# defimpl Mneme.Serializer, for: Float do
-# defimpl Mneme.Serializer, for: Function do
 # defimpl Mneme.Serializer, for: PID do
 # defimpl Mneme.Serializer, for: Map do
 # defimpl Mneme.Serializer, for: Port do

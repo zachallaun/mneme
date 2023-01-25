@@ -1,2 +1,2 @@
-ExUnit.start(timeout: :infinity)
+ExUnit.start()
 Mneme.start()
