@@ -5,17 +5,11 @@ defmodule Mneme.ExUnitFormatter do
 
   @impl true
   def init(opts) do
-    formatter = Keyword.fetch!(opts, :default_formatter)
-    {:ok, config} = formatter.init(opts)
-    :ok = Mneme.Server.capture_io()
-
-    {:ok, {formatter, config}}
+    Mneme.Server.formatter_init(opts)
   end
 
   @impl true
-  def handle_cast(message, {formatter, config}) do
-    {:noreply, config} = formatter.handle_cast(message, config)
-    Mneme.Server.flush_io()
-    {:noreply, {formatter, config}}
+  def handle_cast(message, state) do
+    Mneme.Server.formatter_handle_cast(message, state)
   end
 end

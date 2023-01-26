@@ -3,26 +3,21 @@ defmodule Mneme do
   Auto assert away.
   """
 
-  @exunit_configuration [
-    timeout: :infinity,
-    formatters: [Mneme.ExUnitFormatter],
-    default_formatter: ExUnit.CLIFormatter
-  ]
-
   @doc """
-  Starts the Mneme application server.
-
-  Because Mneme prompts the user before altering assertions, we also
-  have to configure ExUnit to prevent timeouts and mangled text due to
-  async tests.
+  Configures the Mneme application server to run with ExUnit.
   """
   def start do
-    ExUnit.configure(@exunit_configuration)
-    ExUnit.after_suite(&Mneme.Server.after_suite/1)
+    ExUnit.configure(
+      formatters: [Mneme.ExUnitFormatter],
+      default_formatter: ExUnit.CLIFormatter,
+      timeout: :infinity
+    )
 
-    children = [Mneme.Server]
-    opts = [strategy: :one_for_one, name: Mneme.Supervisor]
-    Supervisor.start_link(children, opts)
+    children = [
+      Mneme.Server
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one)
   end
 
   @doc """

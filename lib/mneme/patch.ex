@@ -142,7 +142,11 @@ defmodule Mneme.Patch do
     }
   end
 
-  defp prompt_accept?(prompt) do
+  defp prompt_accept?(prompt, tries \\ 5)
+
+  defp prompt_accept?(_prompt, 0), do: false
+
+  defp prompt_accept?(prompt, tries) do
     case IO.gets(prompt) do
       response when is_binary(response) ->
         response
@@ -157,11 +161,11 @@ defmodule Mneme.Patch do
 
           other ->
             IO.puts("unknown response: #{other}")
-            prompt_accept?(prompt)
+            prompt_accept?(prompt, tries - 1)
         end
 
       :eof ->
-        prompt_accept?(prompt)
+        prompt_accept?(prompt, tries - 1)
     end
   end
 end

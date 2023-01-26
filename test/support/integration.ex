@@ -3,8 +3,6 @@ defmodule Mneme.Integration.TestError do
 end
 
 defmodule Mneme.Integration do
-  alias Mneme.Format
-
   @integration_test_dir File.cwd!() |> Path.join("test/integration")
 
   @doc """
@@ -41,24 +39,8 @@ defmodule Mneme.Integration do
       [
         {exit_code == expected_exit_code,
          "Exit code was #{exit_code} (expected #{expected_exit_code})"},
-        {actual_source == expected_source,
-         """
-         Source does not match:
-
-           Expected:
-         #{indent(expected_source, "    ")}
-           Actual:
-         #{indent(actual_source, "    ")}\
-         """},
-        {actual_output == expected_output,
-         """
-         Output does not match:
-
-           Expected:
-         #{indent(expected_output, "    ")}
-           Actual:
-         #{indent(actual_output, "    ")}
-         """}
+        {actual_source == expected_source, diff("Source", expected_source, actual_source)},
+        {actual_output == expected_output, diff("Output", expected_output, actual_output)}
       ]
       |> Enum.reject(fn {check, _} -> check end)
       |> Enum.map(fn {_, message} -> message end)
@@ -67,6 +49,17 @@ defmodule Mneme.Integration do
       message = "\n" <> Enum.join(errors, "\n")
       raise Mneme.Integration.TestError, message: message
     end
+  end
+
+  defp diff(header, expected, actual) do
+    [
+      """
+      #{header} does not match:
+
+      """,
+      Rewrite.TextDiff.format(expected, actual)
+    ]
+    |> IO.iodata_to_binary()
   end
 
   defp file(:template, basename),
@@ -128,8 +121,4 @@ defmodule Mneme.Integration do
   end
 
   defp module_name(name), do: Module.concat([__MODULE__, Macro.camelize(name)])
-
-  defp indent(message, indentation) do
-    Format.prefix_lines(message, indentation)
-  end
 end
