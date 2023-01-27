@@ -25,10 +25,16 @@ defmodule Mneme.Patch do
   @doc """
   Finalize all patches, writing all results to disk.
   """
-  def finalize!(%SuiteResult{finalized: false, files: files} = state) do
+  def finalize!(%SuiteResult{finalized: false} = state) do
+    %{files: files, format_opts: format_opts} = state
+
     for {_, %FileResult{file: file, source: source, accepted: patches}} <- files do
-      patched = Sourceror.patch_string(source, patches)
-      File.write!(file, patched)
+      patched_iodata =
+        source
+        |> Sourceror.patch_string(patches)
+        |> Code.format_string!(format_opts)
+
+      File.write!(file, [patched_iodata, "\n"])
     end
 
     %{state | finalized: true}
