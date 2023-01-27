@@ -1,8 +1,8 @@
 defmodule Mneme.Patch do
   @moduledoc false
 
-  alias Mneme.Format
   alias Rewrite.DotFormatter
+  alias Rewrite.TextDiff
   alias Sourceror.Zipper
 
   defmodule FileResult do
@@ -76,8 +76,7 @@ defmodule Mneme.Patch do
     message = """
     \n[Mneme] #{operation} assertion - #{context.file}:#{context.line}
 
-    #{Format.prefix_lines(original, "- ")}
-    #{Format.prefix_lines(replacement, "+ ")}
+    #{diff(original, replacement)}\
     """
 
     IO.puts(message)
@@ -173,5 +172,15 @@ defmodule Mneme.Patch do
       :eof ->
         prompt_accept?(prompt, tries - 1)
     end
+  end
+
+  defp diff(old, new) do
+    TextDiff.format(old, new,
+      line_numbers: false,
+      before: 0,
+      after: 0,
+      format: [separator: "| "]
+    )
+    |> IO.iodata_to_binary()
   end
 end

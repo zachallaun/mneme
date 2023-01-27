@@ -57,7 +57,7 @@ defmodule Mneme.Integration do
       #{header} does not match:
 
       """,
-      Rewrite.TextDiff.format(expected, actual)
+      Rewrite.TextDiff.format(expected, actual, format: [separator: "| "])
     ]
     |> IO.iodata_to_binary()
   end

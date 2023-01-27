@@ -2,8 +2,8 @@
 
 [Mneme] New assertion
 
-- auto_assert 2 + 2
-+ auto_assert 4 <- 2 + 2
+ - | auto_assert 2 + 2
+ + | auto_assert 4 <- 2 + 2
 
 Accept change? (y/n) !{n
 }
@@ -16,8 +16,8 @@ stacktrace:
 
 [Mneme] New assertion
 
-- auto_assert "foo" <> "bar"
-+ auto_assert "foobar" <- "foo" <> "bar"
+ - | auto_assert "foo" <> "bar"
+ + | auto_assert "foobar" <- "foo" <> "bar"
 
 Accept change? (y/n) !{n
 }
