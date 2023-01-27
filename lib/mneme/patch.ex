@@ -40,14 +40,14 @@ defmodule Mneme.Patch do
   Accepts a patch.
   """
   def accept(%SuiteResult{} = state, patch) do
-    update_in(state.files[patch.context[:file]].accepted, &[patch | &1])
+    update_in(state.files[patch.context.file].accepted, &[patch | &1])
   end
 
   @doc """
   Rejects a patch.
   """
   def reject(%SuiteResult{} = state, patch) do
-    update_in(state.files[patch.context[:file]].rejected, &[patch | &1])
+    update_in(state.files[patch.context.file].rejected, &[patch | &1])
   end
 
   @doc """
@@ -68,7 +68,7 @@ defmodule Mneme.Patch do
       end
 
     message = """
-    \n[Mneme] #{operation} assertion - #{context[:file]}:#{context[:line]}
+    \n[Mneme] #{operation} assertion - #{context.file}:#{context.line}
 
     #{Format.prefix_lines(original, "- ")}
     #{Format.prefix_lines(replacement, "+ ")}
@@ -83,7 +83,7 @@ defmodule Mneme.Patch do
   @doc """
   """
   def load_file!(%SuiteResult{files: files} = state, context) do
-    with {:ok, file} <- Keyword.fetch(context, :file),
+    with {:ok, file} <- Map.fetch(context, :file),
          nil <- state.files[file] do
       source = File.read!(file)
 
@@ -105,7 +105,7 @@ defmodule Mneme.Patch do
   Returns `{patch, state}`.
   """
   def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}) do
-    file = context[:file]
+    file = context.file
     ast = Map.fetch!(files, file).ast
 
     {_, patch} =

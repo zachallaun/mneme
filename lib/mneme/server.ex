@@ -13,18 +13,27 @@ defmodule Mneme.Server do
     :patch_state,
     :io_pid,
     :formatter,
-    await_test_finished: false,
-    awaiting_test_finished: []
+    :current,
+    queue: []
   ]
 
+  @doc """
+  Start a Mneme server.
+  """
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  Patch a Mneme assertion, prompting the user.
+  """
   def await_assertion(assertion) do
-    GenServer.call(__MODULE__, {:patch_assertion, assertion})
+    GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
+  @doc """
+  Delegate call for ExUnit.Formatter init.
+  """
   def formatter_init(opts) do
     formatter = Keyword.fetch!(opts, :default_formatter)
     {:ok, formatter_config} = formatter.init(opts)
@@ -36,8 +45,11 @@ defmodule Mneme.Server do
     {:ok, formatter_config}
   end
 
+  @doc """
+  Delegate call for ExUnit.Formatter handle_cast.
+  """
   def formatter_handle_cast(message, config) do
-    config = GenServer.call(__MODULE__, {:formatter_handle_cast, message, config})
+    config = GenServer.call(__MODULE__, {:formatter_cast, message, config})
     {:noreply, config}
   end
 
@@ -47,8 +59,21 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:patch_assertion, assertion}, from, state) do
+  def handle_call({:patch_assertion, assertion}, from, %{current: nil} = state) do
     {:noreply, patch_assertion(state, {assertion, from})}
+  end
+
+  def handle_call({:patch_assertion, assertion}, from, state) do
+    {_type, _value, context} = assertion
+
+    case {context, state.current} do
+      {%{module: module, file: file}, %{module: module, file: file}} ->
+        {:noreply, patch_assertion(state, {assertion, from})}
+
+      _ ->
+        state = Map.update!(state, :queue, &(&1 ++ [{assertion, from}]))
+        {:noreply, state}
+    end
   end
 
   def handle_call({:capture_formatter, formatter, io_pid}, _from, state) do
@@ -58,37 +83,41 @@ defmodule Mneme.Server do
      |> Map.put(:io_pid, io_pid)}
   end
 
-  def handle_call({:formatter_handle_cast, {:suite_finished, _} = msg, config}, _from, state) do
+  def handle_call({:formatter_cast, {:suite_finished, _} = msg, config}, _from, state) do
     config = formatter_cast(state, msg, config)
     {:reply, config, Map.update!(state, :patch_state, &Patch.finalize!/1)}
   end
 
-  def handle_call({:formatter_handle_cast, {:test_finished, _} = msg, config}, _from, state) do
+  def handle_call({:formatter_cast, {:module_finished, test_module} = msg, config}, _from, state) do
     config = formatter_cast(state, msg, config)
 
-    state = %{state | await_test_finished: false}
+    state =
+      case {test_module, state.current} do
+        {%{name: module, file: file}, %{module: module, file: file}} ->
+          flush_io(state)
+          %{state | current: nil}
+
+        _ ->
+          state
+      end
 
     state =
-      case state.awaiting_test_finished do
-        [] ->
+      case state do
+        %{current: nil, queue: [next | rest]} ->
           state
+          |> Map.put(:queue, rest)
+          |> patch_assertion(next)
 
-        awaiting ->
-          awaiting
-          |> Enum.reverse()
-          |> Enum.reduce(state, &patch_assertion(&2, &1))
+        _ ->
+          state
       end
 
     {:reply, config, state}
   end
 
-  def handle_call({:formatter_handle_cast, msg, config}, _from, state) do
+  def handle_call({:formatter_cast, msg, config}, _from, state) do
     config = formatter_cast(state, msg, config)
     {:reply, config, state}
-  end
-
-  defp patch_assertion(%{await_test_finished: true} = state, {_assertion, _from} = tuplet) do
-    Map.update!(state, :awaiting_test_finished, &[tuplet | &1])
   end
 
   defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
@@ -102,17 +131,15 @@ defmodule Mneme.Server do
           {{:ok, patch.expr}, %{state | patch_state: Patch.accept(patch_state, patch)}}
 
         {false, patch_state} ->
-          {:error,
-           %{state | patch_state: Patch.reject(patch_state, patch), await_test_finished: true}}
+          {:error, %{state | patch_state: Patch.reject(patch_state, patch)}}
       end
 
     GenServer.reply(from, reply)
-    state
+    %{state | current: context}
   end
 
-  defp formatter_cast(%{formatter: formatter} = state, message, config) do
+  defp formatter_cast(%{formatter: formatter}, message, config) do
     {:noreply, config} = formatter.handle_cast(message, config)
-    flush_io(state)
     config
   end
 

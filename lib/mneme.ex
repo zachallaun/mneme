@@ -42,13 +42,13 @@ defmodule Mneme do
     quote do
       var!(actual) = unquote(actual)
       locals = Keyword.delete(binding(), :actual)
-      meta = [module: __MODULE__, binding: locals] ++ unquote(Macro.Env.location(env))
+      context = Map.new([module: __MODULE__, binding: locals] ++ unquote(Macro.Env.location(env)))
 
       try do
         unquote(assertion)
       rescue
         error in [ExUnit.AssertionError] ->
-          assertion = {unquote(type), var!(actual), meta}
+          assertion = {unquote(type), var!(actual), context}
 
           case Mneme.Server.await_assertion(assertion) do
             {:ok, expr} ->
