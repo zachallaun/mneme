@@ -23,11 +23,23 @@ defmodule Mneme.SerializeTest do
       auto_assert "[1, [:nested], 3]" <- to_pattern_string([1, [:nested], 3])
     end
 
-    test "references" do
-      auto_assert "ref when is_reference(ref)" <- to_pattern_string(make_ref())
-
+    test "pins and guards" do
       ref = make_ref()
+      auto_assert "ref when is_reference(ref)" <- to_pattern_string(ref)
       auto_assert "^my_ref" <- to_pattern_string(ref, binding: [my_ref: ref])
+
+      self = self()
+      auto_assert "pid when is_pid(pid)" <- to_pattern_string(self)
+      auto_assert "^me" <- to_pattern_string(self, binding: [me: self])
+
+      {:ok, port} = :gen_tcp.listen(0, [])
+
+      try do
+        auto_assert "port when is_port(port)" <- to_pattern_string(port)
+        auto_assert "^my_port" <- to_pattern_string(port, binding: [my_port: port])
+      after
+        Port.close(port)
+      end
     end
   end
 

@@ -56,6 +56,18 @@ defmodule Mneme.Serialize do
   def remote_call(module, fun, args) do
     {{:., [], [{:__aliases__, [alias: false], [module]}, fun]}, [], args}
   end
+
+  @doc false
+  def pinned_or_guard(value, meta, name, guard) do
+    case fetch_pinned(value, meta[:binding] || []) do
+      {:ok, pin} ->
+        {pin, nil}
+
+      _ ->
+        var = {name, [], nil}
+        {var, {guard, [], [var]}}
+    end
+  end
 end
 
 defprotocol Mneme.Serializer do
@@ -71,6 +83,10 @@ defprotocol Mneme.Serializer do
   """
   @spec to_pattern(t, keyword()) :: {Macro.t(), Macro.t() | nil}
   def to_pattern(value, meta)
+end
+
+defimpl Mneme.Serializer, for: Atom do
+  def to_pattern(atom, _meta), do: {atom, nil}
 end
 
 defimpl Mneme.Serializer, for: Integer do
@@ -101,22 +117,21 @@ end
 
 defimpl Mneme.Serializer, for: Reference do
   def to_pattern(ref, meta) do
-    case Mneme.Serialize.fetch_pinned(ref, meta[:binding] || []) do
-      {:ok, pin} ->
-        {pin, nil}
-
-      _ ->
-        var = {:ref, [], nil}
-        {var, {:is_reference, [], [var]}}
-    end
+    Mneme.Serialize.pinned_or_guard(ref, meta, :ref, :is_reference)
   end
 end
 
-defimpl Mneme.Serializer, for: Atom do
-  def to_pattern(atom, _meta), do: {atom, nil}
+defimpl Mneme.Serializer, for: PID do
+  def to_pattern(pid, meta) do
+    Mneme.Serialize.pinned_or_guard(pid, meta, :pid, :is_pid)
+  end
 end
 
-# defimpl Mneme.Serializer, for: PID do
+defimpl Mneme.Serializer, for: Port do
+  def to_pattern(port, meta) do
+    Mneme.Serialize.pinned_or_guard(port, meta, :port, :is_port)
+  end
+end
+
 # defimpl Mneme.Serializer, for: Map do
-# defimpl Mneme.Serializer, for: Port do
 # defimpl Mneme.Serializer, for: Any do
