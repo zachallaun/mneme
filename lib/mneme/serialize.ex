@@ -28,10 +28,10 @@ defmodule Mneme.Serialize do
   end
 
   @doc """
-  Maps a list of values to their match expressions, combining any guards
-  into a single clause with `and`.
+  Maps an enum of values to their match expressions, combining any
+  guards into a single clause with `and`.
   """
-  def list_to_pattern(values, meta) do
+  def enum_to_pattern(values, meta) do
     Enum.map_reduce(values, nil, fn value, guard ->
       case {guard, Serializer.to_pattern(value, meta)} do
         {nil, {expr, guard}} -> {expr, guard}
@@ -103,14 +103,14 @@ end
 
 defimpl Mneme.Serializer, for: List do
   def to_pattern(list, meta) do
-    Mneme.Serialize.list_to_pattern(list, meta)
+    Mneme.Serialize.enum_to_pattern(list, meta)
   end
 end
 
 defimpl Mneme.Serializer, for: Tuple do
   def to_pattern(tuple, meta) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = Mneme.Serialize.list_to_pattern(values, meta)
+    {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, meta)
     {{:{}, [], value_matches}, guard}
   end
 end
@@ -133,5 +133,12 @@ defimpl Mneme.Serializer, for: Port do
   end
 end
 
-# defimpl Mneme.Serializer, for: Map do
+defimpl Mneme.Serializer, for: Map do
+  def to_pattern(map, meta) do
+    {escaped_tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
+    tuples = Enum.map(escaped_tuples, fn {:{}, _, [k, v]} -> {k, v} end)
+    {{:%{}, [], tuples}, guard}
+  end
+end
+
 # defimpl Mneme.Serializer, for: Any do

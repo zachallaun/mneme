@@ -41,6 +41,17 @@ defmodule Mneme.SerializeTest do
         Port.close(port)
       end
     end
+
+    test "maps" do
+      auto_assert "%{bar: 2, foo: 1}" <- to_pattern_string(%{foo: 1, bar: 2})
+      auto_assert "%{:foo => 1, \"bar\" => 2}" <- to_pattern_string(%{:foo => 1, "bar" => 2})
+
+      auto_assert "%{bar: ref, foo: pid} when is_reference(ref) and is_pid(pid)" <-
+                    to_pattern_string(%{foo: self(), bar: make_ref()})
+
+      auto_assert "%{bar: %{baz: [3, 4]}, foo: [1, 2]}" <-
+                    to_pattern_string(%{foo: [1, 2], bar: %{baz: [3, 4]}})
+    end
   end
 
   defp to_pattern_string(value, context \\ []) do
