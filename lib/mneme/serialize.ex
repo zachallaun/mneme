@@ -21,7 +21,7 @@ defmodule Mneme.Serialize do
   binding, or `:error` otherwise.
   """
   def fetch_pinned(value, binding) do
-    case List.keyfind(binding, value, 1) do
+    case List.keyfind(binding || [], value, 1) do
       {name, ^value} -> {:ok, {:^, [], [{name, [], nil}]}}
       _ -> :error
     end
@@ -41,32 +41,10 @@ defmodule Mneme.Serialize do
     end)
   end
 
-  @doc """
-  Generate a quoted remote call. Requires fully expanded aliases.
-
-  ## Examples
-
-      iex> remote_call(:Kernel, :is_reference, [{:ref, [], nil}])
-      {
-        {:., [], [{:__aliases__, [alias: false], [:Kernel]}, :is_reference]},
-        [],
-        [{:ref, [], nil}]
-      }
-  """
-  def remote_call(module, fun, args) do
-    {{:., [], [{:__aliases__, [alias: false], [module]}, fun]}, [], args}
-  end
-
   @doc false
-  def pinned_or_guard(value, meta, name, guard) do
-    case fetch_pinned(value, meta[:binding] || []) do
-      {:ok, pin} ->
-        {pin, nil}
-
-      _ ->
-        var = {name, [], nil}
-        {var, {guard, [], [var]}}
-    end
+  def guard(name, guard) do
+    var = {name, [], nil}
+    {var, {guard, [], [var]}}
   end
 end
 
@@ -115,21 +93,20 @@ defimpl Mneme.Serializer, for: Tuple do
   end
 end
 
-defimpl Mneme.Serializer, for: Reference do
-  def to_pattern(ref, meta) do
-    Mneme.Serialize.pinned_or_guard(ref, meta, :ref, :is_reference)
-  end
-end
+pin_or_guard = [
+  {Reference, :ref, :is_reference},
+  {PID, :pid, :is_pid},
+  {Port, :port, :is_port}
+]
 
-defimpl Mneme.Serializer, for: PID do
-  def to_pattern(pid, meta) do
-    Mneme.Serialize.pinned_or_guard(pid, meta, :pid, :is_pid)
-  end
-end
-
-defimpl Mneme.Serializer, for: Port do
-  def to_pattern(port, meta) do
-    Mneme.Serialize.pinned_or_guard(port, meta, :port, :is_port)
+for {module, var_name, guard} <- pin_or_guard do
+  defimpl Mneme.Serializer, for: module do
+    def to_pattern(value, meta) do
+      case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
+        {:ok, pin} -> {pin, nil}
+        :error -> Mneme.Serialize.guard(unquote(var_name), unquote(guard))
+      end
+    end
   end
 end
 
