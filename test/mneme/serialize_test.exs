@@ -6,6 +6,11 @@ defmodule Mneme.SerializeTest do
   @format_opts Rewrite.DotFormatter.opts()
 
   describe "to_pattern/2" do
+    test "atoms" do
+      auto_assert ":foo" <- to_pattern_string(:foo)
+      auto_assert "true" <- to_pattern_string(true)
+    end
+
     test "literals" do
       auto_assert "123" <- to_pattern_string(123)
       auto_assert "123.5" <- to_pattern_string(123.5)
@@ -16,6 +21,11 @@ defmodule Mneme.SerializeTest do
     test "tuples" do
       auto_assert "{1, \"string\", :atom}" <- to_pattern_string({1, "string", :atom})
       auto_assert "{{:nested}, {\"tuples\"}}" <- to_pattern_string({{:nested}, {"tuples"}})
+
+      auto_assert {:two, :elements} <- Serialize.to_pattern({:two, :elements})
+
+      auto_assert {:{}, [], [:more, :than, :two, :elements]} <-
+                    Serialize.to_pattern({:more, :than, :two, :elements})
     end
 
     test "lists" do

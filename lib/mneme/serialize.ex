@@ -65,29 +65,16 @@ defprotocol Mneme.Serializer do
   def to_pattern(value, meta)
 end
 
-defimpl Mneme.Serializer, for: Atom do
-  def to_pattern(atom, _meta), do: {atom, nil}
-end
+defimpl Mneme.Serializer, for: Any do
+  def to_pattern(value, _meta)
+      when is_atom(value) or is_integer(value) or is_float(value) or is_binary(value) do
+    {value, nil}
+  end
 
-defimpl Mneme.Serializer, for: Integer do
-  def to_pattern(int, _meta), do: {int, nil}
-end
-
-defimpl Mneme.Serializer, for: Float do
-  def to_pattern(float, _meta), do: {float, nil}
-end
-
-defimpl Mneme.Serializer, for: BitString do
-  def to_pattern(str, _meta), do: {str, nil}
-end
-
-defimpl Mneme.Serializer, for: List do
-  def to_pattern(list, meta) do
+  def to_pattern(list, meta) when is_list(list) do
     Mneme.Serialize.enum_to_pattern(list, meta)
   end
-end
 
-defimpl Mneme.Serializer, for: Tuple do
   def to_pattern({a, b}, meta) do
     case {Mneme.Serializer.to_pattern(a, meta), Mneme.Serializer.to_pattern(b, meta)} do
       {{expr1, nil}, {expr2, nil}} -> {{expr1, expr2}, nil}
@@ -97,49 +84,30 @@ defimpl Mneme.Serializer, for: Tuple do
     end
   end
 
-  def to_pattern(tuple, meta) do
+  def to_pattern(tuple, meta) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
     {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, meta)
     {{:{}, [], value_matches}, guard}
   end
-end
 
-defimpl Mneme.Serializer, for: Map do
-  def to_pattern(map, meta) do
-    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
-    {{:%{}, [], tuples}, guard}
-  end
-end
-
-pin_or_guard = [
-  {Reference, :ref, :is_reference},
-  {PID, :pid, :is_pid},
-  {Port, :port, :is_port}
-]
-
-for {module, var_name, guard} <- pin_or_guard do
-  defimpl Mneme.Serializer, for: module do
-    def to_pattern(value, meta) do
+  for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
+    def to_pattern(value, meta) when unquote(guard)(value) do
       case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> Mneme.Serialize.guard(unquote(var_name), unquote(guard))
       end
     end
   end
-end
 
-for module <- [DateTime, NaiveDateTime, Date, Time] do
-  defimpl Mneme.Serializer, for: module do
-    def to_pattern(value, meta) do
+  for module <- [DateTime, NaiveDateTime, Date, Time] do
+    def to_pattern(%unquote(module){} = value, meta) do
       case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
       end
     end
   end
-end
 
-defimpl Mneme.Serializer, for: Any do
   def to_pattern(%URI{} = uri, meta) do
     struct_to_pattern(URI, Map.delete(uri, :authority), meta)
   end
@@ -148,16 +116,20 @@ defimpl Mneme.Serializer, for: Any do
     struct_to_pattern(struct, value, meta)
   end
 
+  def to_pattern(%{} = map, meta) do
+    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
+    {{:%{}, [], tuples}, guard}
+  end
+
   defp struct_to_pattern(struct, map, meta) do
     default = struct.__struct__()
     aliases = struct |> Module.split() |> Enum.map(&String.to_atom/1)
 
-    {tuples, guard} =
+    {map_expr, guard} =
       map
-      |> Map.to_list()
-      |> Enum.filter(fn {k, v} -> v != Map.get(default, k) end)
-      |> Mneme.Serialize.enum_to_pattern(meta)
+      |> Map.filter(fn {k, v} -> v != Map.get(default, k) end)
+      |> Mneme.Serializer.to_pattern(meta)
 
-    {{:%, [], [{:__aliases__, [], aliases}, {:%{}, [], tuples}]}, guard}
+    {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard}
   end
 end
