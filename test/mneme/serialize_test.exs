@@ -52,6 +52,28 @@ defmodule Mneme.SerializeTest do
       auto_assert "%{bar: %{baz: [3, 4]}, foo: [1, 2]}" <-
                     to_pattern_string(%{foo: [1, 2], bar: %{baz: [3, 4]}})
     end
+
+    test "dates and times" do
+      iso8601_date = "2023-01-01"
+      iso8601_time = "12:00:00+0000"
+      iso8601_datetime = iso8601_date <> "T" <> iso8601_time
+
+      {:ok, datetime, 0} = DateTime.from_iso8601(iso8601_datetime)
+      auto_assert "~U[2023-01-01 12:00:00Z]" <- to_pattern_string(datetime)
+      auto_assert "^jan1" <- to_pattern_string(datetime, binding: [jan1: datetime])
+
+      naive_datetime = NaiveDateTime.from_iso8601!(iso8601_datetime)
+      auto_assert "~N[2023-01-01 12:00:00]" <- to_pattern_string(naive_datetime)
+      auto_assert "^jan1" <- to_pattern_string(naive_datetime, binding: [jan1: naive_datetime])
+
+      date = Date.from_iso8601!(iso8601_date)
+      auto_assert "~D[2023-01-01]" <- to_pattern_string(date)
+      auto_assert "^jan1" <- to_pattern_string(date, binding: [jan1: date])
+
+      time = Time.from_iso8601!(iso8601_time)
+      auto_assert "~T[12:00:00]" <- to_pattern_string(time)
+      auto_assert "^noon" <- to_pattern_string(time, binding: [noon: time])
+    end
   end
 
   defp to_pattern_string(value, context \\ []) do

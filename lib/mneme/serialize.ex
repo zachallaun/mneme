@@ -93,6 +93,14 @@ defimpl Mneme.Serializer, for: Tuple do
   end
 end
 
+defimpl Mneme.Serializer, for: Map do
+  def to_pattern(map, meta) do
+    {escaped_tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
+    tuples = Enum.map(escaped_tuples, fn {:{}, _, [k, v]} -> {k, v} end)
+    {{:%{}, [], tuples}, guard}
+  end
+end
+
 pin_or_guard = [
   {Reference, :ref, :is_reference},
   {PID, :pid, :is_pid},
@@ -110,11 +118,14 @@ for {module, var_name, guard} <- pin_or_guard do
   end
 end
 
-defimpl Mneme.Serializer, for: Map do
-  def to_pattern(map, meta) do
-    {escaped_tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
-    tuples = Enum.map(escaped_tuples, fn {:{}, _, [k, v]} -> {k, v} end)
-    {{:%{}, [], tuples}, guard}
+for module <- [DateTime, NaiveDateTime, Date, Time] do
+  defimpl Mneme.Serializer, for: module do
+    def to_pattern(value, meta) do
+      case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
+        {:ok, pin} -> {pin, nil}
+        :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
+      end
+    end
   end
 end
 
