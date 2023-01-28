@@ -74,6 +74,16 @@ defmodule Mneme.SerializeTest do
       auto_assert "~T[12:00:00]" <- to_pattern_string(time)
       auto_assert "^noon" <- to_pattern_string(time, binding: [noon: time])
     end
+
+    test "URIs don't include deprecated :authority" do
+      auto_assert "%URI{host: \"example.com\", port: 443, scheme: \"https\"}" <-
+                    to_pattern_string(URI.parse("https://example.com"))
+    end
+
+    test "structs" do
+      auto_assert "%Version{major: 1, minor: 1, patch: 1}" <-
+                    to_pattern_string(Version.parse!("1.1.1"))
+    end
   end
 
   defp to_pattern_string(value, context \\ []) do

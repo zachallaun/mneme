@@ -49,6 +49,8 @@ defmodule Mneme.Serialize do
 end
 
 defprotocol Mneme.Serializer do
+  @fallback_to_any true
+
   @doc """
   Generates ASTs that can be used to assert a match of the given value.
 
@@ -86,6 +88,15 @@ defimpl Mneme.Serializer, for: List do
 end
 
 defimpl Mneme.Serializer, for: Tuple do
+  def to_pattern({a, b}, meta) do
+    case {Mneme.Serializer.to_pattern(a, meta), Mneme.Serializer.to_pattern(b, meta)} do
+      {{expr1, nil}, {expr2, nil}} -> {{expr1, expr2}, nil}
+      {{expr1, guard}, {expr2, nil}} -> {{expr1, expr2}, guard}
+      {{expr1, nil}, {expr2, guard}} -> {{expr1, expr2}, guard}
+      {{expr1, guard1}, {expr2, guard2}} -> {{expr1, expr2}, {:and, [], [guard1, guard2]}}
+    end
+  end
+
   def to_pattern(tuple, meta) do
     values = Tuple.to_list(tuple)
     {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, meta)
@@ -95,8 +106,7 @@ end
 
 defimpl Mneme.Serializer, for: Map do
   def to_pattern(map, meta) do
-    {escaped_tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
-    tuples = Enum.map(escaped_tuples, fn {:{}, _, [k, v]} -> {k, v} end)
+    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
     {{:%{}, [], tuples}, guard}
   end
 end
@@ -129,4 +139,25 @@ for module <- [DateTime, NaiveDateTime, Date, Time] do
   end
 end
 
-# defimpl Mneme.Serializer, for: Any do
+defimpl Mneme.Serializer, for: Any do
+  def to_pattern(%URI{} = uri, meta) do
+    struct_to_pattern(URI, Map.delete(uri, :authority), meta)
+  end
+
+  def to_pattern(%struct{} = value, meta) do
+    struct_to_pattern(struct, value, meta)
+  end
+
+  defp struct_to_pattern(struct, map, meta) do
+    default = struct.__struct__()
+    aliases = struct |> Module.split() |> Enum.map(&String.to_atom/1)
+
+    {tuples, guard} =
+      map
+      |> Map.to_list()
+      |> Enum.filter(fn {k, v} -> v != Map.get(default, k) end)
+      |> Mneme.Serialize.enum_to_pattern(meta)
+
+    {{:%, [], [{:__aliases__, [], aliases}, {:%{}, [], tuples}]}, guard}
+  end
+end
