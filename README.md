@@ -6,18 +6,16 @@ Inspired by [Jane Street's expect-test](https://github.com/janestreet/ppx_expect
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `mneme` to your list of dependencies in `mix.exs`:
+**MNEME IS NOT READY FOR GENERAL USE!**
+If you're finding it published on Hex, it's only so that I can be my own guinea pig and use it while working on other libraries.
+
+If available in Hex, the package can be installed by adding `mneme` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:mneme, "~> 0.1.0"}
+    {:mneme, ">= 0.0.0"}
   ]
 end
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/mneme>.
 

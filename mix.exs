@@ -2,6 +2,8 @@ defmodule Mneme.MixProject do
   use Mix.Project
 
   @app :mneme
+  @source_url "https://github.com/zachallaun/mneme"
+
   def version, do: "0.0.1"
 
   def project do
@@ -15,7 +17,11 @@ defmodule Mneme.MixProject do
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
       aliases: aliases(),
-      preferred_cli_env: preferred_cli_env()
+      preferred_cli_env: preferred_cli_env(),
+
+      # Hex
+      description: "Semi-automated snapshot testing with ExUnit",
+      package: package()
     ]
   end
 
@@ -35,6 +41,14 @@ defmodule Mneme.MixProject do
   defp preferred_cli_env do
     [
       t: :test
+    ]
+  end
+
+  defp package do
+    [
+      name: "mneme",
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 
