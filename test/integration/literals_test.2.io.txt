@@ -14,15 +14,6 @@ Accept change? (y/n) !{y
 
 Accept change? (y/n) !{n
 }
-
-1) test integers (MnemeIntegration.LiteralsTest)
-match (=) failed
-code:  assert 4 = var!(actual)
-left:  4
-right: 3
-stacktrace:
-
-
 [Mneme] New assertion
 
  - | auto_assert "foo" <> "bar"
@@ -37,6 +28,15 @@ Accept change? (y/n) !{y
 
 Accept change? (y/n) !{n
 }
+
+1) test integers (MnemeIntegration.LiteralsTest)
+match (=) failed
+code:  assert 4 = var!(actual)
+left:  4
+right: 3
+stacktrace:
+
+
 
 2) test strings (MnemeIntegration.LiteralsTest)
 match (=) failed

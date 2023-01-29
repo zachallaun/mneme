@@ -13,7 +13,7 @@ Accept change? (y/n) !{y
  + | auto_assert 3 <- 2 + 1
 
 Accept change? (y/n) !{y
-}.
+}
 [Mneme] New assertion
 
  - | auto_assert "foo" <> "bar"
@@ -27,5 +27,5 @@ Accept change? (y/n) !{y
  + | auto_assert "foobaz" <- "foo" <> "baz"
 
 Accept change? (y/n) !{y
-}.
+}..
 2 tests, 0 failures

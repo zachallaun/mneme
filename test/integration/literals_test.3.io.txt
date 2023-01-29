@@ -7,13 +7,6 @@
 
 Accept change? (y/n) !{n
 }
-
-1) test integers (MnemeIntegration.LiteralsTest)
-No match present
-code: auto_assert 2 + 2
-stacktrace:
-
-
 [Mneme] New assertion
 
  - | auto_assert "foo" <> "bar"
@@ -21,6 +14,13 @@ stacktrace:
 
 Accept change? (y/n) !{n
 }
+
+1) test integers (MnemeIntegration.LiteralsTest)
+No match present
+code: auto_assert 2 + 2
+stacktrace:
+
+
 
 2) test strings (MnemeIntegration.LiteralsTest)
 No match present

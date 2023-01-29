@@ -31,26 +31,14 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
-  @doc """
-  Delegate call for ExUnit.Formatter init.
-  """
-  def formatter_init(opts) do
-    formatter = Keyword.fetch!(opts, :default_formatter)
-    {:ok, formatter_config} = formatter.init(opts)
+  def on_formatter_init(_opts) do
     {:ok, io_pid} = StringIO.open("")
     Process.group_leader(self(), io_pid)
-
-    :ok = GenServer.call(__MODULE__, {:capture_formatter, formatter, io_pid})
-
-    {:ok, formatter_config}
+    GenServer.call(__MODULE__, {:capture_formatter, io_pid})
   end
 
-  @doc """
-  Delegate call for ExUnit.Formatter handle_cast.
-  """
-  def formatter_handle_cast(message, config) do
-    config = GenServer.call(__MODULE__, {:formatter_cast, message, config})
-    {:noreply, config}
+  def on_formatter_event(message) do
+    GenServer.call(__MODULE__, {:formatter_event, message})
   end
 
   @impl true
@@ -76,21 +64,16 @@ defmodule Mneme.Server do
     end
   end
 
-  def handle_call({:capture_formatter, formatter, io_pid}, _from, state) do
-    {:reply, :ok,
-     state
-     |> Map.put(:formatter, formatter)
-     |> Map.put(:io_pid, io_pid)}
+  def handle_call({:capture_formatter, io_pid}, _from, state) do
+    {:reply, :ok, state |> Map.put(:io_pid, io_pid)}
   end
 
-  def handle_call({:formatter_cast, {:suite_finished, _} = msg, config}, _from, state) do
-    config = formatter_cast(state, msg, config)
-    {:reply, config, Map.update!(state, :patch_state, &Patch.finalize!/1)}
+  def handle_call({:formatter_event, {:suite_finished, _}}, _from, state) do
+    flush_io(state)
+    {:reply, :ok, Map.update!(state, :patch_state, &Patch.finalize!/1)}
   end
 
-  def handle_call({:formatter_cast, {:module_finished, test_module} = msg, config}, _from, state) do
-    config = formatter_cast(state, msg, config)
-
+  def handle_call({:formatter_event, {:module_finished, test_module}}, _from, state) do
     state =
       case {test_module, state.current} do
         {%{name: module, file: file}, %{module: module, file: file}} ->
@@ -112,12 +95,11 @@ defmodule Mneme.Server do
           state
       end
 
-    {:reply, config, state}
+    {:reply, :ok, state}
   end
 
-  def handle_call({:formatter_cast, msg, config}, _from, state) do
-    config = formatter_cast(state, msg, config)
-    {:reply, config, state}
+  def handle_call({:formatter_event, _msg}, _from, state) do
+    {:reply, :ok, state}
   end
 
   defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
@@ -136,11 +118,6 @@ defmodule Mneme.Server do
 
     GenServer.reply(from, reply)
     %{state | current: context}
-  end
-
-  defp formatter_cast(%{formatter: formatter}, message, config) do
-    {:noreply, config} = formatter.handle_cast(message, config)
-    config
   end
 
   defp flush_io(%{io_pid: io_pid} = state) do
