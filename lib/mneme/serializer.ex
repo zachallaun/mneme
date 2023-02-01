@@ -1,53 +1,3 @@
-defmodule Mneme.Serialize do
-  @moduledoc """
-  Helpers for converting runtime values to match patterns.
-  """
-
-  alias Mneme.Serializer
-
-  @doc """
-  Generates a Mneme pattern expression from a runtime value.
-  """
-  @spec to_pattern(Serializer.t(), keyword()) :: Macro.t()
-  def to_pattern(value, context \\ []) do
-    case Serializer.to_pattern(value, context) do
-      {pattern, nil} -> pattern
-      {pattern, guard} -> {:when, [], [pattern, guard]}
-    end
-  end
-
-  @doc """
-  Returns `{:ok, pin_expr}` if the value can be found in the given
-  binding, or `:error` otherwise.
-  """
-  def fetch_pinned(value, binding) do
-    case List.keyfind(binding || [], value, 1) do
-      {name, ^value} -> {:ok, {:^, [], [{name, [], nil}]}}
-      _ -> :error
-    end
-  end
-
-  @doc """
-  Maps an enum of values to their match expressions, combining any
-  guards into a single clause with `and`.
-  """
-  def enum_to_pattern(values, context) do
-    Enum.map_reduce(values, nil, fn value, guard ->
-      case {guard, Serializer.to_pattern(value, context)} do
-        {nil, {expr, guard}} -> {expr, guard}
-        {guard, {expr, nil}} -> {expr, guard}
-        {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
-      end
-    end)
-  end
-
-  @doc false
-  def guard(name, guard) do
-    var = {name, [], nil}
-    {var, {guard, [], [var]}}
-  end
-end
-
 defprotocol Mneme.Serializer do
   @fallback_to_any true
 
@@ -72,7 +22,7 @@ defimpl Mneme.Serializer, for: Any do
   end
 
   def to_pattern(list, context) when is_list(list) do
-    Mneme.Serialize.enum_to_pattern(list, context)
+    Mneme.Code.enum_to_pattern(list, context)
   end
 
   def to_pattern({a, b}, context) do
@@ -86,22 +36,22 @@ defimpl Mneme.Serializer, for: Any do
 
   def to_pattern(tuple, context) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, context)
+    {value_matches, guard} = Mneme.Code.enum_to_pattern(values, context)
     {{:{}, [], value_matches}, guard}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
     def to_pattern(value, context) when unquote(guard)(value) do
-      case Mneme.Serialize.fetch_pinned(value, context[:binding]) do
+      case Mneme.Code.fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
-        :error -> Mneme.Serialize.guard(unquote(var_name), unquote(guard))
+        :error -> Mneme.Code.guard(unquote(var_name), unquote(guard))
       end
     end
   end
 
   for module <- [DateTime, NaiveDateTime, Date, Time] do
     def to_pattern(%unquote(module){} = value, context) do
-      case Mneme.Serialize.fetch_pinned(value, context[:binding]) do
+      case Mneme.Code.fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
       end
@@ -117,7 +67,7 @@ defimpl Mneme.Serializer, for: Any do
   end
 
   def to_pattern(%{} = map, context) do
-    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, context)
+    {tuples, guard} = Mneme.Code.enum_to_pattern(map, context)
     {{:%{}, [], tuples}, guard}
   end
 
