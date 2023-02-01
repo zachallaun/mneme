@@ -31,9 +31,9 @@ defmodule Mneme.Serialize do
   Maps an enum of values to their match expressions, combining any
   guards into a single clause with `and`.
   """
-  def enum_to_pattern(values, meta) do
+  def enum_to_pattern(values, context) do
     Enum.map_reduce(values, nil, fn value, guard ->
-      case {guard, Serializer.to_pattern(value, meta)} do
+      case {guard, Serializer.to_pattern(value, context)} do
         {nil, {expr, guard}} -> {expr, guard}
         {guard, {expr, nil}} -> {expr, guard}
         {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
@@ -62,21 +62,21 @@ defprotocol Mneme.Serializer do
   check will not occur.
   """
   @spec to_pattern(t, keyword()) :: {Macro.t(), Macro.t() | nil}
-  def to_pattern(value, meta)
+  def to_pattern(value, context)
 end
 
 defimpl Mneme.Serializer, for: Any do
-  def to_pattern(value, _meta)
+  def to_pattern(value, _context)
       when is_atom(value) or is_integer(value) or is_float(value) or is_binary(value) do
     {value, nil}
   end
 
-  def to_pattern(list, meta) when is_list(list) do
-    Mneme.Serialize.enum_to_pattern(list, meta)
+  def to_pattern(list, context) when is_list(list) do
+    Mneme.Serialize.enum_to_pattern(list, context)
   end
 
-  def to_pattern({a, b}, meta) do
-    case {Mneme.Serializer.to_pattern(a, meta), Mneme.Serializer.to_pattern(b, meta)} do
+  def to_pattern({a, b}, context) do
+    case {Mneme.Serializer.to_pattern(a, context), Mneme.Serializer.to_pattern(b, context)} do
       {{expr1, nil}, {expr2, nil}} -> {{expr1, expr2}, nil}
       {{expr1, guard}, {expr2, nil}} -> {{expr1, expr2}, guard}
       {{expr1, nil}, {expr2, guard}} -> {{expr1, expr2}, guard}
@@ -84,15 +84,15 @@ defimpl Mneme.Serializer, for: Any do
     end
   end
 
-  def to_pattern(tuple, meta) when is_tuple(tuple) do
+  def to_pattern(tuple, context) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, meta)
+    {value_matches, guard} = Mneme.Serialize.enum_to_pattern(values, context)
     {{:{}, [], value_matches}, guard}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
-    def to_pattern(value, meta) when unquote(guard)(value) do
-      case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
+    def to_pattern(value, context) when unquote(guard)(value) do
+      case Mneme.Serialize.fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> Mneme.Serialize.guard(unquote(var_name), unquote(guard))
       end
@@ -100,35 +100,35 @@ defimpl Mneme.Serializer, for: Any do
   end
 
   for module <- [DateTime, NaiveDateTime, Date, Time] do
-    def to_pattern(%unquote(module){} = value, meta) do
-      case Mneme.Serialize.fetch_pinned(value, meta[:binding]) do
+    def to_pattern(%unquote(module){} = value, context) do
+      case Mneme.Serialize.fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
       end
     end
   end
 
-  def to_pattern(%URI{} = uri, meta) do
-    struct_to_pattern(URI, Map.delete(uri, :authority), meta)
+  def to_pattern(%URI{} = uri, context) do
+    struct_to_pattern(URI, Map.delete(uri, :authority), context)
   end
 
-  def to_pattern(%struct{} = value, meta) do
-    struct_to_pattern(struct, value, meta)
+  def to_pattern(%struct{} = value, context) do
+    struct_to_pattern(struct, value, context)
   end
 
-  def to_pattern(%{} = map, meta) do
-    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, meta)
+  def to_pattern(%{} = map, context) do
+    {tuples, guard} = Mneme.Serialize.enum_to_pattern(map, context)
     {{:%{}, [], tuples}, guard}
   end
 
-  defp struct_to_pattern(struct, map, meta) do
+  defp struct_to_pattern(struct, map, context) do
     default = struct.__struct__()
     aliases = struct |> Module.split() |> Enum.map(&String.to_atom/1)
 
     {map_expr, guard} =
       map
       |> Map.filter(fn {k, v} -> v != Map.get(default, k) end)
-      |> Mneme.Serializer.to_pattern(meta)
+      |> Mneme.Serializer.to_pattern(context)
 
     {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard}
   end
