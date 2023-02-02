@@ -1,4 +1,4 @@
-defmodule Mneme.Patch do
+defmodule Mneme.Patcher do
   @moduledoc false
 
   alias Rewrite.DotFormatter

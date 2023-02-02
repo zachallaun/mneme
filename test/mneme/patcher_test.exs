@@ -1,7 +1,7 @@
-defmodule Mneme.PatchTest do
+defmodule Mneme.PatcherTest do
   use ExUnit.Case, async: true
   import Mneme
-  alias Mneme.Patch
+  alias Mneme.Patcher
 
   describe "get_test_line!/2" do
     test "finds the test line containing the given line" do
@@ -19,11 +19,11 @@ defmodule Mneme.PatchTest do
       end
       """
 
-      state = Patch.register_file(Patch.init(), "nofile", source)
+      state = Patcher.register_file(Patcher.init(), "nofile", source)
 
-      auto_assert 2 <- Patch.get_test_line!(state, {nil, nil, %{file: "nofile", line: 4}})
-      auto_assert 2 <- Patch.get_test_line!(state, {nil, nil, %{file: "nofile", line: 5}})
-      auto_assert 8 <- Patch.get_test_line!(state, {nil, nil, %{file: "nofile", line: 9}})
+      auto_assert 2 <- Patcher.get_test_line!(state, {nil, nil, %{file: "nofile", line: 4}})
+      auto_assert 2 <- Patcher.get_test_line!(state, {nil, nil, %{file: "nofile", line: 5}})
+      auto_assert 8 <- Patcher.get_test_line!(state, {nil, nil, %{file: "nofile", line: 9}})
     end
 
     test "handles unimplemented tests and weird formatting" do
@@ -36,9 +36,9 @@ defmodule Mneme.PatchTest do
       end
       """
 
-      state = Patch.register_file(Patch.init(), "nofile", source)
+      state = Patcher.register_file(Patcher.init(), "nofile", source)
 
-      auto_assert 4 <- Patch.get_test_line!(state, {nil, nil, %{file: "nofile", line: 5}})
+      auto_assert 4 <- Patcher.get_test_line!(state, {nil, nil, %{file: "nofile", line: 5}})
     end
   end
 end

@@ -7,7 +7,7 @@ defmodule Mneme.Server do
 
   use GenServer
 
-  alias Mneme.Patch
+  alias Mneme.Patcher
 
   defstruct [
     :patch_state,
@@ -38,7 +38,7 @@ defmodule Mneme.Server do
   end
 
   @doc """
-  Patch a Mneme assertion, prompting the user.
+  Patcher a Mneme assertion, prompting the user.
   """
   def await_assertion(assertion) do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
@@ -56,7 +56,7 @@ defmodule Mneme.Server do
 
   @impl true
   def init(_opts) do
-    {:ok, %__MODULE__{patch_state: Patch.init()}}
+    {:ok, %__MODULE__{patch_state: Patcher.init()}}
   end
 
   @impl true
@@ -83,7 +83,7 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter_event, {:suite_finished, _}}, _from, state) do
     flush_io(state)
-    {:reply, :ok, Map.update!(state, :patch_state, &Patch.finalize!/1)}
+    {:reply, :ok, Map.update!(state, :patch_state, &Patcher.finalize!/1)}
   end
 
   def handle_call({:formatter_event, {:module_finished, test_module}}, _from, state) do
@@ -130,20 +130,20 @@ defmodule Mneme.Server do
   defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
     {_type, _value, context} = assertion
     state = %{state | current: context}
-    patch_state = Patch.load_file!(patch_state, context)
-    test_line = Patch.get_test_line!(patch_state, assertion)
+    patch_state = Patcher.load_file!(patch_state, context)
+    test_line = Patcher.get_test_line!(patch_state, assertion)
 
     case state.active_tags[context.file] do
       %{line: ^test_line} = tags ->
-        patch = Patch.patch_assertion(patch_state, assertion, tags)
+        patch = Patcher.patch_assertion(patch_state, assertion, tags)
 
         {reply, state} =
-          case Patch.accept_patch?(patch_state, patch, tags) do
+          case Patcher.accept_patch?(patch_state, patch, tags) do
             {true, patch_state} ->
-              {{:ok, patch.expr}, %{state | patch_state: Patch.accept(patch_state, patch)}}
+              {{:ok, patch.expr}, %{state | patch_state: Patcher.accept(patch_state, patch)}}
 
             {false, patch_state} ->
-              {:error, %{state | patch_state: Patch.reject(patch_state, patch)}}
+              {:error, %{state | patch_state: Patcher.reject(patch_state, patch)}}
           end
 
         GenServer.reply(from, reply)
