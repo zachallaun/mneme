@@ -63,16 +63,16 @@ defmodule Mneme.Options do
   Fetch all valid Mneme options from the current test tags and environment.
   """
   def options(test_tags) do
-    opts =
-      test_tags
-      |> collect_attributes()
-      |> Enum.map(fn {k, [v | _]} -> {k, v} end)
-      |> Keyword.new()
-
-    opts
+    test_tags
+    |> collect_attributes()
+    |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+    |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
     |> validate_opts(test_tags)
     |> Map.new()
   end
+
+  defp put_opt_if(opts, true, k, v), do: Keyword.put(opts, k, v)
+  defp put_opt_if(opts, false, _k, _v), do: opts
 
   defp validate_opts(opts, test_tags) do
     case NimbleOptions.validate(opts, @options_schema) do
@@ -86,12 +86,12 @@ defmodule Mneme.Options do
         IO.warn("[Mneme] " <> Exception.message(error), stacktrace_info)
 
         opts
-        |> without_opts(key_or_keys)
+        |> drop_opts(key_or_keys)
         |> validate_opts(test_tags)
     end
   end
 
-  defp without_opts(opts, key_or_keys), do: Keyword.drop(opts, List.wrap(key_or_keys))
+  defp drop_opts(opts, key_or_keys), do: Keyword.drop(opts, List.wrap(key_or_keys))
 
   @doc """
   Collect all registered Mneme attributes from the given tags, in order of precedence.

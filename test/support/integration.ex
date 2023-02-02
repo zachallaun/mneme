@@ -30,7 +30,8 @@ defmodule Mneme.Integration do
     {expected_exit_code, expected_output, input} = read_io_file!(expect_basename)
     expected_source = read!(:expected, expect_basename)
 
-    {output, exit_code} = System.shell(~s(echo "#{input}" | mix test #{source_file} --seed 0))
+    {output, exit_code} =
+      System.shell(~s(echo "#{input}" | CI=false mix test #{source_file} --seed 0))
 
     actual_source = File.read!(source_file)
     actual_output = normalize_output(output)
