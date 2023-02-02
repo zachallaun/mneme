@@ -8,6 +8,13 @@ defmodule Mneme.Options do
       doc:
         "Controls how to update auto-assertions. Can be `:accept` or `:reject`, " <>
           "which will update or fail without prompting, or `:prompt`."
+    ],
+    prompter: [
+      type: :atom,
+      default: Mneme.Prompter.Terminal,
+      doc:
+        "Module implementing the `Mneme.Prompter` behaviour that will be used if " <>
+          "a prompt is required"
     ]
   ]
 

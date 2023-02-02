@@ -2,7 +2,6 @@ defmodule Mneme.Patcher do
   @moduledoc false
 
   alias Rewrite.DotFormatter
-  alias Rewrite.TextDiff
   alias Sourceror.Zipper
 
   defmodule FileResult do
@@ -57,31 +56,10 @@ defmodule Mneme.Patcher do
   end
 
   @doc """
-  Prompts the user to accept the patch based on the `:action` option.
+  Accepts or rejects the patch, potentially issuing a prompt.
   """
-  def accept_patch?(%SuiteResult{} = state, patch, %{action: :prompt}) do
-    %{
-      type: type,
-      context: context,
-      original: original,
-      replacement: replacement
-    } = patch
-
-    operation =
-      case type do
-        :new -> "New"
-        :replace -> "Update"
-      end
-
-    message = """
-    \n[Mneme] #{operation} assertion - #{context.file}:#{context.line}
-
-    #{diff(original, replacement)}\
-    """
-
-    IO.puts(message)
-    accept? = prompt_accept?("Accept change? (y/n) ")
-
+  def accept_patch?(%SuiteResult{} = state, patch, %{action: :prompt, prompter: prompter}) do
+    accept? = prompter.prompt!(patch)
     {accept?, state}
   end
 
@@ -174,42 +152,5 @@ defmodule Mneme.Patcher do
       original: original,
       replacement: replacement
     }
-  end
-
-  defp prompt_accept?(prompt, tries \\ 5)
-
-  defp prompt_accept?(_prompt, 0), do: false
-
-  defp prompt_accept?(prompt, tries) do
-    case IO.gets(prompt) do
-      response when is_binary(response) ->
-        response
-        |> String.trim()
-        |> String.downcase()
-        |> case do
-          "y" ->
-            true
-
-          "n" ->
-            false
-
-          other ->
-            IO.puts("unknown response: #{other}")
-            prompt_accept?(prompt, tries - 1)
-        end
-
-      :eof ->
-        prompt_accept?(prompt, tries - 1)
-    end
-  end
-
-  defp diff(old, new) do
-    TextDiff.format(old, new,
-      line_numbers: false,
-      before: 0,
-      after: 0,
-      format: [separator: "| "]
-    )
-    |> IO.iodata_to_binary()
   end
 end
