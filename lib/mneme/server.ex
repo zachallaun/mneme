@@ -138,19 +138,10 @@ defmodule Mneme.Server do
 
     case state.current_opts[context.file] do
       %{line: ^test_line, opts: opts} ->
-        patch = Patcher.patch_assertion(patch_state, assertion, opts)
-
-        {reply, state} =
-          case Patcher.accept_patch?(patch_state, patch, opts) do
-            {true, patch_state} ->
-              {{:ok, patch.expr}, %{state | patch_state: Patcher.accept(patch_state, patch)}}
-
-            {false, patch_state} ->
-              {:error, %{state | patch_state: Patcher.reject(patch_state, patch)}}
-          end
+        {reply, patch_state} = Patcher.patch!(patch_state, assertion, opts)
 
         GenServer.reply(from, reply)
-        state
+        %{state | patch_state: patch_state}
 
       _ ->
         %{state | waiting: %{file: context.file, line: test_line, arg: {assertion, from}}}

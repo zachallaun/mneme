@@ -42,29 +42,19 @@ defmodule Mneme.Patcher do
   def finalize!(%SuiteResult{finalized: true} = state), do: state
 
   @doc """
-  Accepts a patch.
-  """
-  def accept(%SuiteResult{} = state, patch) do
-    update_in(state.files[patch.context.file].accepted, &[patch | &1])
-  end
+  Run an assertion patch.
 
-  @doc """
-  Rejects a patch.
+  Returns `{result, patch_state}`.
   """
-  def reject(%SuiteResult{} = state, patch) do
-    update_in(state.files[patch.context.file].rejected, &[patch | &1])
-  end
+  def patch!(%SuiteResult{} = state, assertion, opts) do
+    patch = patch_assertion(state, assertion, opts)
 
-  @doc """
-  Accepts or rejects the patch, potentially issuing a prompt.
-  """
-  def accept_patch?(%SuiteResult{} = state, patch, %{action: :prompt, prompter: prompter}) do
-    accept? = prompter.prompt!(patch)
-    {accept?, state}
+    if accept_patch?(patch, opts) do
+      {{:ok, patch.expr}, accept_patch(state, patch)}
+    else
+      {:error, reject_patch(state, patch)}
+    end
   end
-
-  def accept_patch?(state, _patch, %{action: :accept}), do: {true, state}
-  def accept_patch?(state, _patch, %{action: :reject}), do: {false, state}
 
   @doc """
   Load and cache and source and AST required by the context.
@@ -93,19 +83,6 @@ defmodule Mneme.Patcher do
       _ ->
         state
     end
-  end
-
-  @doc """
-  Construct a patch for the given assertion.
-  """
-  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}, _opts) do
-    files
-    |> Map.fetch!(context.file)
-    |> Map.fetch!(:ast)
-    |> Zipper.zip()
-    |> Zipper.find(fn node -> Mneme.Code.mneme_assertion?(node, context) end)
-    |> Zipper.node()
-    |> create_patch(state, type, actual, context)
   end
 
   @doc """
@@ -138,6 +115,16 @@ defmodule Mneme.Patcher do
     end
   end
 
+  defp patch_assertion(%{files: files} = state, {type, actual, context}, _opts) do
+    files
+    |> Map.fetch!(context.file)
+    |> Map.fetch!(:ast)
+    |> Zipper.zip()
+    |> Zipper.find(fn node -> Mneme.Code.mneme_assertion?(node, context) end)
+    |> Zipper.node()
+    |> create_patch(state, type, actual, context)
+  end
+
   defp create_patch(node, %SuiteResult{format_opts: format_opts}, type, value, context) do
     original = Mneme.Code.format_assertion(node, format_opts)
     assertion = Mneme.Code.update_assertion(node, type, value, context)
@@ -152,5 +139,20 @@ defmodule Mneme.Patcher do
       original: original,
       replacement: replacement
     }
+  end
+
+  defp accept_patch?(patch, %{action: :prompt, prompter: prompter}) do
+    prompter.prompt!(patch)
+  end
+
+  defp accept_patch?(_patch, %{action: :accept}), do: true
+  defp accept_patch?(_patch, %{action: :reject}), do: false
+
+  defp accept_patch(state, patch) do
+    update_in(state.files[patch.context.file].accepted, &[patch | &1])
+  end
+
+  defp reject_patch(state, patch) do
+    update_in(state.files[patch.context.file].rejected, &[patch | &1])
   end
 end
