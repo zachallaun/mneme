@@ -57,7 +57,8 @@ defmodule Mneme.MixProject do
       {:sourceror, github: "doorgan/sourceror", ref: "main", override: true},
       {:rewrite, "~> 0.4.0"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.15", only: :test}
+      {:excoveralls, "~> 0.15", only: :test},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 

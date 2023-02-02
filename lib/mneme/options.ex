@@ -1,5 +1,17 @@
-defmodule Mneme.Utils do
+defmodule Mneme.Options do
   @moduledoc false
+
+  options = [
+    action: [
+      type: {:in, [:prompt, :accept, :reject]},
+      default: :prompt,
+      doc:
+        "Controls how to update auto-assertions. Can be `:accept` or `:reject`, " <>
+          "which will update or fail without prompting, or `:prompt`."
+    ]
+  ]
+
+  @options_schema NimbleOptions.new!(options)
 
   @test_attr :mneme
   @describe_attr :describe_mneme
@@ -29,6 +41,47 @@ defmodule Mneme.Utils do
       )
     end
   end
+
+  @doc """
+  Returns documentation for Mneme options.
+  """
+  def docs do
+    NimbleOptions.docs(@options_schema)
+  end
+
+  @doc """
+  Fetch all valid Mneme options from the current test tags and environment.
+  """
+  def options(test_tags) do
+    opts =
+      test_tags
+      |> collect_attributes()
+      |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+      |> Keyword.new()
+
+    opts
+    |> validate_opts(test_tags)
+    |> Map.new()
+  end
+
+  defp validate_opts(opts, test_tags) do
+    case NimbleOptions.validate(opts, @options_schema) do
+      {:ok, opts} ->
+        opts
+
+      {:error, %{key: key_or_keys} = error} ->
+        %{file: file, line: line, module: module} = test_tags
+        stacktrace_info = [file: file, line: line, module: module]
+
+        IO.warn("[Mneme] " <> Exception.message(error), stacktrace_info)
+
+        opts
+        |> without_opts(key_or_keys)
+        |> validate_opts(test_tags)
+    end
+  end
+
+  defp without_opts(opts, key_or_keys), do: Keyword.drop(opts, List.wrap(key_or_keys))
 
   @doc """
   Collect all registered Mneme attributes from the given tags, in order of precedence.
