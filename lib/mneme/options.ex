@@ -1,14 +1,17 @@
 defmodule Mneme.Options do
   @moduledoc false
 
-  options = [
+  @public_options [
     action: [
       type: {:in, [:prompt, :accept, :reject]},
       default: :prompt,
       doc:
         "Controls how to update auto-assertions. Can be `:accept` or `:reject`, " <>
           "which will update or fail without prompting, or `:prompt`."
-    ],
+    ]
+  ]
+
+  @private_options [
     prompter: [
       type: :atom,
       default: Mneme.Prompter.Terminal,
@@ -18,7 +21,7 @@ defmodule Mneme.Options do
     ]
   ]
 
-  @options_schema NimbleOptions.new!(options)
+  @options_schema NimbleOptions.new!(@public_options ++ @private_options)
 
   @test_attr :mneme
   @describe_attr :mneme_describe
@@ -50,10 +53,10 @@ defmodule Mneme.Options do
   end
 
   @doc """
-  Returns documentation for Mneme options.
+  Returns documentation for public Mneme options.
   """
   def docs do
-    NimbleOptions.docs(@options_schema)
+    NimbleOptions.docs(@public_options)
   end
 
   @doc """
