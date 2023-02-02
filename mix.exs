@@ -25,7 +25,6 @@ defmodule Mneme.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
@@ -52,11 +51,10 @@ defmodule Mneme.MixProject do
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:sourceror, github: "doorgan/sourceror", ref: "main", override: true},
-      {:rewrite, github: "hrzndhrn/rewrite", ref: "main"},
+      {:rewrite, "~> 0.4.0"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test}
     ]

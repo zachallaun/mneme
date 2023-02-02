@@ -12,10 +12,23 @@ defmodule Mneme.Server do
   defstruct [
     :patch_state,
     :io_pid,
-    :formatter,
     :current,
+    :waiting,
+    active_tags: %{},
     queue: []
   ]
+
+  @type t :: %__MODULE__{
+          patch_state: any(),
+          io_pid: pid(),
+          current: %{module: module(), file: binary()},
+          waiting: %{file: binary(), line: non_neg_integer(), arg: assertion_arg},
+          active_tags: map(),
+          queue: list()
+        }
+
+  @type assertion_arg :: {assertion, from :: pid()}
+  @type assertion :: {type :: :new | :replace, value :: any(), context :: map()}
 
   @doc """
   Start a Mneme server.
@@ -34,11 +47,11 @@ defmodule Mneme.Server do
   def on_formatter_init(_opts) do
     {:ok, io_pid} = StringIO.open("")
     Process.group_leader(self(), io_pid)
-    GenServer.call(__MODULE__, {:capture_formatter, io_pid})
+    GenServer.call(__MODULE__, {:capture_formatter, io_pid}, :infinity)
   end
 
   def on_formatter_event(message) do
-    GenServer.call(__MODULE__, {:formatter_event, message})
+    GenServer.call(__MODULE__, {:formatter_event, message}, :infinity)
   end
 
   @impl true
@@ -98,26 +111,47 @@ defmodule Mneme.Server do
     {:reply, :ok, state}
   end
 
+  def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
+    %{tags: %{file: file, line: line} = tags} = test
+
+    case Map.update!(state, :active_tags, &Map.put(&1, file, tags)) do
+      %{waiting: %{file: ^file, line: ^line, arg: arg}} = state ->
+        {:reply, :ok, state |> Map.put(:waiting, nil) |> patch_assertion(arg)}
+
+      state ->
+        {:reply, :ok, state}
+    end
+  end
+
   def handle_call({:formatter_event, _msg}, _from, state) do
     {:reply, :ok, state}
   end
 
   defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
     {_type, _value, context} = assertion
+    state = %{state | current: context}
     patch_state = Patch.load_file!(patch_state, context)
-    {patch, patch_state} = Patch.patch_assertion(patch_state, assertion)
+    test_line = Patch.get_test_line!(patch_state, assertion)
 
-    {reply, state} =
-      case Patch.accept_patch?(patch_state, patch) do
-        {true, patch_state} ->
-          {{:ok, patch.expr}, %{state | patch_state: Patch.accept(patch_state, patch)}}
+    case state.active_tags[context.file] do
+      %{line: ^test_line} = tags ->
+        {patch, patch_state} = Patch.patch_assertion(patch_state, assertion, tags)
 
-        {false, patch_state} ->
-          {:error, %{state | patch_state: Patch.reject(patch_state, patch)}}
-      end
+        {reply, state} =
+          case Patch.accept_patch?(patch_state, patch, tags) do
+            {true, patch_state} ->
+              {{:ok, patch.expr}, %{state | patch_state: Patch.accept(patch_state, patch)}}
 
-    GenServer.reply(from, reply)
-    %{state | current: context}
+            {false, patch_state} ->
+              {:error, %{state | patch_state: Patch.reject(patch_state, patch)}}
+          end
+
+        GenServer.reply(from, reply)
+        state
+
+      _ ->
+        %{state | waiting: %{file: context.file, line: test_line, arg: {assertion, from}}}
+    end
   end
 
   defp flush_io(%{io_pid: io_pid} = state) do

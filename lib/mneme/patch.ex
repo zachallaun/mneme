@@ -59,7 +59,7 @@ defmodule Mneme.Patch do
   @doc """
   Prompts the user to accept the patch.
   """
-  def accept_patch?(%SuiteResult{} = state, patch) do
+  def accept_patch?(%SuiteResult{} = state, patch, _tags) do
     %{
       type: type,
       context: context,
@@ -86,21 +86,31 @@ defmodule Mneme.Patch do
   end
 
   @doc """
+  Load and cache and source and AST required by the context.
   """
-  def load_file!(%SuiteResult{files: files} = state, context) do
-    with {:ok, file} <- Map.fetch(context, :file),
-         nil <- state.files[file] do
-      source = File.read!(file)
-
-      file_result = %FileResult{
-        file: file,
-        source: source,
-        ast: Sourceror.parse_string!(source)
-      }
-
-      %{state | files: Map.put(files, file, file_result)}
-    else
+  def load_file!(%SuiteResult{} = state, %{file: file}) do
+    case state.files[file] do
+      nil -> register_file(state, file, File.read!(file))
       _ -> state
+    end
+  end
+
+  @doc """
+  Registers the source and AST for the given file and content.
+  """
+  def register_file(%SuiteResult{} = state, file, source) do
+    case state.files[file] do
+      nil ->
+        file_result = %FileResult{
+          file: file,
+          source: source,
+          ast: Sourceror.parse_string!(source)
+        }
+
+        Map.update!(state, :files, &Map.put(&1, file, file_result))
+
+      _ ->
+        state
     end
   end
 
@@ -109,10 +119,11 @@ defmodule Mneme.Patch do
 
   Returns `{patch, state}`.
   """
-  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}) do
+  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}, _tags) do
     file = context.file
     ast = Map.fetch!(files, file).ast
 
+    # TODO: Use Zipper.find instead of traverse
     {_, patch} =
       ast
       |> Zipper.zip()
@@ -129,6 +140,36 @@ defmodule Mneme.Patch do
       end)
 
     {patch, state}
+  end
+
+  @doc """
+  Returns the line number of the test in which the given assertion is running.
+  """
+  def get_test_line!(
+        %SuiteResult{files: files},
+        {_type, _actual, %{file: file, line: line}}
+      ) do
+    files
+    |> Map.fetch!(file)
+    |> Map.fetch!(:ast)
+    |> Zipper.zip()
+    |> Zipper.find(fn
+      {:test, meta, _} ->
+        case {meta[:do][:line], meta[:end][:line]} do
+          {test_start, test_end} when is_integer(test_start) and is_integer(test_end) ->
+            test_start <= line && test_end >= line
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end)
+    |> case do
+      {{:test, meta, _}, _} -> Keyword.fetch!(meta, :line)
+      nil -> raise ArgumentError, "unable to find test for assertion at #{file}:#{line}"
+    end
   end
 
   defp create_patch(%SuiteResult{format_opts: format_opts}, type, value, context, node) do
