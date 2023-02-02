@@ -57,9 +57,9 @@ defmodule Mneme.Patcher do
   end
 
   @doc """
-  Prompts the user to accept the patch.
+  Prompts the user to accept the patch based on the `:action` option.
   """
-  def accept_patch?(%SuiteResult{} = state, patch, _opts) do
+  def accept_patch?(%SuiteResult{} = state, patch, %{action: :prompt}) do
     %{
       type: type,
       context: context,
@@ -84,6 +84,9 @@ defmodule Mneme.Patcher do
 
     {accept?, state}
   end
+
+  def accept_patch?(state, _patch, %{action: :accept}), do: {true, state}
+  def accept_patch?(state, _patch, %{action: :reject}), do: {false, state}
 
   @doc """
   Load and cache and source and AST required by the context.

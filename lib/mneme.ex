@@ -3,12 +3,23 @@ defmodule Mneme do
   Auto assert away.
   """
 
+  alias Mneme.Utils
+
+  @options [
+    action: [
+      type: {:in, [:prompt, :accept, :reject]},
+      default: :prompt
+    ]
+  ]
+
+  @options_schema NimbleOptions.new!(@options)
+
   @doc """
   Sets up Mneme to run auto-assertions in this module.
   """
   defmacro __using__(_opts) do
     quote do
-      import Mneme
+      import Mneme, only: [auto_assert: 1]
       require Mneme.Utils
 
       Mneme.Utils.register_attributes()
@@ -73,4 +84,36 @@ defmodule Mneme do
       end
     end
   end
+
+  @doc false
+  def __options__(test_tags) do
+    opts =
+      test_tags
+      |> Utils.collect_attributes()
+      |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+      |> Keyword.new()
+
+    opts
+    |> validate_opts(test_tags)
+    |> Map.new()
+  end
+
+  defp validate_opts(opts, test_tags) do
+    case NimbleOptions.validate(opts, @options_schema) do
+      {:ok, opts} ->
+        opts
+
+      {:error, %{key: key_or_keys} = error} ->
+        %{file: file, line: line, module: module} = test_tags
+        stacktrace_info = [file: file, line: line, module: module]
+
+        IO.warn("[Mneme] " <> Exception.message(error), stacktrace_info)
+
+        opts
+        |> without_opts(key_or_keys)
+        |> validate_opts(test_tags)
+    end
+  end
+
+  defp without_opts(opts, key_or_keys), do: Keyword.drop(opts, List.wrap(key_or_keys))
 end

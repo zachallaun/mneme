@@ -8,7 +8,6 @@ defmodule Mneme.Server do
   use GenServer
 
   alias Mneme.Patcher
-  alias Mneme.Utils
 
   defstruct [
     :patch_state,
@@ -114,7 +113,7 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
     %{tags: %{file: file, line: line} = tags} = test
-    current_opts_for_file = %{file: file, line: line, opts: Utils.collect_attributes(tags)}
+    current_opts_for_file = %{file: file, line: line, opts: Mneme.__options__(tags)}
     state = Map.update!(state, :current_opts, &Map.put(&1, file, current_opts_for_file))
 
     case state do

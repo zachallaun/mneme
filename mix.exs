@@ -53,6 +53,7 @@ defmodule Mneme.MixProject do
 
   defp deps do
     [
+      {:nimble_options, "~> 0.5.2"},
       {:sourceror, github: "doorgan/sourceror", ref: "main", override: true},
       {:rewrite, "~> 0.4.0"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
