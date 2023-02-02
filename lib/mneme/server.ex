@@ -8,13 +8,14 @@ defmodule Mneme.Server do
   use GenServer
 
   alias Mneme.Patcher
+  alias Mneme.Utils
 
   defstruct [
     :patch_state,
     :io_pid,
     :current,
     :waiting,
-    active_tags: %{},
+    current_opts: %{},
     queue: []
   ]
 
@@ -23,7 +24,7 @@ defmodule Mneme.Server do
           io_pid: pid(),
           current: %{module: module(), file: binary()},
           waiting: %{file: binary(), line: non_neg_integer(), arg: assertion_arg},
-          active_tags: map(),
+          current_opts: %{binary() => %{file: binary(), line: non_neg_integer(), opts: map()}},
           queue: list()
         }
 
@@ -113,8 +114,10 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
     %{tags: %{file: file, line: line} = tags} = test
+    current_opts_for_file = %{file: file, line: line, opts: Utils.collect_attributes(tags)}
+    state = Map.update!(state, :current_opts, &Map.put(&1, file, current_opts_for_file))
 
-    case Map.update!(state, :active_tags, &Map.put(&1, file, tags)) do
+    case state do
       %{waiting: %{file: ^file, line: ^line, arg: arg}} = state ->
         {:reply, :ok, state |> Map.put(:waiting, nil) |> patch_assertion(arg)}
 
@@ -133,12 +136,12 @@ defmodule Mneme.Server do
     patch_state = Patcher.load_file!(patch_state, context)
     test_line = Patcher.get_test_line!(patch_state, assertion)
 
-    case state.active_tags[context.file] do
-      %{line: ^test_line} = tags ->
-        patch = Patcher.patch_assertion(patch_state, assertion, tags)
+    case state.current_opts[context.file] do
+      %{line: ^test_line, opts: opts} ->
+        patch = Patcher.patch_assertion(patch_state, assertion, opts)
 
         {reply, state} =
-          case Patcher.accept_patch?(patch_state, patch, tags) do
+          case Patcher.accept_patch?(patch_state, patch, opts) do
             {true, patch_state} ->
               {{:ok, patch.expr}, %{state | patch_state: Patcher.accept(patch_state, patch)}}
 

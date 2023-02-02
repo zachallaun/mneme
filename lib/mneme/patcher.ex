@@ -59,7 +59,7 @@ defmodule Mneme.Patcher do
   @doc """
   Prompts the user to accept the patch.
   """
-  def accept_patch?(%SuiteResult{} = state, patch, _tags) do
+  def accept_patch?(%SuiteResult{} = state, patch, _opts) do
     %{
       type: type,
       context: context,
@@ -117,7 +117,7 @@ defmodule Mneme.Patcher do
   @doc """
   Construct a patch for the given assertion.
   """
-  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}, _tags) do
+  def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}, _opts) do
     files
     |> Map.fetch!(context.file)
     |> Map.fetch!(:ast)

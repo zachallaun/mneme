@@ -4,6 +4,18 @@ defmodule Mneme do
   """
 
   @doc """
+  Sets up Mneme to run auto-assertions in this module.
+  """
+  defmacro __using__(_opts) do
+    quote do
+      import Mneme
+      require Mneme.Utils
+
+      Mneme.Utils.register_attributes()
+    end
+  end
+
+  @doc """
   Configures the Mneme application server to run with ExUnit.
   """
   def start do

@@ -1,6 +1,6 @@
 defmodule Mneme.PatcherTest do
   use ExUnit.Case, async: true
-  import Mneme
+  use Mneme
   alias Mneme.Patcher
 
   describe "get_test_line!/2" do
