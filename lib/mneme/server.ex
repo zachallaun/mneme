@@ -135,7 +135,7 @@ defmodule Mneme.Server do
 
     case state.active_tags[context.file] do
       %{line: ^test_line} = tags ->
-        {patch, patch_state} = Patch.patch_assertion(patch_state, assertion, tags)
+        patch = Patch.patch_assertion(patch_state, assertion, tags)
 
         {reply, state} =
           case Patch.accept_patch?(patch_state, patch, tags) do

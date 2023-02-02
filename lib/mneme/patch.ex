@@ -115,31 +115,16 @@ defmodule Mneme.Patch do
   end
 
   @doc """
-  Construct the patch and updated state for the given assertion.
-
-  Returns `{patch, state}`.
+  Construct a patch for the given assertion.
   """
   def patch_assertion(%SuiteResult{files: files} = state, {type, actual, context}, _tags) do
-    file = context.file
-    ast = Map.fetch!(files, file).ast
-
-    # TODO: Use Zipper.find instead of traverse
-    {_, patch} =
-      ast
-      |> Zipper.zip()
-      |> Zipper.traverse(nil, fn
-        {node, _} = zipper, nil ->
-          if Mneme.Code.mneme_assertion?(node, context) do
-            {zipper, create_patch(state, type, actual, context, node)}
-          else
-            {zipper, nil}
-          end
-
-        zipper, patch ->
-          {zipper, patch}
-      end)
-
-    {patch, state}
+    files
+    |> Map.fetch!(context.file)
+    |> Map.fetch!(:ast)
+    |> Zipper.zip()
+    |> Zipper.find(fn node -> Mneme.Code.mneme_assertion?(node, context) end)
+    |> Zipper.node()
+    |> create_patch(state, type, actual, context)
   end
 
   @doc """
@@ -172,7 +157,7 @@ defmodule Mneme.Patch do
     end
   end
 
-  defp create_patch(%SuiteResult{format_opts: format_opts}, type, value, context, node) do
+  defp create_patch(node, %SuiteResult{format_opts: format_opts}, type, value, context) do
     original = Mneme.Code.format_assertion(node, format_opts)
     assertion = Mneme.Code.update_assertion(node, type, value, context)
     replacement = Mneme.Code.format_assertion(assertion, format_opts)

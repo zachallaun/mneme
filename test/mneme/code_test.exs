@@ -46,7 +46,6 @@ defmodule Mneme.CodeTest do
       auto_assert "true" <- to_pattern_string(true)
     end
 
-    @tag mneme: [uhh: true]
     test "literals" do
       auto_assert "123" <- to_pattern_string(123)
       auto_assert "123.5" <- to_pattern_string(123.5)
@@ -54,7 +53,6 @@ defmodule Mneme.CodeTest do
       auto_assert ":atom" <- to_pattern_string(:atom)
     end
 
-    @tag mneme: [nice: false]
     test "tuples" do
       auto_assert "{1, \"string\", :atom}" <- to_pattern_string({1, "string", :atom})
       auto_assert "{{:nested}, {\"tuples\"}}" <- to_pattern_string({{:nested}, {"tuples"}})
