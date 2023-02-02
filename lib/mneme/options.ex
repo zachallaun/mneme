@@ -14,8 +14,8 @@ defmodule Mneme.Options do
   @options_schema NimbleOptions.new!(options)
 
   @test_attr :mneme
-  @describe_attr :describe_mneme
-  @module_attr :module_mneme
+  @describe_attr :mneme_describe
+  @module_attr :mneme_module
 
   @doc """
   Register ExUnit attributes for controlling Mneme behavior.
@@ -103,8 +103,8 @@ defmodule Mneme.Options do
 
       iex> collect_attributes(%{
       ...>   registered: %{
-      ...>      module_mneme: [[foo: 1]],
-      ...>      describe_mneme: [[bar: 2], [foo: 2, bar: 1]],
+      ...>      mneme_module: [[foo: 1]],
+      ...>      mneme_describe: [[bar: 2], [foo: 2, bar: 1]],
       ...>      mneme: [[bar: 3, baz: 1]]
       ...>   }
       ...> })
