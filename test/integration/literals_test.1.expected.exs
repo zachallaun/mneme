@@ -1,6 +1,6 @@
 defmodule MnemeIntegration.LiteralsTest do
   use ExUnit.Case
-  import Mneme
+  use Mneme
 
   test "integers" do
     # no assertion yet

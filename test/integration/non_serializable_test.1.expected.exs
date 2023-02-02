@@ -1,6 +1,6 @@
 defmodule MnemeIntegration.NonSerializableTest do
   use ExUnit.Case
-  import Mneme
+  use Mneme
 
   test "pinned reference" do
     my_ref = make_ref()

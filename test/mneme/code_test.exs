@@ -1,6 +1,6 @@
 defmodule Mneme.CodeTest do
   use ExUnit.Case
-  import Mneme
+  use Mneme
   import Mneme.Code
 
   @format_opts Rewrite.DotFormatter.opts()
