@@ -18,3 +18,28 @@ def deps do
   ]
 end
 ```
+
+## VSCode Integration
+
+For happier times in VSCode, set up ElixirLS, copy the `.vscode/tasks.json` from this repository to your workspace, and then add the following keybindings:
+
+```json
+[
+  {
+    "key": "ctrl+; a",
+    "command": "workbench.action.tasks.runTask",
+    "args": "mix: Run tests"
+  },
+  {
+    "key": "ctrl+; f",
+    "command": "workbench.action.tasks.runTask",
+    "args": "mix: Run tests in current file"
+  },
+  {
+    "key": "ctrl+; c",
+    "command": "workbench.action.tasks.runTask",
+    "args": "mix: Run test at cursor"
+  },
+]
+```
+
