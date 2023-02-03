@@ -2,37 +2,34 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run tests",
-      "type": "shell",
-      "command": "mix test",
+      "type": "mix",
+      "task": "Run tests",
       "group": "test",
+      "label": "mix: Run tests",
       "presentation": {
         "panel": "new",
-        "focus": true,
-      },
-      "problemMatcher": ["$mixCompileError", "$mixCompileWarning", "$mixTestFailure"],
+        "focus": true
+      }
     },
     {
-      "label": "Run tests in current file",
-      "type": "shell",
-      "command": "mix test ${relativeFile}",
+      "type": "mix",
+      "task": "Run test at cursor",
       "group": "test",
+      "label": "mix: Run test at cursor",
       "presentation": {
         "panel": "new",
-        "focus": true,
-      },
-      "problemMatcher": ["$mixCompileError", "$mixCompileWarning", "$mixTestFailure"],
+        "focus": true
+      }
     },
     {
-      "label": "Run tests under cursor",
-      "type": "shell",
-      "command": "mix test ${relativeFile}:${lineNumber}",
+      "type": "mix",
+      "task": "Run tests in current file",
       "group": "test",
+      "label": "mix: Run tests in current file",
       "presentation": {
         "panel": "new",
-        "focus": true,
-      },
-      "problemMatcher": ["$mixCompileError", "$mixCompileWarning", "$mixTestFailure"],
+        "focus": true
+      }
     },
   ],
 }
