@@ -73,7 +73,8 @@ defimpl Mneme.Serializer, for: Any do
 
   defp struct_to_pattern(struct, map, context) do
     default = struct.__struct__()
-    aliases = struct |> Module.split() |> Enum.map(&String.to_atom/1)
+    {aliased, _} = List.keyfind(context.aliases || [], struct, 1, {struct, struct})
+    aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
 
     {map_expr, guard} =
       map

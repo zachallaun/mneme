@@ -120,15 +120,15 @@ defmodule Mneme.Patcher do
     |> Map.fetch!(context.file)
     |> Map.fetch!(:ast)
     |> Zipper.zip()
-    |> Zipper.find(fn node -> Mneme.Code.mneme_assertion?(node, context) end)
+    |> Zipper.find(fn node -> Mneme.Code.auto_assertion?(node, context) end)
     |> Zipper.node()
     |> create_patch(state, type, actual, context)
   end
 
   defp create_patch(node, %SuiteResult{format_opts: format_opts}, type, value, context) do
-    original = Mneme.Code.format_assertion(node, format_opts)
-    assertion = Mneme.Code.update_assertion(node, type, value, context)
-    replacement = Mneme.Code.format_assertion(assertion, format_opts)
+    original = Mneme.Code.format_auto_assertion(node, format_opts)
+    assertion = Mneme.Code.update_auto_assertion(node, type, value, context)
+    replacement = Mneme.Code.format_auto_assertion(assertion, format_opts)
 
     %{
       change: replacement,

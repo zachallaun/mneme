@@ -40,7 +40,7 @@ defmodule Mneme do
   Generates a match assertion.
   """
   defmacro auto_assert({:<-, _, [_, actual]} = expr) do
-    assertion = Mneme.Code.mneme_to_exunit({:auto_assert, [], [expr]})
+    assertion = Mneme.Code.auto_assertion_to_ex_unit({:auto_assert, [], [expr]})
     gen_auto_assert(:replace, __CALLER__, actual, assertion)
   end
 
@@ -54,10 +54,27 @@ defmodule Mneme do
   end
 
   defp gen_auto_assert(type, env, actual, assertion) do
+    context = %{
+      file: env.file,
+      line: env.line,
+      module: env.module,
+      # TODO: aliases is considered private and should not be relied on,
+      # but I'm not sure where else to access the alias information
+      # needed. Macro.Env.fetch_alias/2 is a thing, but it goes from
+      # alias to resolved module, and I need resolved module to alias.
+      # E.g. Macro.Env.fetch_alias(env, Bar) might return {:ok, Foo.Bar},
+      # but I have Foo.Bar and need to know that Bar is the alias in
+      # the current environment.
+      aliases: env.aliases
+    }
+
     quote do
       var!(actual) = unquote(actual)
       locals = Keyword.delete(binding(), :actual)
-      context = Map.new([module: __MODULE__, binding: locals] ++ unquote(Macro.Env.location(env)))
+
+      context =
+        unquote(Macro.escape(context))
+        |> Map.put(:binding, locals)
 
       try do
         unquote(assertion)
@@ -68,7 +85,7 @@ defmodule Mneme do
           case Mneme.Server.await_assertion(assertion) do
             {:ok, expr} ->
               expr
-              |> Mneme.Code.mneme_to_exunit()
+              |> Mneme.Code.auto_assertion_to_ex_unit()
               |> Code.eval_quoted(binding(), __ENV__)
 
             :error ->

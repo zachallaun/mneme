@@ -6,14 +6,14 @@ defmodule Mneme.Code do
   @doc """
   Transforms a Mneme assertion into an ExUnit assertion.
   """
-  def mneme_to_exunit({:auto_assert, _, [{:<-, _, [{:when, _, [expected, guard]}, _]}]}) do
+  def auto_assertion_to_ex_unit({:auto_assert, _, [{:<-, _, [{:when, _, [expected, guard]}, _]}]}) do
     quote do
       assert unquote(expected) = var!(actual)
       assert unquote(guard)
     end
   end
 
-  def mneme_to_exunit({:auto_assert, _, [{:<-, _, [expected, _]}]}) do
+  def auto_assertion_to_ex_unit({:auto_assert, _, [{:<-, _, [expected, _]}]}) do
     quote do
       assert unquote(expected) = var!(actual)
     end
@@ -22,7 +22,7 @@ defmodule Mneme.Code do
   @doc """
   Returns `true` if the node is the Mneme assertion for the context.
   """
-  def mneme_assertion?(node, context) do
+  def auto_assertion?(node, context) do
     case node do
       {:auto_assert, meta, [_]} -> meta[:line] == context[:line]
       _ -> false
@@ -32,14 +32,14 @@ defmodule Mneme.Code do
   @doc """
   Formats a Mneme assertion as a string.
   """
-  def format_assertion({:auto_assert, _, [expr]}, opts) do
+  def format_auto_assertion({:auto_assert, _, [expr]}, opts) do
     {:auto_assert, [], [expr]} |> Sourceror.to_string(opts)
   end
 
   @doc """
   Updates a Mneme assertion.
   """
-  def update_assertion({:auto_assert, _, [expr]}, update_type, value, context)
+  def update_auto_assertion({:auto_assert, _, [expr]}, update_type, value, context)
       when update_type in [:new, :replace] do
     pattern = update_pattern(update_type, expr, to_pattern(value, context))
     {:auto_assert, [], [pattern]}
