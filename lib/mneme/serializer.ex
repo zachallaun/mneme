@@ -72,13 +72,17 @@ defimpl Mneme.Serializer, for: Any do
   end
 
   defp struct_to_pattern(struct, map, context) do
-    default = struct.__struct__()
-    {aliased, _} = List.keyfind(context.aliases || [], struct, 1, {struct, struct})
+    {aliased, _} =
+      context
+      |> Map.get(:aliases, [])
+      |> List.keyfind(struct, 1, {struct, struct})
+
     aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
+    empty = struct.__struct__()
 
     {map_expr, guard} =
       map
-      |> Map.filter(fn {k, v} -> v != Map.get(default, k) end)
+      |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
       |> Mneme.Serializer.to_pattern(context)
 
     {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard}

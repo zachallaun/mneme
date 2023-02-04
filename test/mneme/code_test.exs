@@ -135,7 +135,7 @@ defmodule Mneme.CodeTest do
 
   defp to_pattern_string(value, context \\ []) do
     value
-    |> to_pattern(context)
+    |> to_pattern(Enum.into(context, %{}))
     |> Sourceror.to_string(@format_opts)
   end
 end
