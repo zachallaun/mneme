@@ -1,9 +1,16 @@
 defmodule Mneme.Server do
   @moduledoc false
 
-  # Mneme.Server is an ExUnit.Formatter that replaces (and delegates to)
-  # the default formatter so that it can capture and control terminal IO
-  # and hook into test events.
+  # In order to control IO and make sure that async tests don't cause
+  # screwiness, the server will handle all await_assertion calls from a
+  # single module, only moving on to calls from other modules once a
+  # :module_finished event is received (via a captured ExUnit formatter).
+  #
+  # We also configure Mneme using ExUnit attributes that are received
+  # in the test tags with the :test_started message. In the event that
+  # we receive an await_assertion prior to the :test_started (which is
+  # possible becuase it's async), we delay until the test has started
+  # and we have the appropriate options.
 
   use GenServer
 
@@ -13,18 +20,18 @@ defmodule Mneme.Server do
   defstruct [
     :patch_state,
     :io_pid,
-    :current,
     :waiting,
-    current_opts: %{},
+    :current_module,
+    opts: %{},
     queue: []
   ]
 
   @type t :: %__MODULE__{
           patch_state: any(),
           io_pid: pid(),
-          current: %{module: module(), file: binary()},
-          waiting: %{file: binary(), line: non_neg_integer(), arg: assertion_arg},
-          current_opts: %{binary() => %{file: binary(), line: non_neg_integer(), opts: map()}},
+          current_module: module(),
+          waiting: %{module: module(), test: atom(), arg: assertion_arg},
+          opts: %{{mod :: module(), test :: atom()} => map()},
           queue: list()
         }
 
@@ -61,15 +68,15 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:patch_assertion, assertion}, from, %{current: nil} = state) do
+  def handle_call({:patch_assertion, assertion}, from, %{current_module: nil} = state) do
     {:noreply, patch_assertion(state, {assertion, from})}
   end
 
   def handle_call({:patch_assertion, assertion}, from, state) do
     {_type, _value, context} = assertion
 
-    case {context, state.current} do
-      {%{module: module, file: file}, %{module: module, file: file}} ->
+    case {context, state.current_module} do
+      {%{module: module}, module} ->
         {:noreply, patch_assertion(state, {assertion, from})}
 
       _ ->
@@ -89,10 +96,10 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter_event, {:module_finished, test_module}}, _from, state) do
     state =
-      case {test_module, state.current} do
-        {%{name: module, file: file}, %{module: module, file: file}} ->
+      case {test_module, state.current_module} do
+        {%{name: module}, module} ->
           flush_io(state)
-          %{state | current: nil}
+          %{state | current_module: nil}
 
         _ ->
           state
@@ -100,7 +107,7 @@ defmodule Mneme.Server do
 
     state =
       case state do
-        %{current: nil, queue: [next | rest]} ->
+        %{current_module: nil, queue: [next | rest]} ->
           state
           |> Map.put(:queue, rest)
           |> patch_assertion(next)
@@ -113,19 +120,11 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
-    %{module: module, name: test_name, tags: %{file: file} = tags} = test
-
-    current_opts_for_file = %{
-      module: test.module,
-      test: test_name,
-      file: file,
-      opts: Options.options(tags)
-    }
-
-    state = Map.update!(state, :current_opts, &Map.put(&1, file, current_opts_for_file))
+    %{module: module, name: test_name, tags: tags} = test
+    state = put_in(state.opts[{module, test_name}], Options.options(tags))
 
     case state do
-      %{waiting: %{file: ^file, module: ^module, test: ^test_name, arg: arg}} = state ->
+      %{waiting: %{module: ^module, test: ^test_name, arg: arg}} = state ->
         {:reply, :ok, state |> Map.put(:waiting, nil) |> patch_assertion(arg)}
 
       state ->
@@ -137,28 +136,29 @@ defmodule Mneme.Server do
     {:reply, :ok, state}
   end
 
-  defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
+  defp patch_assertion(state, {assertion, from}) do
     {_type, _value, context} = assertion
-    %{module: module, file: file, test: test} = context
-    state = %{state | current: context}
+    %{module: module, test: test} = context
 
-    patch_state = Patcher.load_file!(patch_state, context)
+    state =
+      state
+      |> Map.put(:current_module, module)
+      |> Map.put(:patch_state, Patcher.load_file!(state.patch_state, context))
 
-    case state.current_opts[context.file] do
-      %{module: ^module, file: ^file, test: ^test, opts: opts} ->
-        {reply, patch_state} = Patcher.patch!(patch_state, assertion, opts)
+    if opts = state.opts[{module, test}] do
+      {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
 
-        GenServer.reply(from, reply)
-        %{state | patch_state: patch_state}
+      GenServer.reply(from, reply)
 
-      _ ->
-        state
-        |> Map.put(:waiting, %{
-          file: context.file,
-          module: module,
-          test: test,
-          arg: {assertion, from}
-        })
+      state
+      |> Map.put(:patch_state, patch_state)
+    else
+      state
+      |> Map.put(:waiting, %{
+        module: module,
+        test: test,
+        arg: {assertion, from}
+      })
     end
   end
 
