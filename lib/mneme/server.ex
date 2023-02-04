@@ -72,7 +72,7 @@ defmodule Mneme.Server do
 
   @impl true
   def handle_call({:patch_assertion, assertion}, from, state) do
-    state = Map.update!(state, :assertions, &(&1 ++ [{assertion, from}]))
+    state = Map.update!(state, :assertions, &[{assertion, from} | &1])
     {:noreply, state, {:continue, :process_assertions}}
   end
 
@@ -87,25 +87,24 @@ defmodule Mneme.Server do
     {:reply, :ok, state, {:continue, :process_assertions}}
   end
 
-  def handle_call({:formatter, {:test_finished, _}}, _from, %{current_module: nil} = state) do
-    {:reply, :ok, flush_io(state)}
-  end
-
-  def handle_call({:formatter, {:module_finished, test_module}}, _from, state) do
-    state =
-      if state.current_module in [nil, test_module.name] do
-        flush_io(state)
-        %{state | current_module: nil}
-      else
-        state
-      end
-
-    {:reply, :ok, state, {:continue, :process_assertions}}
+  def handle_call(
+        {:formatter, {:module_finished, %{name: mod}}},
+        _from,
+        %{current_module: mod} = state
+      ) do
+    {:reply, :ok, state |> flush_io() |> Map.put(:current_module, nil),
+     {:continue, :process_assertions}}
   end
 
   def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
-    flush_io(state)
-    {:reply, :ok, Map.update!(state, :patch_state, &Patcher.finalize!/1)}
+    {:reply, :ok,
+     state
+     |> flush_io()
+     |> Map.update!(:patch_state, &Patcher.finalize!/1)}
+  end
+
+  def handle_call({:formatter, _msg}, _from, %{current_module: nil} = state) do
+    {:reply, :ok, flush_io(state)}
   end
 
   def handle_call({:formatter, _msg}, _from, state) do
@@ -151,10 +150,14 @@ defmodule Mneme.Server do
     {{_type, _value, context}, _from} = next
     %{module: module, test: test} = context
 
-    if state.current_module in [nil, module] && state.opts[{module, test}] do
-      {next, %{state | assertions: Enum.reverse(acc) ++ rest}}
+    if current_module?(state, module) && state.opts[{module, test}] do
+      {next, %{state | assertions: acc ++ rest}}
     else
       pop_assertion(%{state | assertions: rest}, [next | acc])
     end
   end
+
+  defp current_module?(%{current_module: nil}, _), do: true
+  defp current_module?(%{current_module: mod}, mod), do: true
+  defp current_module?(_state, _mod), do: false
 end
