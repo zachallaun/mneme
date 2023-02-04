@@ -1,16 +1,21 @@
 defmodule Mneme.Server do
   @moduledoc false
 
-  # In order to control IO and make sure that async tests don't cause
-  # screwiness, the server will handle all await_assertion calls from a
-  # single module, only moving on to calls from other modules once a
-  # :module_finished event is received (via a captured ExUnit formatter).
+  # Other than being the interface between a test and the Patcher, the
+  # server is primarily responsible for managing IO. Because tests can
+  # run asynchronously, we have to carefully control output so that test
+  # results are not written to the terminal while we're prompting the
+  # user for input, etc.
   #
-  # We also configure Mneme using ExUnit attributes that are received
-  # in the test tags with the :test_started message. In the event that
-  # we receive an await_assertion prior to the :test_started (which is
-  # possible becuase it's async), we delay until the test has started
-  # and we have the appropriate options.
+  # To do this, we replace ExUnit's default formatter with our own (see
+  # Mneme.ExUnitFormatter) that delegates to ExUnit's formatter as well
+  # as notifying the server of test events so that we can track tests
+  # and flush IO at appropriate times.
+  #
+  # We additionally receive Mneme options via the ExUnit formatter,
+  # which passes along test tags, so we may need to delay a Mneme
+  # assertion if we have not yet received the :test_started event that
+  # included that test's tags.
 
   use GenServer
 
