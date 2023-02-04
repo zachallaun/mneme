@@ -39,9 +39,9 @@ defmodule Mneme do
   @doc """
   Generates a match assertion.
   """
-  defmacro auto_assert({:<-, _, [_, actual]} = expr) do
+  defmacro auto_assert({:<-, _, [_, value_expr]} = expr) do
     ex_unit_assertion = Mneme.Code.auto_assertion_to_ex_unit({:auto_assert, [], [expr]})
-    gen_auto_assert(:replace, __CALLER__, actual, ex_unit_assertion)
+    gen_auto_assert(:replace, __CALLER__, value_expr, ex_unit_assertion)
   end
 
   defmacro auto_assert(expr) do
@@ -53,11 +53,21 @@ defmodule Mneme do
     gen_auto_assert(:new, __CALLER__, expr, raise_no_match)
   end
 
-  defp gen_auto_assert(type, env, actual, test_expr) do
+  defp gen_auto_assert(type, env, value_expr, test_expr) do
+    test =
+      case env.function do
+        {test, _arity} ->
+          test
+
+        nil ->
+          raise ArgumentError, "`auto_assert` must be used inside a test"
+      end
+
     context = %{
       file: env.file,
       line: env.line,
       module: env.module,
+      test: test,
       #
       # TODO: access aliases some other way.
       #
@@ -72,7 +82,7 @@ defmodule Mneme do
     }
 
     quote do
-      var!(actual) = unquote(actual)
+      var!(actual) = unquote(value_expr)
       locals = Keyword.delete(binding(), :actual)
 
       context =

@@ -85,36 +85,6 @@ defmodule Mneme.Patcher do
     end
   end
 
-  @doc """
-  Returns the line number of the test in which the given assertion is running.
-  """
-  def get_test_line!(
-        %SuiteResult{files: files},
-        {_type, _actual, %{file: file, line: line}}
-      ) do
-    files
-    |> Map.fetch!(file)
-    |> Map.fetch!(:ast)
-    |> Zipper.zip()
-    |> Zipper.find(fn
-      {:test, meta, _} ->
-        case {meta[:do][:line], meta[:end][:line]} do
-          {test_start, test_end} when is_integer(test_start) and is_integer(test_end) ->
-            test_start <= line && test_end >= line
-
-          _ ->
-            false
-        end
-
-      _ ->
-        false
-    end)
-    |> case do
-      {{:test, meta, _}, _} -> Keyword.fetch!(meta, :line)
-      nil -> raise ArgumentError, "unable to find test for assertion at #{file}:#{line}"
-    end
-  end
-
   defp patch_assertion(%{files: files} = state, {type, actual, context}, _opts) do
     files
     |> Map.fetch!(context.file)

@@ -113,12 +113,19 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
-    %{tags: %{file: file, line: line} = tags} = test
-    current_opts_for_file = %{file: file, line: line, opts: Options.options(tags)}
+    %{module: module, name: test_name, tags: %{file: file} = tags} = test
+
+    current_opts_for_file = %{
+      module: test.module,
+      test: test_name,
+      file: file,
+      opts: Options.options(tags)
+    }
+
     state = Map.update!(state, :current_opts, &Map.put(&1, file, current_opts_for_file))
 
     case state do
-      %{waiting: %{file: ^file, line: ^line, arg: arg}} = state ->
+      %{waiting: %{file: ^file, module: ^module, test: ^test_name, arg: arg}} = state ->
         {:reply, :ok, state |> Map.put(:waiting, nil) |> patch_assertion(arg)}
 
       state ->
@@ -132,19 +139,26 @@ defmodule Mneme.Server do
 
   defp patch_assertion(%{patch_state: patch_state} = state, {assertion, from}) do
     {_type, _value, context} = assertion
+    %{module: module, file: file, test: test} = context
     state = %{state | current: context}
+
     patch_state = Patcher.load_file!(patch_state, context)
-    test_line = Patcher.get_test_line!(patch_state, assertion)
 
     case state.current_opts[context.file] do
-      %{line: ^test_line, opts: opts} ->
+      %{module: ^module, file: ^file, test: ^test, opts: opts} ->
         {reply, patch_state} = Patcher.patch!(patch_state, assertion, opts)
 
         GenServer.reply(from, reply)
         %{state | patch_state: patch_state}
 
       _ ->
-        %{state | waiting: %{file: context.file, line: test_line, arg: {assertion, from}}}
+        state
+        |> Map.put(:waiting, %{
+          file: context.file,
+          module: module,
+          test: test,
+          arg: {assertion, from}
+        })
     end
   end
 
