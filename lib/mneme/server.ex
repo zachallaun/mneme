@@ -20,19 +20,17 @@ defmodule Mneme.Server do
   defstruct [
     :patch_state,
     :io_pid,
-    :waiting,
     :current_module,
     opts: %{},
-    queue: []
+    assertions: []
   ]
 
   @type t :: %__MODULE__{
           patch_state: any(),
           io_pid: pid(),
           current_module: module(),
-          waiting: %{module: module(), test: atom(), arg: assertion_arg},
           opts: %{{mod :: module(), test :: atom()} => map()},
-          queue: list()
+          assertions: [assertion_arg]
         }
 
   @type assertion_arg :: {assertion, from :: pid()}
@@ -59,7 +57,7 @@ defmodule Mneme.Server do
   end
 
   def on_formatter_event(message) do
-    GenServer.call(__MODULE__, {:formatter_event, message}, :infinity)
+    GenServer.call(__MODULE__, {:formatter, message}, :infinity)
   end
 
   @impl true
@@ -68,103 +66,90 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:patch_assertion, assertion}, from, %{current_module: nil} = state) do
-    {:noreply, patch_assertion(state, {assertion, from})}
-  end
-
   def handle_call({:patch_assertion, assertion}, from, state) do
-    {_type, _value, context} = assertion
-
-    case {context, state.current_module} do
-      {%{module: module}, module} ->
-        {:noreply, patch_assertion(state, {assertion, from})}
-
-      _ ->
-        state = Map.update!(state, :queue, &(&1 ++ [{assertion, from}]))
-        {:noreply, state}
-    end
+    state = Map.update!(state, :assertions, &(&1 ++ [{assertion, from}]))
+    {:noreply, state, {:continue, :process_assertions}}
   end
 
   def handle_call({:capture_formatter, io_pid}, _from, state) do
     {:reply, :ok, state |> Map.put(:io_pid, io_pid)}
   end
 
-  def handle_call({:formatter_event, {:suite_finished, _}}, _from, state) do
+  def handle_call({:formatter, {:test_started, test}}, _from, state) do
+    %{module: module, name: test_name, tags: tags} = test
+    state = put_in(state.opts[{module, test_name}], Options.options(tags))
+
+    {:reply, :ok, state, {:continue, :process_assertions}}
+  end
+
+  def handle_call({:formatter, {:test_finished, _}}, _from, %{current_module: nil} = state) do
+    {:reply, :ok, flush_io(state)}
+  end
+
+  def handle_call({:formatter, {:module_finished, test_module}}, _from, state) do
+    state =
+      if state.current_module in [nil, test_module.name] do
+        flush_io(state)
+        %{state | current_module: nil}
+      else
+        state
+      end
+
+    {:reply, :ok, state, {:continue, :process_assertions}}
+  end
+
+  def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
     flush_io(state)
     {:reply, :ok, Map.update!(state, :patch_state, &Patcher.finalize!/1)}
   end
 
-  def handle_call({:formatter_event, {:module_finished, test_module}}, _from, state) do
-    state =
-      case {test_module, state.current_module} do
-        {%{name: module}, module} ->
-          flush_io(state)
-          %{state | current_module: nil}
-
-        _ ->
-          state
-      end
-
-    state =
-      case state do
-        %{current_module: nil, queue: [next | rest]} ->
-          state
-          |> Map.put(:queue, rest)
-          |> patch_assertion(next)
-
-        _ ->
-          state
-      end
-
+  def handle_call({:formatter, _msg}, _from, state) do
     {:reply, :ok, state}
   end
 
-  def handle_call({:formatter_event, {:test_started, test}}, _from, state) do
-    %{module: module, name: test_name, tags: tags} = test
-    state = put_in(state.opts[{module, test_name}], Options.options(tags))
-
-    case state do
-      %{waiting: %{module: ^module, test: ^test_name, arg: arg}} = state ->
-        {:reply, :ok, state |> Map.put(:waiting, nil) |> patch_assertion(arg)}
-
-      state ->
-        {:reply, :ok, state}
+  @impl true
+  def handle_continue(:process_assertions, state) do
+    case pop_assertion(state) do
+      {next, state} -> {:noreply, patch_assertion(state, next)}
+      nil -> {:noreply, state}
     end
-  end
-
-  def handle_call({:formatter_event, _msg}, _from, state) do
-    {:reply, :ok, state}
   end
 
   defp patch_assertion(state, {assertion, from}) do
     {_type, _value, context} = assertion
     %{module: module, test: test} = context
+    opts = state.opts[{module, test}]
 
     state =
       state
       |> Map.put(:current_module, module)
       |> Map.put(:patch_state, Patcher.load_file!(state.patch_state, context))
 
-    if opts = state.opts[{module, test}] do
-      {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
+    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
 
-      GenServer.reply(from, reply)
+    GenServer.reply(from, reply)
 
-      state
-      |> Map.put(:patch_state, patch_state)
-    else
-      state
-      |> Map.put(:waiting, %{
-        module: module,
-        test: test,
-        arg: {assertion, from}
-      })
-    end
+    %{state | patch_state: patch_state}
   end
 
   defp flush_io(%{io_pid: io_pid} = state) do
     output = StringIO.flush(io_pid)
     if output != "", do: IO.write(output)
     state
+  end
+
+  defp pop_assertion(state), do: pop_assertion(state, [])
+
+  defp pop_assertion(%{assertions: []}, _acc), do: nil
+
+  defp pop_assertion(%{assertions: [next | rest]} = state, acc) do
+    {{_type, _value, context}, _from} = next
+    %{module: module, test: test} = context
+
+    if state.current_module in [nil, module] && state.opts[{module, test}] do
+      {next, %{state | assertions: Enum.reverse(acc) ++ rest}}
+    else
+      pop_assertion(%{state | assertions: rest}, [next | acc])
+    end
   end
 end
