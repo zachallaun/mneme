@@ -8,8 +8,7 @@ defmodule Mneme.Prompter.Terminal do
   @impl true
   def prompt!(patch) do
     %{
-      type: type,
-      context: context,
+      assertion: %{type: type, context: context},
       original: original,
       replacement: replacement
     } = patch

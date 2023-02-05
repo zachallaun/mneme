@@ -39,34 +39,48 @@ defmodule Mneme do
   @doc """
   Generates a match assertion.
   """
-  defmacro auto_assert({:<-, _, [_, value_expr]} = expr) do
-    ex_unit_assertion = Mneme.Code.auto_assertion_to_ex_unit({:auto_assert, [], [expr]})
-    gen_auto_assert(:replace, __CALLER__, value_expr, ex_unit_assertion)
-  end
-
   defmacro auto_assert(expr) do
-    raise_no_match =
-      quote do
-        raise ExUnit.AssertionError, message: "No match present"
-      end
+    context = assertion_context(__CALLER__)
+    assertion = Mneme.Assertion.build(expr, context)
 
-    gen_auto_assert(:new, __CALLER__, expr, raise_no_match)
+    quote do
+      {assertion, eval_binding} = unquote(assertion)
+
+      try do
+        case assertion.type do
+          :new ->
+            raise ExUnit.AssertionError, message: "No match present"
+
+          :replace ->
+            {result, _} =
+              assertion
+              |> Mneme.Assertion.convert(target: :ex_unit_eval)
+              |> Code.eval_quoted(eval_binding, __ENV__)
+
+            result
+        end
+      rescue
+        error in [ExUnit.AssertionError] ->
+          case Mneme.Server.await_assertion(assertion) do
+            {:ok, assertion} ->
+              assertion
+              |> Mneme.Assertion.convert(target: :ex_unit_eval)
+              |> Code.eval_quoted(eval_binding, __ENV__)
+
+            :error ->
+              reraise error, [hd(__STACKTRACE__)]
+          end
+      end
+    end
   end
 
-  defp gen_auto_assert(type, env, value_expr, test_expr) do
-    test =
-      case env.function do
-        {test, _arity} ->
-          test
+  defp assertion_context(caller) do
+    {test, _arity} = caller.function
 
-        nil ->
-          raise ArgumentError, "`auto_assert` must be used inside a test"
-      end
-
-    context = %{
-      file: env.file,
-      line: env.line,
-      module: env.module,
+    %{
+      file: caller.file,
+      line: caller.line,
+      module: caller.module,
       test: test,
       #
       # TODO: access aliases some other way.
@@ -78,33 +92,7 @@ defmodule Mneme do
       # E.g. Macro.Env.fetch_alias(env, Bar) might return {:ok, Foo.Bar},
       # but I have Foo.Bar and need to know that Bar is the alias in
       # the current environment.
-      aliases: env.aliases
+      aliases: caller.aliases
     }
-
-    quote do
-      var!(actual) = unquote(value_expr)
-      locals = Keyword.delete(binding(), :actual)
-
-      context =
-        unquote(Macro.escape(context))
-        |> Map.put(:binding, locals)
-
-      try do
-        unquote(test_expr)
-      rescue
-        error in [ExUnit.AssertionError] ->
-          assertion = {unquote(type), var!(actual), context}
-
-          case Mneme.Server.await_assertion(assertion) do
-            {:ok, expr} ->
-              expr
-              |> Mneme.Code.auto_assertion_to_ex_unit()
-              |> Code.eval_quoted(binding(), __ENV__)
-
-            :error ->
-              reraise error, __STACKTRACE__
-          end
-      end
-    end
   end
 end

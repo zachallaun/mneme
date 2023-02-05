@@ -27,11 +27,12 @@ defmodule Mneme.Patcher do
   def finalize!(%SuiteResult{finalized: false} = state) do
     %{files: files, format_opts: format_opts} = state
 
-    for {_, %FileResult{file: file, source: source, accepted: patches}} <- files do
+    for {_, %FileResult{file: file, source: source, accepted: [_ | _] = patches}} <- files do
       patched_iodata =
         source
         |> Sourceror.patch_string(patches)
-        |> Code.format_string!(format_opts)
+        |> Sourceror.parse_string!()
+        |> Sourceror.to_string(format_opts)
 
       File.write!(file, [patched_iodata, "\n"])
     end
@@ -50,7 +51,7 @@ defmodule Mneme.Patcher do
     patch = patch_assertion(state, assertion, opts)
 
     if accept_patch?(patch, opts) do
-      {{:ok, patch.expr}, accept_patch(state, patch)}
+      {{:ok, patch.assertion}, accept_patch(state, patch)}
     else
       {:error, reject_patch(state, patch)}
     end
@@ -85,27 +86,27 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp patch_assertion(%{files: files} = state, {type, actual, context}, _opts) do
+  defp patch_assertion(%{files: files} = state, assertion, _opts) do
     files
-    |> Map.fetch!(context.file)
+    |> Map.fetch!(assertion.context.file)
     |> Map.fetch!(:ast)
     |> Zipper.zip()
-    |> Zipper.find(fn node -> Mneme.Code.auto_assertion?(node, context) end)
+    |> Zipper.find(fn node -> Mneme.Assertion.same?(assertion, node) end)
     |> Zipper.node()
-    |> create_patch(state, type, actual, context)
+    |> Sourceror.get_range()
+    |> create_patch(state, assertion)
   end
 
-  defp create_patch(node, %SuiteResult{format_opts: format_opts}, type, value, context) do
-    original = Mneme.Code.format_auto_assertion(node, format_opts)
-    assertion = Mneme.Code.update_auto_assertion(node, type, value, context)
-    replacement = Mneme.Code.format_auto_assertion(assertion, format_opts)
+  defp create_patch(range, %SuiteResult{format_opts: format_opts}, assertion) do
+    original = Mneme.Assertion.format(assertion, format_opts)
+    {_, _, [new_code]} = Mneme.Assertion.convert(assertion, target: :mneme)
+    new_assertion = Map.put(assertion, :code, new_code)
+    replacement = Mneme.Assertion.format(new_assertion, format_opts)
 
     %{
+      range: range,
       change: replacement,
-      range: Sourceror.get_range(node),
-      type: type,
-      expr: assertion,
-      context: context,
+      assertion: new_assertion,
       original: original,
       replacement: replacement
     }
@@ -119,10 +120,10 @@ defmodule Mneme.Patcher do
   defp accept_patch?(_patch, %{action: :reject}), do: false
 
   defp accept_patch(state, patch) do
-    update_in(state.files[patch.context.file].accepted, &[patch | &1])
+    update_in(state.files[patch.assertion.context.file].accepted, &[patch | &1])
   end
 
   defp reject_patch(state, patch) do
-    update_in(state.files[patch.context.file].rejected, &[patch | &1])
+    update_in(state.files[patch.assertion.context.file].rejected, &[patch | &1])
   end
 end

@@ -17,12 +17,20 @@ end
 
 defimpl Mneme.Serializer, for: Any do
   def to_pattern(value, _context)
-      when is_atom(value) or is_integer(value) or is_float(value) or is_binary(value) do
+      when is_atom(value) or is_integer(value) or is_float(value) do
     {value, nil}
   end
 
+  def to_pattern(string, _context) when is_binary(string) do
+    if String.contains?(string, "\n") do
+      {{:__block__, [delimiter: ~S(""")], [format_for_heredoc(string)]}, nil}
+    else
+      {string, nil}
+    end
+  end
+
   def to_pattern(list, context) when is_list(list) do
-    Mneme.Code.enum_to_pattern(list, context)
+    enum_to_pattern(list, context)
   end
 
   def to_pattern({a, b}, context) do
@@ -36,22 +44,22 @@ defimpl Mneme.Serializer, for: Any do
 
   def to_pattern(tuple, context) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = Mneme.Code.enum_to_pattern(values, context)
+    {value_matches, guard} = enum_to_pattern(values, context)
     {{:{}, [], value_matches}, guard}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
     def to_pattern(value, context) when unquote(guard)(value) do
-      case Mneme.Code.fetch_pinned(value, context[:binding]) do
+      case fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
-        :error -> Mneme.Code.guard(unquote(var_name), unquote(guard))
+        :error -> guard(unquote(var_name), unquote(guard))
       end
     end
   end
 
   for module <- [DateTime, NaiveDateTime, Date, Time] do
     def to_pattern(%unquote(module){} = value, context) do
-      case Mneme.Code.fetch_pinned(value, context[:binding]) do
+      case fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil}
         :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
       end
@@ -67,7 +75,7 @@ defimpl Mneme.Serializer, for: Any do
   end
 
   def to_pattern(%{} = map, context) do
-    {tuples, guard} = Mneme.Code.enum_to_pattern(map, context)
+    {tuples, guard} = enum_to_pattern(map, context)
     {{:%{}, [], tuples}, guard}
   end
 
@@ -86,5 +94,35 @@ defimpl Mneme.Serializer, for: Any do
       |> Mneme.Serializer.to_pattern(context)
 
     {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard}
+  end
+
+  defp format_for_heredoc(string) when is_binary(string) do
+    if String.ends_with?(string, "\n") do
+      string
+    else
+      string <> "\\\n"
+    end
+  end
+
+  defp fetch_pinned(value, binding) do
+    case List.keyfind(binding || [], value, 1) do
+      {name, ^value} -> {:ok, {:^, [], [{name, [], nil}]}}
+      _ -> :error
+    end
+  end
+
+  defp enum_to_pattern(values, context) do
+    Enum.map_reduce(values, nil, fn value, guard ->
+      case {guard, Mneme.Serializer.to_pattern(value, context)} do
+        {nil, {expr, guard}} -> {expr, guard}
+        {guard, {expr, nil}} -> {expr, guard}
+        {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
+      end
+    end)
+  end
+
+  defp guard(name, guard) do
+    var = {name, [], nil}
+    {var, {guard, [], [var]}}
   end
 end

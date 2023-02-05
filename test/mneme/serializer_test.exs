@@ -1,48 +1,11 @@
-defmodule Mneme.CodeTest do
+defmodule Mneme.SerializerTest do
   use ExUnit.Case
   use Mneme
-  import Mneme.Code
+  alias Mneme.Serializer
 
   @format_opts Rewrite.DotFormatter.opts()
 
-  describe "auto_assertion_to_ex_unit/1" do
-    test "builds an assertion" do
-      auto_assert {:assert, [],
-                   [
-                     {:=, [],
-                      [
-                        123,
-                        {:var!, [context: Mneme.Code, imports: [{1, Kernel}, {2, Kernel}]],
-                         [{:actual, [], Mneme.Code}]}
-                      ]}
-                   ]} <- auto_assertion_to_ex_unit(quote(do: auto_assert(123 <- 123)))
-    end
-
-    test "builds multiple assertions if guards are used" do
-      auto_assert {:__block__, [],
-                   [
-                     {:assert, [],
-                      [
-                        {:=, [],
-                         [
-                           {:foo, [], Mneme.CodeTest},
-                           {:var!, [context: Mneme.Code, imports: [{1, Kernel}, {2, Kernel}]],
-                            [{:actual, [], Mneme.Code}]}
-                         ]}
-                      ]},
-                     {:assert, [],
-                      [
-                        {:is_integer, [context: Mneme.CodeTest, imports: [{1, Kernel}]],
-                         [{:foo, [], Mneme.CodeTest}]}
-                      ]}
-                   ]} <-
-                    auto_assertion_to_ex_unit(
-                      quote(do: auto_assert(foo when is_integer(foo) <- 123))
-                    )
-    end
-  end
-
-  describe "to_pattern/2" do
+  describe "patterns" do
     test "atoms" do
       auto_assert ":foo" <- to_pattern_string(:foo)
       auto_assert "true" <- to_pattern_string(true)
@@ -59,10 +22,10 @@ defmodule Mneme.CodeTest do
       auto_assert "{1, \"string\", :atom}" <- to_pattern_string({1, "string", :atom})
       auto_assert "{{:nested}, {\"tuples\"}}" <- to_pattern_string({{:nested}, {"tuples"}})
 
-      auto_assert {:two, :elements} <- to_pattern({:two, :elements})
+      auto_assert {{:two, :elements}, nil} <- Serializer.to_pattern({:two, :elements}, %{})
 
-      auto_assert {:{}, [], [:more, :than, :two, :elements]} <-
-                    to_pattern({:more, :than, :two, :elements})
+      auto_assert {{:{}, [], [:more, :than, :two, :elements]}, nil} <-
+                    Serializer.to_pattern({:more, :than, :two, :elements}, %{})
     end
 
     test "lists" do
@@ -134,8 +97,10 @@ defmodule Mneme.CodeTest do
   end
 
   defp to_pattern_string(value, context \\ []) do
-    value
-    |> to_pattern(Enum.into(context, %{}))
+    case Serializer.to_pattern(value, Enum.into(context, %{})) do
+      {expr, nil} -> expr
+      {expr, guard} -> {:when, [], [expr, guard]}
+    end
     |> Sourceror.to_string(@format_opts)
   end
 end

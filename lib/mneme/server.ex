@@ -120,14 +120,13 @@ defmodule Mneme.Server do
   end
 
   defp patch_assertion(state, {assertion, from}) do
-    {_type, _value, context} = assertion
-    %{module: module, test: test} = context
+    %{module: module, test: test} = assertion.context
     opts = state.opts[{module, test}]
 
     state =
       state
       |> Map.put(:current_module, module)
-      |> Map.put(:patch_state, Patcher.load_file!(state.patch_state, context))
+      |> Map.put(:patch_state, Patcher.load_file!(state.patch_state, assertion.context))
 
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
 
@@ -147,8 +146,7 @@ defmodule Mneme.Server do
   defp pop_assertion(%{assertions: []}, _acc), do: nil
 
   defp pop_assertion(%{assertions: [next | rest]} = state, acc) do
-    {{_type, _value, context}, _from} = next
-    %{module: module, test: test} = context
+    {%{context: %{module: module, test: test}}, _from} = next
 
     if current_module?(state, module) && state.opts[{module, test}] do
       {next, %{state | assertions: acc ++ rest}}
