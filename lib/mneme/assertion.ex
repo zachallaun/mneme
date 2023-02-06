@@ -2,67 +2,90 @@ defmodule Mneme.Assertion do
   @moduledoc false
 
   alias __MODULE__
+  alias Mneme.Serializer
 
   defstruct [
     :type,
     :code,
     :value,
-    :context
+    :context,
+    :pattern
   ]
 
   @doc """
   Build an assertion.
   """
   def build(code, caller) do
-    context = context(caller)
+    {setup, eval} = code_for_setup_and_eval(code, caller)
 
-    eval_expr =
-      quote do
-        case assertion.type do
-          :new ->
-            raise ExUnit.AssertionError, message: "No match present"
+    case get_type(code) do
+      :new ->
+        quote do
+          unquote(setup)
 
-          :update ->
-            {result, _} =
-              assertion
-              |> Mneme.Assertion.to_code(:eval)
-              |> Code.eval_quoted(binding, __ENV__)
-
-            result
-        end
-      end
-
-    quote do
-      var!(value, :mneme) = unquote(value_expr(code))
-
-      assertion =
-        Mneme.Assertion.new(
-          unquote(Macro.escape(code)),
-          var!(value, :mneme),
-          unquote(Macro.escape(context)) |> Map.put(:binding, binding())
-        )
-
-      binding = binding() ++ binding(:mneme)
-
-      try do
-        unquote(eval_expr)
-      rescue
-        error in [ExUnit.AssertionError] ->
           case Mneme.Server.await_assertion(assertion) do
             {:ok, assertion} ->
-              unquote(eval_expr)
+              unquote(eval)
 
             :error ->
-              case __STACKTRACE__ do
-                [head | _] -> reraise error, [head]
-                [] -> reraise error, []
+              raise ExUnit.AssertionError, message: "No match present"
+          end
+        end
+
+      :update ->
+        quote do
+          unquote(setup)
+
+          try do
+            unquote(eval)
+          rescue
+            error in [ExUnit.AssertionError] ->
+              case Mneme.Server.await_assertion(assertion) do
+                {:ok, assertion} ->
+                  unquote(eval)
+
+                :error ->
+                  case __STACKTRACE__ do
+                    [head | _] -> reraise error, [head]
+                    [] -> reraise error, []
+                  end
               end
           end
-      end
+        end
     end
   end
 
-  defp context(caller) do
+  defp code_for_setup_and_eval(code, caller) do
+    context = test_context(caller)
+
+    setup =
+      quote do
+        var!(value, :mneme) = unquote(value_expr(code))
+
+        assertion =
+          Mneme.Assertion.new(
+            unquote(Macro.escape(code)),
+            var!(value, :mneme),
+            unquote(Macro.escape(context)) |> Map.put(:binding, binding())
+          )
+
+        binding = binding() ++ binding(:mneme)
+      end
+
+    eval =
+      quote do
+        {result, _} =
+          assertion
+          |> Mneme.Assertion.to_code(:eval)
+          |> Code.eval_quoted(binding, __ENV__)
+
+        result
+      end
+
+    {setup, eval}
+  end
+
+  defp test_context(caller) do
     {test, _arity} = caller.function
 
     %{
@@ -86,19 +109,17 @@ defmodule Mneme.Assertion do
 
   @doc false
   def new(code, value, context) do
-    type =
-      case code do
-        {_, _, [{op, _, [_, _]}]} when op in [:<-, :==] -> :update
-        _ -> :new
-      end
-
     %Assertion{
-      type: type,
+      type: get_type(code),
       code: code,
       value: value,
-      context: context
+      context: context,
+      pattern: Serializer.to_pattern(value, context)
     }
   end
+
+  defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
+  defp get_type(_code), do: :new
 
   @doc """
   Regenerate assertion `:code` based on its `:value`.
@@ -144,7 +165,7 @@ defmodule Mneme.Assertion do
     * `:eval` - Generate an assertion that can be dynamically evaluated.
   """
   def to_code(assertion, target) when target in [:auto_assert, :assert, :eval] do
-    case Mneme.Serializer.to_pattern(assertion.value, assertion.context) do
+    case assertion.pattern do
       {falsy, nil} when falsy in [nil, false] ->
         build_call(target, :compare, assertion, falsy, nil)
 
