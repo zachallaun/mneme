@@ -49,7 +49,7 @@ defmodule Mneme.Server do
   end
 
   @doc """
-  Patcher a Mneme assertion, prompting the user.
+  Await the result of an assertion patch.
   """
   def await_assertion(assertion) do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)

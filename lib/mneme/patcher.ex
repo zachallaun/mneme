@@ -51,7 +51,7 @@ defmodule Mneme.Patcher do
     patch = patch_assertion(state, assertion, opts)
 
     if accept_patch?(patch, opts) do
-      {{:ok, patch.assertion}, accept_patch(state, patch)}
+      {{:ok, patch.replacement}, accept_patch(state, patch)}
     else
       {:error, reject_patch(state, patch)}
     end
@@ -98,16 +98,15 @@ defmodule Mneme.Patcher do
   end
 
   defp create_patch(range, %SuiteResult{format_opts: format_opts}, assertion) do
-    original = Mneme.Assertion.format(assertion, format_opts)
     new_assertion = Mneme.Assertion.regenerate_code(assertion, target: :mneme)
-    replacement = Mneme.Assertion.format(new_assertion, format_opts)
+    change = Mneme.Assertion.format(new_assertion, format_opts)
 
     %{
       range: range,
-      change: replacement,
-      assertion: new_assertion,
-      original: original,
-      replacement: replacement
+      change: change,
+      original: assertion,
+      replacement: new_assertion,
+      format_opts: format_opts
     }
   end
 
@@ -119,10 +118,10 @@ defmodule Mneme.Patcher do
   defp accept_patch?(_patch, %{action: :reject}), do: false
 
   defp accept_patch(state, patch) do
-    update_in(state.files[patch.assertion.context.file].accepted, &[patch | &1])
+    update_in(state.files[patch.replacement.context.file].accepted, &[patch | &1])
   end
 
   defp reject_patch(state, patch) do
-    update_in(state.files[patch.assertion.context.file].rejected, &[patch | &1])
+    update_in(state.files[patch.replacement.context.file].rejected, &[patch | &1])
   end
 end

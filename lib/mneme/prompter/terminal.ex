@@ -5,12 +5,14 @@ defmodule Mneme.Prompter.Terminal do
 
   @behaviour Mneme.Prompter
 
+  alias Mneme.Assertion
+
   @impl true
   def prompt!(patch) do
     %{
-      assertion: %{type: type, context: context},
-      original: original,
-      replacement: replacement
+      original: %{type: type, context: context} = original,
+      replacement: replacement,
+      format_opts: format_opts
     } = patch
 
     operation =
@@ -19,10 +21,13 @@ defmodule Mneme.Prompter.Terminal do
         :replace -> "Update"
       end
 
+    original_source = Assertion.format(original, format_opts)
+    replacement_source = Assertion.format(replacement, format_opts)
+
     message = """
     \n[Mneme] #{operation} assertion - #{context.file}:#{context.line}
 
-    #{diff(original, replacement)}\
+    #{diff(original_source, replacement_source)}\
     """
 
     IO.puts(message)
