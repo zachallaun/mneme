@@ -22,7 +22,7 @@ defmodule Mneme.Assertion do
           :new ->
             raise ExUnit.AssertionError, message: "No match present"
 
-          :replace ->
+          :update ->
             {result, _} =
               assertion
               |> Mneme.Assertion.to_code(:eval)
@@ -85,20 +85,15 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def new(code, value, context)
-
-  def new({_, _, [{op, _, [_, _]}]} = code, value, context) when op in [:<-, :==] do
-    %Assertion{
-      type: :replace,
-      code: code,
-      value: value,
-      context: context
-    }
-  end
-
   def new(code, value, context) do
+    type =
+      case code do
+        {_, _, [{op, _, [_, _]}]} when op in [:<-, :==] -> :update
+        _ -> :new
+      end
+
     %Assertion{
-      type: :new,
+      type: type,
       code: code,
       value: value,
       context: context
@@ -113,7 +108,7 @@ defmodule Mneme.Assertion do
 
     assertion
     |> Map.put(:code, new_code)
-    |> Map.put(:type, :replace)
+    |> Map.put(:type, :update)
   end
 
   @doc """

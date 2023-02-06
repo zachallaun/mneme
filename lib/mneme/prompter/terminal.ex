@@ -18,7 +18,7 @@ defmodule Mneme.Prompter.Terminal do
     operation =
       case type do
         :new -> "New"
-        :replace -> "Update"
+        :update -> "Update"
       end
 
     original_source = Assertion.format(original, format_opts)

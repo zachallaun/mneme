@@ -35,11 +35,8 @@ defmodule Mneme.Server do
           io_pid: pid(),
           current_module: module(),
           opts: %{{mod :: module(), test :: atom()} => map()},
-          assertions: [assertion_arg]
+          assertions: [{any(), from :: pid()}]
         }
-
-  @type assertion_arg :: {assertion, from :: pid()}
-  @type assertion :: {type :: :new | :replace, value :: any(), context :: map()}
 
   @doc """
   Start a Mneme server.
