@@ -3,8 +3,6 @@ defmodule Mneme.Assertion do
 
   alias __MODULE__
 
-  @value_var quote(do: var!(value, :mneme))
-
   defstruct [
     :type,
     :code,
@@ -19,13 +17,13 @@ defmodule Mneme.Assertion do
   """
   def build(call \\ :auto_assert, code, context) do
     quote do
-      unquote(@value_var) = unquote(value_expr(code))
+      var!(value, :mneme) = unquote(value_expr(code))
 
       assertion =
         Mneme.Assertion.new(
           unquote(call),
           unquote(Macro.escape(code)),
-          unquote(@value_var),
+          var!(value, :mneme),
           unquote(Macro.escape(context)) |> Map.put(:binding, binding())
         )
 
@@ -33,9 +31,7 @@ defmodule Mneme.Assertion do
     end
   end
 
-  @doc """
-  Create a new assertion struct.
-  """
+  @doc false
   def new(call \\ :auto_assert, code, value, context)
 
   def new(call, {op, _, [_, _]} = code, value, context) when op in [:<-, :==] do
@@ -83,13 +79,9 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr
-  defp expect_expr({:==, _, [_, expect_expr]}), do: expect_expr
-
-  defp value_expr({:<-, _, [_, value_expr]}), do: value_expr
-  defp value_expr({:==, _, [value_expr, _]}), do: value_expr
-  defp value_expr(value_expr), do: value_expr
-
+  @doc """
+  Converts the assertion to the given target, either `:mneme` or `:ex_unit`.
+  """
   def convert(assertion, opts \\ []) do
     target = Keyword.fetch!(opts, :target)
 
@@ -100,6 +92,18 @@ defmodule Mneme.Assertion do
       {expr, guard} ->
         build_call(target, :match, assertion, expr, guard)
     end
+  end
+
+  @doc """
+  Dynamically evaluates the assertion using the given binding and env.
+  """
+  def eval(assertion, binding, env) do
+    {result, _} =
+      assertion
+      |> convert(target: :ex_unit_eval)
+      |> Code.eval_quoted(binding, env)
+
+    result
   end
 
   defp build_call(:mneme, :compare, assertion, falsy_expr, nil) do
@@ -172,4 +176,11 @@ defmodule Mneme.Assertion do
   end
 
   defp normalize_heredoc(expr), do: expr
+
+  defp expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr
+  defp expect_expr({:==, _, [_, expect_expr]}), do: expect_expr
+
+  defp value_expr({:<-, _, [_, value_expr]}), do: value_expr
+  defp value_expr({:==, _, [value_expr, _]}), do: value_expr
+  defp value_expr(value_expr), do: value_expr
 end

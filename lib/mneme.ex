@@ -41,10 +41,9 @@ defmodule Mneme do
   """
   defmacro auto_assert(expr) do
     context = assertion_context(__CALLER__)
-    assertion = Mneme.Assertion.build(expr, context)
 
     quote do
-      {assertion, eval_binding} = unquote(assertion)
+      {assertion, binding} = unquote(Mneme.Assertion.build(expr, context))
 
       try do
         case assertion.type do
@@ -52,23 +51,19 @@ defmodule Mneme do
             raise ExUnit.AssertionError, message: "No match present"
 
           :replace ->
-            {result, _} =
-              assertion
-              |> Mneme.Assertion.convert(target: :ex_unit_eval)
-              |> Code.eval_quoted(eval_binding, __ENV__)
-
-            result
+            Mneme.Assertion.eval(assertion, binding, __ENV__)
         end
       rescue
         error in [ExUnit.AssertionError] ->
           case Mneme.Server.await_assertion(assertion) do
             {:ok, assertion} ->
-              assertion
-              |> Mneme.Assertion.convert(target: :ex_unit_eval)
-              |> Code.eval_quoted(eval_binding, __ENV__)
+              Mneme.Assertion.eval(assertion, binding, __ENV__)
 
             :error ->
-              reraise error, [hd(__STACKTRACE__)]
+              case __STACKTRACE__ do
+                [head | _] -> reraise error, [head]
+                [] -> reraise error, []
+              end
           end
       end
     end
