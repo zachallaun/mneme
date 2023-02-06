@@ -5,13 +5,18 @@ defmodule Mneme.Assertion do
 
   @value_var quote(do: var!(value, :mneme))
 
-  defstruct call: :auto_assert,
-            # :replace
-            type: :new,
-            code: nil,
-            value: nil,
-            context: nil
+  defstruct [
+    :type,
+    :code,
+    :value,
+    :context,
+    call: :auto_assert
+  ]
 
+  @doc """
+  Build an escaped expression that will evaluate to `{assertion, binding}`
+  at runtime.
+  """
   def build(call \\ :auto_assert, code, context) do
     quote do
       unquote(@value_var) = unquote(value_expr(code))
@@ -28,6 +33,9 @@ defmodule Mneme.Assertion do
     end
   end
 
+  @doc """
+  Create a new assertion struct.
+  """
   def new(call \\ :auto_assert, code, value, context)
 
   def new(call, {op, _, [_, _]} = code, value, context) when op in [:<-, :==] do
@@ -58,10 +66,16 @@ defmodule Mneme.Assertion do
     Map.put(assertion, :code, new_code)
   end
 
+  @doc """
+  Format the assertion as a string.
+  """
   def format(%Assertion{call: call, code: code}, opts) do
     Sourceror.to_string({call, [], [code]}, opts)
   end
 
+  @doc """
+  Check whether the assertion struct represents the given AST node.
+  """
   def same?(%Assertion{context: context}, node) do
     case node do
       {:auto_assert, meta, [_]} -> meta[:line] == context[:line]
