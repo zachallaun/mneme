@@ -1,0 +1,23 @@
+# exit:0
+
+[Mneme] New assertion
+
+ - | auto_assert "foo\nbar\n"
+ + | auto_assert """
+ + |             foo
+ + |             bar
+ + |             """ <- "foo\nbar\n"
+
+Accept change? (y/n) !{y
+}
+[Mneme] New assertion
+
+ - | auto_assert "foo\nbar"
+ + | auto_assert """
+ + |             foo
+ + |             bar\
+ + |             """ <- "foo\nbar"
+
+Accept change? (y/n) !{y
+}.
+1 test, 0 failures

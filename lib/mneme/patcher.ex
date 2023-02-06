@@ -48,12 +48,12 @@ defmodule Mneme.Patcher do
   Returns `{result, patch_state}`.
   """
   def patch!(%SuiteResult{} = state, assertion, opts) do
-    patch = patch_assertion(state, assertion, opts)
+    {patch, assertion} = patch_assertion(state, assertion, opts)
 
     if accept_patch?(patch, opts) do
-      {{:ok, patch.replacement}, accept_patch(state, patch)}
+      {{:ok, assertion}, accept_patch(state, patch, assertion)}
     else
-      {:error, reject_patch(state, patch)}
+      {:error, reject_patch(state, patch, assertion)}
     end
   end
 
@@ -93,21 +93,30 @@ defmodule Mneme.Patcher do
     |> Zipper.zip()
     |> Zipper.find(fn node -> Mneme.Assertion.same?(assertion, node) end)
     |> Zipper.node()
-    |> Sourceror.get_range()
     |> create_patch(state, assertion)
   end
 
-  defp create_patch(range, %SuiteResult{format_opts: format_opts}, assertion) do
-    new_assertion = Mneme.Assertion.regenerate_code(assertion, target: :mneme)
-    change = Mneme.Assertion.format(new_assertion, format_opts)
+  defp create_patch({_call, _, [code]} = node, %SuiteResult{format_opts: format_opts}, assertion) do
+    range = Sourceror.get_range(node)
 
-    %{
+    # HACK: String serialization fix
+    # Sourceror's AST is richer than the one we get from the macro call.
+    # In particular, string literals are in a :__block__ tuple and include
+    # delimiter information. We use this when formatting to ensure that
+    # the same delimiters are used.
+    assertion = Map.put(assertion, :code, code)
+
+    new_assertion = Mneme.Assertion.regenerate_code(assertion, :auto_assert)
+
+    patch = %{
+      change: Mneme.Assertion.format(new_assertion, format_opts),
       range: range,
-      change: change,
       original: assertion,
       replacement: new_assertion,
       format_opts: format_opts
     }
+
+    {patch, new_assertion}
   end
 
   defp accept_patch?(patch, %{action: :prompt, prompter: prompter}) do
@@ -117,11 +126,11 @@ defmodule Mneme.Patcher do
   defp accept_patch?(_patch, %{action: :accept}), do: true
   defp accept_patch?(_patch, %{action: :reject}), do: false
 
-  defp accept_patch(state, patch) do
-    update_in(state.files[patch.replacement.context.file].accepted, &[patch | &1])
+  defp accept_patch(state, patch, assertion) do
+    update_in(state.files[assertion.context.file].accepted, &[patch | &1])
   end
 
-  defp reject_patch(state, patch) do
-    update_in(state.files[patch.replacement.context.file].rejected, &[patch | &1])
+  defp reject_patch(state, patch, assertion) do
+    update_in(state.files[assertion.context.file].rejected, &[patch | &1])
   end
 end

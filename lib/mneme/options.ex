@@ -5,9 +5,10 @@ defmodule Mneme.Options do
     action: [
       type: {:in, [:prompt, :accept, :reject]},
       default: :prompt,
-      doc:
-        "Controls how to update auto-assertions. Can be `:accept` or `:reject`, " <>
-          "which will update or fail without prompting, or `:prompt`."
+      doc: """
+      Controls how to update auto-assertions. Can be `:accept` or `:reject`,
+      which will update or fail without prompting, or `:prompt`.
+      """
     ]
   ]
 
@@ -15,9 +16,10 @@ defmodule Mneme.Options do
     prompter: [
       type: :atom,
       default: Mneme.Prompter.Terminal,
-      doc:
-        "Module implementing the `Mneme.Prompter` behaviour that will be used if " <>
-          "a prompt is required"
+      doc: """
+      Module implementing the `Mneme.Prompter` behaviour. This is used if a
+      user prompt is required.
+      """
     ]
   ]
 

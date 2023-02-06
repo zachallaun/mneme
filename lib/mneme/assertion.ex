@@ -26,7 +26,7 @@ defmodule Mneme.Assertion do
           :replace ->
             {result, _} =
               assertion
-              |> Mneme.Assertion.convert(target: :ex_unit_eval)
+              |> Mneme.Assertion.to_code(:eval)
               |> Code.eval_quoted(binding, __ENV__)
 
             result
@@ -112,8 +112,8 @@ defmodule Mneme.Assertion do
   @doc """
   Regenerate assertion `:code` based on its `:value`.
   """
-  def regenerate_code(%Assertion{} = assertion, opts) do
-    {_, _, [new_code]} = convert(assertion, opts)
+  def regenerate_code(%Assertion{} = assertion, target) do
+    {_, _, [new_code]} = to_code(assertion, target)
 
     assertion
     |> Map.put(:code, new_code)
@@ -124,7 +124,7 @@ defmodule Mneme.Assertion do
   Format the assertion as a string.
   """
   def format(%Assertion{call: call, code: code}, opts) do
-    Sourceror.to_string({call, [], [code]}, opts)
+    Sourceror.to_string({call, [], [escape_newlines(code)]}, opts)
   end
 
   @doc """
@@ -138,11 +138,19 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Converts the assertion to the given target, either `:mneme` or `:ex_unit`.
-  """
-  def convert(assertion, opts \\ []) do
-    target = Keyword.fetch!(opts, :target)
+  Generates assertion code for the given target.
 
+  Target is one of:
+
+    * `:auto_assert` - Generate an `auto_assert` call that is appropriate
+      for updating the source code.
+
+    * `:assert` - Generate an `assert` call that is appropriate for
+      updating the source code.
+
+    * `:eval` - Generate an assertion that can be dynamically evaluated.
+  """
+  def to_code(assertion, target) when target in [:auto_assert, :assert, :eval] do
     case Mneme.Serializer.to_pattern(assertion.value, assertion.context) do
       {falsy, nil} when falsy in [nil, false] ->
         build_call(target, :compare, assertion, falsy, nil)
@@ -152,28 +160,28 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp build_call(:mneme, :compare, assertion, falsy_expr, nil) do
-    {assertion.call, [], [{:==, [], [value_expr(assertion.code), falsy_expr]}]}
+  defp build_call(:auto_assert, :compare, assertion, falsy_expr, nil) do
+    {:auto_assert, [], [{:==, [], [value_expr(assertion.code), falsy_expr]}]}
   end
 
-  defp build_call(:mneme, :match, assertion, expr, nil) do
-    {assertion.call, [], [{:<-, [], [expr, value_expr(assertion.code)]}]}
+  defp build_call(:auto_assert, :match, assertion, expr, nil) do
+    {:auto_assert, [], [{:<-, [], [expr, value_expr(assertion.code)]}]}
   end
 
-  defp build_call(:mneme, :match, assertion, expr, guard) do
-    {assertion.call, [], [{:<-, [], [{:when, [], [expr, guard]}, value_expr(assertion.code)]}]}
+  defp build_call(:auto_assert, :match, assertion, expr, guard) do
+    {:auto_assert, [], [{:<-, [], [{:when, [], [expr, guard]}, value_expr(assertion.code)]}]}
   end
 
-  defp build_call(:ex_unit, :compare, assertion, falsy, nil) do
+  defp build_call(:assert, :compare, assertion, falsy, nil) do
     {:assert, [], [{:==, [], [value_expr(assertion.code), falsy]}]}
   end
 
-  defp build_call(:ex_unit, :match, assertion, expr, nil) do
+  defp build_call(:assert, :match, assertion, expr, nil) do
     {:assert, [], [{:=, [], [normalize_heredoc(expr), value_expr(assertion.code)]}]}
   end
 
-  defp build_call(:ex_unit, :match, assertion, expr, guard) do
-    assertion = build_call(:ex_unit, :match, assertion, expr, nil)
+  defp build_call(:assert, :match, assertion, expr, guard) do
+    assertion = build_call(:assert, :match, assertion, expr, nil)
 
     quote do
       value = unquote(assertion)
@@ -182,16 +190,16 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp build_call(:ex_unit_eval, :compare, assertion, _falsy, nil) do
-    {:assert, [], [{:==, [], [expect_expr(assertion.code), {:value, [], nil}]}]}
+  defp build_call(:eval, :compare, assertion, _falsy, nil) do
+    {:assert, [], [{:==, [], [normalized_expect_expr(assertion.code), {:value, [], nil}]}]}
   end
 
-  defp build_call(:ex_unit_eval, :match, assertion, _expr, nil) do
-    {:assert, [], [{:=, [], [expect_expr(assertion.code), {:value, [], nil}]}]}
+  defp build_call(:eval, :match, assertion, _expr, nil) do
+    {:assert, [], [{:=, [], [normalized_expect_expr(assertion.code), {:value, [], nil}]}]}
   end
 
-  defp build_call(:ex_unit_eval, :match, assertion, expr, guard) do
-    assertion = build_call(:ex_unit_eval, :match, assertion, expr, nil)
+  defp build_call(:eval, :match, assertion, expr, guard) do
+    assertion = build_call(:eval, :match, assertion, expr, nil)
 
     quote do
       value = unquote(assertion)
@@ -199,6 +207,13 @@ defmodule Mneme.Assertion do
       value
     end
   end
+
+  defp value_expr({:<-, _, [_, value_expr]}), do: value_expr
+  defp value_expr({:==, _, [value_expr, _]}), do: value_expr
+  defp value_expr(value_expr), do: value_expr
+
+  defp normalized_expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr |> normalize_heredoc()
+  defp normalized_expect_expr({:==, _, [_, expect_expr]}), do: expect_expr |> normalize_heredoc()
 
   # Allows us to format multiline strings as heredocs when they don't
   # end with a newline, e.g.
@@ -223,10 +238,16 @@ defmodule Mneme.Assertion do
 
   defp normalize_heredoc(expr), do: expr
 
-  defp expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr
-  defp expect_expr({:==, _, [_, expect_expr]}), do: expect_expr
+  defp escape_newlines(code) do
+    Sourceror.prewalk(code, fn
+      {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
+        case meta[:delimiter] do
+          "\"" -> {{:__block__, meta, [String.replace(string, "\n", "\\n")]}, state}
+          _ -> {quoted, state}
+        end
 
-  defp value_expr({:<-, _, [_, value_expr]}), do: value_expr
-  defp value_expr({:==, _, [value_expr, _]}), do: value_expr
-  defp value_expr(value_expr), do: value_expr
+      quoted, state ->
+        {quoted, state}
+    end)
+  end
 end
