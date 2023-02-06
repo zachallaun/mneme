@@ -1,11 +1,11 @@
 # exit:2
 
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert 1 + 1
- + | assert 2 = 1 + 1
+  -   auto_assert 1 + 1
+  +   assert 2 = 1 + 1
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }.
 
 1) test should reject without prompt (MnemeIntegration.OptionsTest)

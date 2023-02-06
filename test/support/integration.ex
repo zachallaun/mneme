@@ -117,6 +117,7 @@ defmodule Mneme.Integration do
     |> String.replace(~r/\[Mneme\] ((Update)|(New)) assertion.+\n/, "[Mneme] \\1 assertion\n")
     |> String.replace(~r/tmp\/.+\n/, "")
     |> String.replace(~r/stacktrace:\n[^\n\n]+/, "stacktrace:\n")
+    |> String.replace(~r/│\s/, "")
     |> String.split("\n")
     |> Enum.map(&String.trim/1)
     |> Enum.join("\n")

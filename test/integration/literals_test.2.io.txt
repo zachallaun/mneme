@@ -1,32 +1,32 @@
 # exit:2
 
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert 2 + 2
- + | auto_assert 4 <- 2 + 2
+  -   auto_assert 2 + 2
+  +   auto_assert 4 <- 2 + 2
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }
-[Mneme] Update assertion
+Changed • auto_assert
 
- - | auto_assert 4 <- 2 + 1
- + | auto_assert 3 <- 2 + 1
+  -   auto_assert 4 <- 2 + 1
+  +   auto_assert 3 <- 2 + 1
 
-Accept change? (y/n) !{n
+Value has changed! Update to new value? [yN]: !{n
 }
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert "foo" <> "bar"
- + | auto_assert "foobar" <- "foo" <> "bar"
+  -   auto_assert "foo" <> "bar"
+  +   auto_assert "foobar" <- "foo" <> "bar"
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }
-[Mneme] Update assertion
+Changed • auto_assert
 
- - | auto_assert "foobar" <- "foo" <> "baz"
- + | auto_assert "foobaz" <- "foo" <> "baz"
+  -   auto_assert "foobar" <- "foo" <> "baz"
+  +   auto_assert "foobaz" <- "foo" <> "baz"
 
-Accept change? (y/n) !{n
+Value has changed! Update to new value? [yN]: !{n
 }
 
 1) test integers (MnemeIntegration.LiteralsTest)

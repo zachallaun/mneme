@@ -5,6 +5,8 @@ defmodule Mneme.Prompter.Terminal do
 
   @behaviour Mneme.Prompter
 
+  import Owl.Data, only: [tag: 2]
+
   alias Mneme.Assertion
 
   @impl true
@@ -15,51 +17,29 @@ defmodule Mneme.Prompter.Terminal do
       format_opts: format_opts
     } = patch
 
-    operation =
-      case type do
-        :new -> "New"
-        :update -> "Update"
-      end
-
     original_source = Assertion.format(original, format_opts)
     replacement_source = Assertion.format(replacement, format_opts)
 
-    message = """
-    \n[Mneme] #{operation} assertion - #{context.file}:#{context.line}
+    prefix = tag("│ ", :light_black)
 
-    #{diff(original_source, replacement_source)}\
-    """
+    message =
+      [
+        type_tag(type),
+        tag(" • auto_assert", :light_black),
+        "\n",
+        file_tag(context),
+        "\n\n",
+        diff(original_source, replacement_source)
+      ]
+      |> Owl.Data.add_prefix(prefix)
 
-    IO.puts(message)
+    Owl.IO.puts(["\n", message])
 
-    prompt_accept?("Accept change? (y/n) ")
+    prompt_accept?([prefix, explanation_tag(type)])
   end
 
-  defp prompt_accept?(prompt, tries \\ 5)
-
-  defp prompt_accept?(_prompt, 0), do: false
-
-  defp prompt_accept?(prompt, tries) do
-    case IO.gets(prompt) do
-      response when is_binary(response) ->
-        response
-        |> String.trim()
-        |> String.downcase()
-        |> case do
-          "y" ->
-            true
-
-          "n" ->
-            false
-
-          other ->
-            IO.puts("unknown response: #{other}")
-            prompt_accept?(prompt, tries - 1)
-        end
-
-      :eof ->
-        prompt_accept?(prompt, tries - 1)
-    end
+  defp prompt_accept?(prompt) do
+    Owl.IO.confirm(message: prompt)
   end
 
   defp diff(old, new) do
@@ -67,8 +47,26 @@ defmodule Mneme.Prompter.Terminal do
       line_numbers: false,
       before: 0,
       after: 0,
-      format: [separator: "| "]
+      format: [separator: "   ", gutter: [eq: "   ", ins: "  +", del: "  -", skip: "..."]]
     )
-    |> IO.iodata_to_binary()
+  end
+
+  defp file_tag(%{file: file, line: line} = _context) do
+    path = Path.relative_to_cwd(file)
+    tag([path, ":", to_string(line)], :light_black)
+  end
+
+  defp type_tag(:new), do: tag("New", :green)
+  defp type_tag(:update), do: tag("Changed", :yellow)
+
+  defp explanation_tag(:new) do
+    ["Accept ", tag("new", :green), " assertion?"]
+  end
+
+  defp explanation_tag(:update) do
+    [
+      tag("Value has changed! ", :yellow),
+      "Update to new value?"
+    ]
   end
 end

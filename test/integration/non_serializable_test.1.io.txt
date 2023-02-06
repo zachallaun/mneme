@@ -1,31 +1,31 @@
 # exit:0
 
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert Function.identity(my_ref)
- + | auto_assert ^my_ref <- Function.identity(my_ref)
+  -   auto_assert Function.identity(my_ref)
+  +   auto_assert ^my_ref <- Function.identity(my_ref)
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert [my_ref]
- + | auto_assert [^my_ref] <- [my_ref]
+  -   auto_assert [my_ref]
+  +   auto_assert [^my_ref] <- [my_ref]
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert make_ref()
- + | auto_assert ref when is_reference(ref) <- make_ref()
+  -   auto_assert make_ref()
+  +   auto_assert ref when is_reference(ref) <- make_ref()
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }
-[Mneme] New assertion
+New • auto_assert
 
- - | auto_assert [make_ref()]
- + | auto_assert [ref] when is_reference(ref) <- [make_ref()]
+  -   auto_assert [make_ref()]
+  +   auto_assert [ref] when is_reference(ref) <- [make_ref()]
 
-Accept change? (y/n) !{y
+Accept new assertion? [yN]: !{y
 }..
 2 tests, 0 failures
