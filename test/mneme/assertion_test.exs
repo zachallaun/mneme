@@ -62,10 +62,8 @@ defmodule Mneme.AssertionTest do
     auto_assert "assert _ == value" <- to_code_string(assertion, :eval)
   end
 
-  @mneme target: :assert
-  test "hmm" do
-    assert pid = self()
-    assert is_pid(pid)
+  defp to_code_string(assertion, :eval) do
+    assertion.eval |> Sourceror.to_string(@format_opts)
   end
 
   defp to_code_string(assertion, target) do

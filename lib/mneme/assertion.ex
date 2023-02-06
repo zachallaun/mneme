@@ -9,7 +9,8 @@ defmodule Mneme.Assertion do
     :code,
     :value,
     :context,
-    :pattern
+    :pattern,
+    :eval
   ]
 
   @doc """
@@ -74,11 +75,7 @@ defmodule Mneme.Assertion do
 
     eval =
       quote do
-        {result, _} =
-          assertion
-          |> Mneme.Assertion.to_code(:eval)
-          |> Code.eval_quoted(binding, __ENV__)
-
+        {result, _} = Code.eval_quoted(assertion.eval, binding, __ENV__)
         result
       end
 
@@ -109,12 +106,15 @@ defmodule Mneme.Assertion do
 
   @doc false
   def new(code, value, context) do
+    pattern = Serializer.to_pattern(value, context)
+
     %Assertion{
       type: get_type(code),
       code: code,
       value: value,
       context: context,
-      pattern: Serializer.to_pattern(value, context)
+      pattern: pattern,
+      eval: code_for_eval(code, pattern)
     }
   end
 
@@ -122,14 +122,14 @@ defmodule Mneme.Assertion do
   defp get_type(_code), do: :new
 
   @doc """
-  Regenerate assertion `:code` based on its `:value`.
+  Regenerate assertion code for the given target.
   """
   def regenerate_code(%Assertion{} = assertion, target) when target in [:auto_assert, :assert] do
     new_code = to_code(assertion, target)
 
     assertion
     |> Map.put(:code, new_code)
-    |> Map.put(:type, :update)
+    |> Map.put(:eval, code_for_eval(new_code, assertion.pattern))
   end
 
   @doc """
@@ -161,41 +161,39 @@ defmodule Mneme.Assertion do
 
     * `:assert` - Generate an `assert` call that is appropriate for
       updating the source code.
-
-    * `:eval` - Generate an assertion that can be dynamically evaluated.
   """
-  def to_code(assertion, target) when target in [:auto_assert, :assert, :eval] do
+  def to_code(assertion, target) when target in [:auto_assert, :assert] do
     case assertion.pattern do
       {falsy, nil} when falsy in [nil, false] ->
-        build_call(target, :compare, assertion, falsy, nil)
+        build_call(target, :compare, assertion.code, falsy, nil)
 
       {expr, guard} ->
-        build_call(target, :match, assertion, expr, guard)
+        build_call(target, :match, assertion.code, expr, guard)
     end
   end
 
-  defp build_call(:auto_assert, :compare, assertion, falsy_expr, nil) do
-    {:auto_assert, [], [{:==, [], [value_expr(assertion.code), falsy_expr]}]}
+  defp build_call(:auto_assert, :compare, code, falsy_expr, nil) do
+    {:auto_assert, [], [{:==, [], [value_expr(code), falsy_expr]}]}
   end
 
-  defp build_call(:auto_assert, :match, assertion, expr, nil) do
-    {:auto_assert, [], [{:<-, [], [expr, value_expr(assertion.code)]}]}
+  defp build_call(:auto_assert, :match, code, expr, nil) do
+    {:auto_assert, [], [{:<-, [], [expr, value_expr(code)]}]}
   end
 
-  defp build_call(:auto_assert, :match, assertion, expr, guard) do
-    {:auto_assert, [], [{:<-, [], [{:when, [], [expr, guard]}, value_expr(assertion.code)]}]}
+  defp build_call(:auto_assert, :match, code, expr, guard) do
+    {:auto_assert, [], [{:<-, [], [{:when, [], [expr, guard]}, value_expr(code)]}]}
   end
 
-  defp build_call(:assert, :compare, assertion, falsy, nil) do
-    {:assert, [], [{:==, [], [value_expr(assertion.code), falsy]}]}
+  defp build_call(:assert, :compare, code, falsy, nil) do
+    {:assert, [], [{:==, [], [value_expr(code), falsy]}]}
   end
 
-  defp build_call(:assert, :match, assertion, expr, nil) do
-    {:assert, [], [{:=, [], [normalize_heredoc(expr), value_expr(assertion.code)]}]}
+  defp build_call(:assert, :match, code, expr, nil) do
+    {:assert, [], [{:=, [], [normalize_heredoc(expr), value_expr(code)]}]}
   end
 
-  defp build_call(:assert, :match, assertion, expr, guard) do
-    check = build_call(:assert, :match, assertion, expr, nil)
+  defp build_call(:assert, :match, code, expr, guard) do
+    check = build_call(:assert, :match, code, expr, nil)
 
     quote do
       unquote(check)
@@ -203,20 +201,30 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp build_call(:eval, _, %{code: {:__block__, _, _} = code}, _, _) do
+  defp code_for_eval(code, pattern) do
+    case pattern do
+      {falsy, nil} when falsy in [nil, false] ->
+        build_eval(:compare, code, falsy, nil)
+
+      {expr, guard} ->
+        build_eval(:match, code, expr, guard)
+    end
+  end
+
+  defp build_eval(_, {:__block__, _, _} = code, _, _) do
     code
   end
 
-  defp build_call(:eval, :compare, assertion, _falsy, nil) do
-    {:assert, [], [{:==, [], [normalized_expect_expr(assertion.code), {:value, [], nil}]}]}
+  defp build_eval(:compare, code, _falsy, nil) do
+    {:assert, [], [{:==, [], [normalized_expect_expr(code), {:value, [], nil}]}]}
   end
 
-  defp build_call(:eval, :match, assertion, _expr, nil) do
-    {:assert, [], [{:=, [], [normalized_expect_expr(assertion.code), {:value, [], nil}]}]}
+  defp build_eval(:match, code, _expr, nil) do
+    {:assert, [], [{:=, [], [normalized_expect_expr(code), {:value, [], nil}]}]}
   end
 
-  defp build_call(:eval, :match, assertion, expr, guard) do
-    check = build_call(:eval, :match, assertion, expr, nil)
+  defp build_eval(:match, code, expr, guard) do
+    check = build_eval(:match, code, expr, nil)
 
     quote do
       value = unquote(check)
