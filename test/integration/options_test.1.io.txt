@@ -13,5 +13,5 @@ No match present
 code: auto_assert 1 + 1
 stacktrace:
 
-...
-5 tests, 1 failure
+....
+6 tests, 1 failure

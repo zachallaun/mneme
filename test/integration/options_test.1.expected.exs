@@ -27,5 +27,13 @@ defmodule MnemeIntegration.OptionsTest do
     test "should rewrite to ExUnit assertion 2" do
       assert 4 = 2 + 2
     end
+
+    test "should rewrite to ExUnit assertion with guards/pins" do
+      assert pid = self()
+      assert is_pid(pid)
+
+      me = self()
+      assert ^me = Function.identity(me)
+    end
   end
 end

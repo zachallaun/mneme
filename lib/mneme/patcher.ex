@@ -97,20 +97,21 @@ defmodule Mneme.Patcher do
   end
 
   defp create_patch(
-         {_call, _, [code]} = node,
+         node,
          %SuiteResult{format_opts: format_opts},
          assertion,
          opts
        ) do
-    target = Map.fetch!(opts, :target)
-    range = Sourceror.get_range(node)
-
     # HACK: String serialization fix
     # Sourceror's AST is richer than the one we get from the macro call.
     # In particular, string literals are in a :__block__ tuple and include
     # delimiter information. We use this when formatting to ensure that
     # the same delimiters are used.
-    assertion = Map.put(assertion, :code, code)
+    node = remove_comments(node)
+    assertion = Map.put(assertion, :code, node)
+
+    target = Map.fetch!(opts, :target)
+    range = Sourceror.get_range(node)
 
     new_assertion = Mneme.Assertion.regenerate_code(assertion, target)
 
@@ -123,6 +124,11 @@ defmodule Mneme.Patcher do
     }
 
     {patch, new_assertion}
+  end
+
+  defp remove_comments({call, meta, body}) do
+    meta = Keyword.drop(meta, [:leading_comments, :trailing_comments])
+    {call, meta, body}
   end
 
   defp accept_patch?(patch, %{action: :prompt, prompter: prompter}) do

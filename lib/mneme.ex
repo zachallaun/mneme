@@ -37,9 +37,10 @@ defmodule Mneme do
   end
 
   @doc """
-  Generates a match assertion.
+  Asserts that the expression is truthy or generates a match/comparison.
   """
-  defmacro auto_assert(expr) do
-    Mneme.Assertion.build(expr, __CALLER__)
+  defmacro auto_assert(body) do
+    code = {:auto_assert, Macro.Env.location(__CALLER__), [body]}
+    Mneme.Assertion.build(code, __CALLER__)
   end
 end

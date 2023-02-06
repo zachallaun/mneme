@@ -7,14 +7,13 @@ defmodule Mneme.Assertion do
     :type,
     :code,
     :value,
-    :context,
-    call: :auto_assert
+    :context
   ]
 
   @doc """
   Build an assertion.
   """
-  def build(call \\ :auto_assert, code, caller) do
+  def build(code, caller) do
     context = context(caller)
 
     eval_expr =
@@ -38,7 +37,6 @@ defmodule Mneme.Assertion do
 
       assertion =
         Mneme.Assertion.new(
-          unquote(call),
           unquote(Macro.escape(code)),
           var!(value, :mneme),
           unquote(Macro.escape(context)) |> Map.put(:binding, binding())
@@ -87,22 +85,20 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def new(call \\ :auto_assert, code, value, context)
+  def new(code, value, context)
 
-  def new(call, {op, _, [_, _]} = code, value, context) when op in [:<-, :==] do
+  def new({_, _, [{op, _, [_, _]}]} = code, value, context) when op in [:<-, :==] do
     %Assertion{
       type: :replace,
-      call: call,
       code: code,
       value: value,
       context: context
     }
   end
 
-  def new(call, code, value, context) do
+  def new(code, value, context) do
     %Assertion{
       type: :new,
-      call: call,
       code: code,
       value: value,
       context: context
@@ -113,10 +109,9 @@ defmodule Mneme.Assertion do
   Regenerate assertion `:code` based on its `:value`.
   """
   def regenerate_code(%Assertion{} = assertion, target) when target in [:auto_assert, :assert] do
-    {_, _, [new_code]} = to_code(assertion, target)
+    new_code = to_code(assertion, target)
 
     assertion
-    |> Map.put(:call, target)
     |> Map.put(:code, new_code)
     |> Map.put(:type, :replace)
   end
@@ -124,8 +119,10 @@ defmodule Mneme.Assertion do
   @doc """
   Format the assertion as a string.
   """
-  def format(%Assertion{call: call, code: code}, opts) do
-    Sourceror.to_string({call, [], [escape_newlines(code)]}, opts)
+  def format(%Assertion{code: code}, opts) do
+    code
+    |> escape_newlines()
+    |> Sourceror.to_string(opts)
   end
 
   @doc """
@@ -182,13 +179,16 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:assert, :match, assertion, expr, guard) do
-    assertion = build_call(:assert, :match, assertion, expr, nil)
+    check = build_call(:assert, :match, assertion, expr, nil)
 
     quote do
-      value = unquote(assertion)
+      unquote(check)
       assert unquote(guard)
-      value
     end
+  end
+
+  defp build_call(:eval, _, %{code: {:__block__, _, _} = code}, _, _) do
+    code
   end
 
   defp build_call(:eval, :compare, assertion, _falsy, nil) do
@@ -200,22 +200,32 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:eval, :match, assertion, expr, guard) do
-    assertion = build_call(:eval, :match, assertion, expr, nil)
+    check = build_call(:eval, :match, assertion, expr, nil)
 
     quote do
-      value = unquote(assertion)
+      value = unquote(check)
       assert unquote(guard)
       value
     end
   end
 
-  defp value_expr({:<-, _, [_, value_expr]}), do: value_expr
-  defp value_expr({:==, _, [value_expr, _]}), do: value_expr
-  defp value_expr(value_expr), do: value_expr
+  defp value_expr({_, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
+  defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
+  defp value_expr({_, _, [value_expr]}), do: value_expr
 
-  defp normalized_expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr |> normalize_heredoc()
-  defp normalized_expect_expr({:=, _, [expect_expr, _]}), do: expect_expr |> normalize_heredoc()
-  defp normalized_expect_expr({:==, _, [_, expect_expr]}), do: expect_expr |> normalize_heredoc()
+  defp normalized_expect_expr({_, _, [{:<-, _, [expect_expr, _]}]}) do
+    expect_expr |> normalize_heredoc()
+  end
+
+  defp normalized_expect_expr({_, _, [{:=, _, [expect_expr, _]}]}) do
+    expect_expr |> normalize_heredoc()
+  end
+
+  defp normalized_expect_expr({_, _, [{:==, _, [_, expect_expr]}]}) do
+    expect_expr |> normalize_heredoc()
+  end
+
+  defp normalized_expect_expr(expect_expr), do: expect_expr
 
   # Allows us to format multiline strings as heredocs when they don't
   # end with a newline, e.g.
@@ -239,6 +249,10 @@ defmodule Mneme.Assertion do
   end
 
   defp normalize_heredoc(expr), do: expr
+
+  defp escape_newlines(code) when is_list(code) do
+    Enum.map(code, &escape_newlines/1)
+  end
 
   defp escape_newlines(code) do
     Sourceror.prewalk(code, fn
