@@ -17,16 +17,16 @@ defmodule Mneme.Assertion do
   Build an assertion.
   """
   def build(code, caller) do
-    {setup, eval} = code_for_setup_and_eval(code, caller)
+    {setup_assertion, eval_assertion} = code_for_setup_and_eval(code, caller)
 
     case get_type(code) do
       :new ->
         quote do
-          unquote(setup)
+          unquote(setup_assertion)
 
           case Mneme.Server.await_assertion(assertion) do
             {:ok, assertion} ->
-              unquote(eval)
+              unquote(eval_assertion)
 
             :error ->
               raise ExUnit.AssertionError, message: "No match present"
@@ -35,15 +35,15 @@ defmodule Mneme.Assertion do
 
       :update ->
         quote do
-          unquote(setup)
+          unquote(setup_assertion)
 
           try do
-            unquote(eval)
+            unquote(eval_assertion)
           rescue
             error in [ExUnit.AssertionError] ->
               case Mneme.Server.await_assertion(assertion) do
                 {:ok, assertion} ->
-                  unquote(eval)
+                  unquote(eval_assertion)
 
                 :error ->
                   case __STACKTRACE__ do
