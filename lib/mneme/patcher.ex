@@ -99,8 +99,7 @@ defmodule Mneme.Patcher do
 
   defp create_patch(range, %SuiteResult{format_opts: format_opts}, assertion) do
     original = Mneme.Assertion.format(assertion, format_opts)
-    {_, _, [new_code]} = Mneme.Assertion.convert(assertion, target: :mneme)
-    new_assertion = Map.put(assertion, :code, new_code)
+    new_assertion = Mneme.Assertion.regenerate_code(assertion, target: :mneme)
     replacement = Mneme.Assertion.format(new_assertion, format_opts)
 
     %{

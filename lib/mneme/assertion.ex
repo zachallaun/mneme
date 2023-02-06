@@ -50,6 +50,14 @@ defmodule Mneme.Assertion do
     }
   end
 
+  @doc """
+  Regenerate assertion `:code` based on its `:value`.
+  """
+  def regenerate_code(%Assertion{} = assertion, opts) do
+    {_, _, [new_code]} = convert(assertion, opts)
+    Map.put(assertion, :code, new_code)
+  end
+
   def format(%Assertion{call: call, code: code}, opts) do
     Sourceror.to_string({call, [], [code]}, opts)
   end
