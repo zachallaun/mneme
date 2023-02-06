@@ -86,17 +86,23 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp patch_assertion(%{files: files} = state, assertion, _opts) do
+  defp patch_assertion(%{files: files} = state, assertion, opts) do
     files
     |> Map.fetch!(assertion.context.file)
     |> Map.fetch!(:ast)
     |> Zipper.zip()
     |> Zipper.find(fn node -> Mneme.Assertion.same?(assertion, node) end)
     |> Zipper.node()
-    |> create_patch(state, assertion)
+    |> create_patch(state, assertion, opts)
   end
 
-  defp create_patch({_call, _, [code]} = node, %SuiteResult{format_opts: format_opts}, assertion) do
+  defp create_patch(
+         {_call, _, [code]} = node,
+         %SuiteResult{format_opts: format_opts},
+         assertion,
+         opts
+       ) do
+    target = Map.fetch!(opts, :target)
     range = Sourceror.get_range(node)
 
     # HACK: String serialization fix
@@ -106,7 +112,7 @@ defmodule Mneme.Patcher do
     # the same delimiters are used.
     assertion = Map.put(assertion, :code, code)
 
-    new_assertion = Mneme.Assertion.regenerate_code(assertion, :auto_assert)
+    new_assertion = Mneme.Assertion.regenerate_code(assertion, target)
 
     patch = %{
       change: Mneme.Assertion.format(new_assertion, format_opts),

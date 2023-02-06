@@ -112,10 +112,11 @@ defmodule Mneme.Assertion do
   @doc """
   Regenerate assertion `:code` based on its `:value`.
   """
-  def regenerate_code(%Assertion{} = assertion, target) do
+  def regenerate_code(%Assertion{} = assertion, target) when target in [:auto_assert, :assert] do
     {_, _, [new_code]} = to_code(assertion, target)
 
     assertion
+    |> Map.put(:call, target)
     |> Map.put(:code, new_code)
     |> Map.put(:type, :replace)
   end
@@ -213,6 +214,7 @@ defmodule Mneme.Assertion do
   defp value_expr(value_expr), do: value_expr
 
   defp normalized_expect_expr({:<-, _, [expect_expr, _]}), do: expect_expr |> normalize_heredoc()
+  defp normalized_expect_expr({:=, _, [expect_expr, _]}), do: expect_expr |> normalize_heredoc()
   defp normalized_expect_expr({:==, _, [_, expect_expr]}), do: expect_expr |> normalize_heredoc()
 
   # Allows us to format multiline strings as heredocs when they don't

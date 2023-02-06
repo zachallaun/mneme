@@ -9,3 +9,5 @@ integration_test("collections_test", "collections_test.1")
 integration_test("non_serializable_test", "non_serializable_test.1")
 
 integration_test("format_test", "format_test.1")
+
+integration_test("options_test", "options_test.1")
