@@ -1,0 +1,10 @@
+# exit:0
+
+New • auto_assert
+
+  -   auto_assert create_user(email: "user@example.org")
+  +   auto_assert %User{email: "user@example.org"} <- create_user(email: "user@example.org")
+
+Accept new assertion? [yN]: !{y
+}.
+1 test, 0 failures
