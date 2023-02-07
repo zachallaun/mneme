@@ -1,23 +1,26 @@
-defprotocol Mneme.Serializer do
+defmodule Mneme.Serializer do
   @moduledoc false
 
-  @fallback_to_any true
+  @doc """
+  Converts `value` into an AST that could be used to match that value.
+
+  The second `context` argument is a map containing information about
+  the context in which the expressions will be evaluated. It contains:
+
+    * `:binding` - a keyword list of variables/values present in the
+      calling environment
+
+  Must return `{match_ast, guard_ast}`, where `guard_ast` is an
+  additional guard expression that will run in scope of variables bound
+  in `match_ast`. `guard_ast` can be `nil`.
+  """
+  @callback to_pattern(value :: any(), context :: map()) :: {Macro.t(), Macro.t() | nil}
 
   @doc """
-  Generates ASTs that can be used to assert a match of the given value.
-
-  Must return `{match_expression, guard_expression}`, where the first
-  will be used in a `=` match, and the second will be a secondary
-  assertion with access to any bindings produced by the match.
-
-  Note that `guard_expression` can be `nil`, in which case the guard
-  check will not occur.
+  Default implementation of `c:to_pattern`.
   """
-  @spec to_pattern(t, keyword()) :: {Macro.t(), Macro.t() | nil}
   def to_pattern(value, context)
-end
 
-defimpl Mneme.Serializer, for: Any do
   def to_pattern(value, _context)
       when is_atom(value) or is_integer(value) or is_float(value) do
     {value, nil}
