@@ -96,12 +96,7 @@ defmodule Mneme.Patcher do
     |> create_patch(state, assertion, opts)
   end
 
-  defp create_patch(
-         node,
-         %SuiteResult{format_opts: format_opts},
-         assertion,
-         opts
-       ) do
+  defp create_patch(node, %SuiteResult{format_opts: format_opts}, assertion, opts) do
     # HACK: String serialization fix
     # Sourceror's AST is richer than the one we get from the macro call.
     # In particular, string literals are in a :__block__ tuple and include
@@ -110,14 +105,11 @@ defmodule Mneme.Patcher do
     node = remove_comments(node)
     assertion = Map.put(assertion, :code, node)
 
-    target = Map.fetch!(opts, :target)
-    range = Sourceror.get_range(node)
-
-    new_assertion = Mneme.Assertion.regenerate_code(assertion, target)
+    new_assertion = Mneme.Assertion.regenerate_code(assertion, opts.target)
 
     patch = %{
       change: Mneme.Assertion.format(new_assertion, format_opts),
-      range: range,
+      range: Sourceror.get_range(node),
       original: assertion,
       replacement: new_assertion,
       format_opts: format_opts
