@@ -6,16 +6,16 @@ defmodule Mneme.Options do
       type: {:in, [:prompt, :accept, :reject]},
       default: :prompt,
       doc: """
-      Controls how to update auto-assertions. Can be `:accept` or `:reject`,
-      which will update or fail without prompting, or `:prompt`.
+      The action to be taken when an auto-assertion updates. Actions are one of
+      `:prompt`, `:accept`, or `:reject`.
       """
     ],
     target: [
       type: {:in, [:auto_assert, :assert]},
       default: :auto_assert,
       doc: """
-      Controls whether auto-assertions are updated to remain using `:auto_assert`
-      or converted to ExUnit `:assert`.
+      The call output when an auto-assertion updates. If `:assert`, auto-assertions
+      will be rewritten with ExUnit's `assert` when they update.
       """
     ]
   ]
