@@ -10,12 +10,12 @@ defmodule Mneme do
   @doc """
   Sets up Mneme to run auto-assertions in this module.
   """
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
     quote do
       import Mneme, only: [auto_assert: 1]
       require Mneme.Options
 
-      Mneme.Options.register_attributes()
+      Mneme.Options.register_attributes(unquote(opts))
     end
   end
 

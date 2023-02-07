@@ -24,10 +24,7 @@ defmodule Mneme.Options do
     prompter: [
       type: :atom,
       default: Mneme.Prompter.Terminal,
-      doc: """
-      Module implementing the `Mneme.Prompter` behaviour. This is used if a
-      user prompt is required.
-      """
+      doc: "Module implementing the `Mneme.Prompter` behaviour."
     ]
   ]
 
@@ -40,7 +37,7 @@ defmodule Mneme.Options do
   @doc """
   Register ExUnit attributes for controlling Mneme behavior.
   """
-  defmacro register_attributes do
+  defmacro register_attributes(opts \\ []) do
     quote do
       ExUnit.Case.register_attribute(
         __MODULE__,
@@ -59,6 +56,8 @@ defmodule Mneme.Options do
         unquote(@module_attr),
         accumulate: true
       )
+
+      Module.put_attribute(__MODULE__, unquote(@module_attr), unquote(opts))
     end
   end
 
