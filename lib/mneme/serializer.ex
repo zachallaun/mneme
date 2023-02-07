@@ -1,4 +1,6 @@
 defprotocol Mneme.Serializer do
+  @moduledoc false
+
   @fallback_to_any true
 
   @doc """

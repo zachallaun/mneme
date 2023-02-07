@@ -21,33 +21,17 @@ defmodule Mneme.MixProject do
 
       # Hex
       description: "Semi-automated snapshot testing with ExUnit",
-      package: package()
+      package: package(),
+
+      # Docs
+      name: "Mneme",
+      docs: docs()
     ]
   end
 
   def application do
     [
       extra_applications: [:logger]
-    ]
-  end
-
-  defp aliases do
-    [
-      t: "coveralls"
-    ]
-  end
-
-  defp preferred_cli_env do
-    [
-      t: :test
-    ]
-  end
-
-  defp package do
-    [
-      name: "mneme",
-      licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
     ]
   end
 
@@ -59,13 +43,41 @@ defmodule Mneme.MixProject do
       {:rewrite, "~> 0.4.0"},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
+      {:ex_doc, github: "elixir-lang/ex_doc", only: :docs}
     ]
   end
 
   defp elixirc_paths, do: elixirc_paths(Mix.env())
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp aliases do
+    [
+      t: "coveralls"
+    ]
+  end
+
+  defp preferred_cli_env do
+    [
+      t: :test,
+      docs: :docs
+    ]
+  end
+
+  defp package do
+    [
+      name: "mneme",
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "Mneme",
+      source_url: @source_url
+    ]
+  end
 
   defp dialyzer do
     [
