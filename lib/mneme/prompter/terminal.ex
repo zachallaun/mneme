@@ -78,7 +78,7 @@ defmodule Mneme.Prompter.Terminal do
 
     [
       "\n🛈 Notes about this assertion:\n",
-      Owl.Data.add_prefix(notes, "  * "),
+      notes |> Owl.Data.unlines() |> Owl.Data.add_prefix("  * "),
       "\n"
     ]
     |> tag(:light_black)

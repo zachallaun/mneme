@@ -19,12 +19,28 @@ New • auto_assert
   -   auto_assert make_ref()
   +   auto_assert ref when is_reference(ref) <- make_ref()
 
+🛈 Notes about this assertion:
+  * Using guard for non-serializable value `#Reference<>`
+
 Accept new assertion? [yN]: !{y
 }
 New • auto_assert
 
   -   auto_assert [make_ref()]
   +   auto_assert [ref] when is_reference(ref) <- [make_ref()]
+
+🛈 Notes about this assertion:
+  * Using guard for non-serializable value `#Reference<>`
+
+Accept new assertion? [yN]: !{y
+}
+New • auto_assert
+
+  -   auto_assert self()
+  +   auto_assert pid when is_pid(pid) <- self()
+
+🛈 Notes about this assertion:
+  * Using guard for non-serializable value `#PID<>`
 
 Accept new assertion? [yN]: !{y
 }..

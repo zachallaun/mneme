@@ -66,7 +66,7 @@ defmodule Mneme.Serializer do
     def to_pattern(value, context) when unquote(guard)(value) do
       case fetch_pinned(value, context[:binding]) do
         {:ok, pin} -> {pin, nil, []}
-        :error -> guard(unquote(var_name), unquote(guard))
+        :error -> guard_non_serializable(unquote(var_name), unquote(guard), value)
       end
     end
   end
@@ -143,9 +143,9 @@ defmodule Mneme.Serializer do
     {list, guard, notes}
   end
 
-  defp guard(name, guard) do
+  defp guard_non_serializable(name, guard, value) do
     var = {name, [], nil}
-    {var, {guard, [], [var]}, []}
+    {var, {guard, [], [var]}, ["Using guard for non-serializable value `#{inspect(value)}`"]}
   end
 
   defp ecto_schema?(module) do
@@ -167,12 +167,12 @@ defmodule Mneme.Serializer do
   end
 
   defp ecto_struct_notes(pk, []) do
-    ["Excluding Ecto primary key `#{inspect(pk)}` and meta field `:__meta__`."]
+    ["Excluding Ecto primary key `#{inspect(pk)}` and meta field `:__meta__`"]
   end
 
   defp ecto_struct_notes(pk, auto_fields) do
     [
-      "Excluding Ecto primary key `#{inspect(pk)}`, auto generated fields `#{inspect(auto_fields)}`, and meta field `:__meta__`."
+      "Excluding Ecto primary key `#{inspect(pk)}`, auto generated fields `#{inspect(auto_fields)}`, and meta field `:__meta__`"
     ]
   end
 

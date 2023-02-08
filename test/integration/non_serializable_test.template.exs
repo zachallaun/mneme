@@ -14,5 +14,7 @@ defmodule MnemeIntegration.NonSerializableTest do
     auto_assert make_ref()
 
     auto_assert [make_ref()]
+
+    auto_assert self()
   end
 end
