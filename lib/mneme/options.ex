@@ -7,7 +7,8 @@ defmodule Mneme.Options do
       default: :prompt,
       doc: """
       The action to be taken when an auto-assertion updates. Actions are one of
-      `:prompt`, `:accept`, or `:reject`.
+      `:prompt`, `:accept`, or `:reject`. If `CI=true` is set in environment
+      variables, the action will _always_ be `:reject`.
       """
     ],
     target: [
