@@ -60,7 +60,7 @@ defmodule Mneme.Prompter.Terminal do
   defp type_tag(:update), do: tag("Changed", :yellow)
 
   defp explanation_tag(:new) do
-    ["Accept ", tag("new", :green), " assertion?"]
+    "Accept new assertion?"
   end
 
   defp explanation_tag(:update) do

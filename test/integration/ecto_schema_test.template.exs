@@ -26,8 +26,11 @@ defmodule MnemeIntegration.EctoSchemaTest do
         updated_at: now
       })
 
-    User
-    |> struct(attrs)
-    |> Map.update!(:__meta__, &Map.put(&1, :state, :loaded))
+    user =
+      User
+      |> struct(attrs)
+      |> Map.update!(:__meta__, &Map.put(&1, :state, :loaded))
+
+    {:ok, user}
   end
 end
