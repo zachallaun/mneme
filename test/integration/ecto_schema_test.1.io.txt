@@ -5,6 +5,9 @@ New • auto_assert
   -   auto_assert create_user(email: "user@example.org")
   +   auto_assert {:ok, %User{email: "user@example.org"}} <- create_user(email: "user@example.org")
 
+🛈 Notes about this assertion:
+  * Excluding Ecto primary key `[:id]`, auto generated fields `[:inserted_at, :updated_at]`, and meta field `:__meta__`.
+
 Accept new assertion? [yN]: !{y
 }.
 1 test, 0 failures

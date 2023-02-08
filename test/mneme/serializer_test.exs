@@ -22,9 +22,9 @@ defmodule Mneme.SerializerTest do
       auto_assert "{1, \"string\", :atom}" <- to_pattern_string({1, "string", :atom})
       auto_assert "{{:nested}, {\"tuples\"}}" <- to_pattern_string({{:nested}, {"tuples"}})
 
-      auto_assert {{:two, :elements}, nil} <- Serializer.to_pattern({:two, :elements}, %{})
+      auto_assert {{:two, :elements}, nil, []} <- Serializer.to_pattern({:two, :elements}, %{})
 
-      auto_assert {{:{}, [], [:more, :than, :two, :elements]}, nil} <-
+      auto_assert {{:{}, [], [:more, :than, :two, :elements]}, nil, []} <-
                     Serializer.to_pattern({:more, :than, :two, :elements}, %{})
     end
 
@@ -98,8 +98,8 @@ defmodule Mneme.SerializerTest do
 
   defp to_pattern_string(value, context \\ []) do
     case Serializer.to_pattern(value, Enum.into(context, %{})) do
-      {expr, nil} -> expr
-      {expr, guard} -> {:when, [], [expr, guard]}
+      {expr, nil, _} -> expr
+      {expr, guard, _} -> {:when, [], [expr, guard]}
     end
     |> Sourceror.to_string(@format_opts)
   end

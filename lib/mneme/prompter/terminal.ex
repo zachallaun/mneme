@@ -29,7 +29,8 @@ defmodule Mneme.Prompter.Terminal do
         "\n",
         file_tag(context),
         "\n\n",
-        diff(original_source, replacement_source)
+        diff(original_source, replacement_source),
+        notes_tag(replacement.pattern_notes)
       ]
       |> Owl.Data.add_prefix(prefix)
 
@@ -68,5 +69,18 @@ defmodule Mneme.Prompter.Terminal do
       tag("Value has changed! ", :yellow),
       "Update to new value?"
     ]
+  end
+
+  defp notes_tag([]), do: []
+
+  defp notes_tag(notes) do
+    notes = Enum.uniq(notes)
+
+    [
+      "\n🛈 Notes about this assertion:\n",
+      Owl.Data.add_prefix(notes, "  * "),
+      "\n"
+    ]
+    |> tag(:light_black)
   end
 end

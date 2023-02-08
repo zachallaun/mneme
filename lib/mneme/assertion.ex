@@ -9,8 +9,9 @@ defmodule Mneme.Assertion do
     :code,
     :value,
     :context,
+    :eval,
     :pattern,
-    :eval
+    :pattern_notes
   ]
 
   @doc """
@@ -106,15 +107,16 @@ defmodule Mneme.Assertion do
 
   @doc false
   def new(code, value, context) do
-    pattern = Serializer.to_pattern(value, context)
+    {expr, guard, notes} = Serializer.to_pattern(value, context)
 
     %Assertion{
       type: get_type(code),
       code: code,
       value: value,
       context: context,
-      pattern: pattern,
-      eval: code_for_eval(code, pattern)
+      pattern: {expr, guard},
+      pattern_notes: notes,
+      eval: code_for_eval(code, {expr, guard})
     }
   end
 

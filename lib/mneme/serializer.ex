@@ -10,11 +10,13 @@ defmodule Mneme.Serializer do
     * `:binding` - a keyword list of variables/values present in the
       calling environment
 
-  Must return `{match_ast, guard_ast}`, where `guard_ast` is an
+  Must return `{match_ast, guard_ast, notes}`, where `guard_ast` is an
   additional guard expression that will run in scope of variables bound
-  in `match_ast`. `guard_ast` can be `nil`.
+  in `match_ast`, and `notes` is a list of strings that may be displayed
+  to the user to explain the generated pattern.
   """
-  @callback to_pattern(value :: any(), context :: map()) :: {Macro.t(), Macro.t() | nil}
+  @callback to_pattern(value :: any(), context :: map()) ::
+              {Macro.t(), Macro.t() | nil, [binary()]}
 
   @doc """
   Default implementation of `c:to_pattern`.
@@ -23,14 +25,14 @@ defmodule Mneme.Serializer do
 
   def to_pattern(value, _context)
       when is_atom(value) or is_integer(value) or is_float(value) do
-    {value, nil}
+    {value, nil, []}
   end
 
   def to_pattern(string, _context) when is_binary(string) do
     if String.contains?(string, "\n") do
-      {{:__block__, [delimiter: ~S(""")], [format_for_heredoc(string)]}, nil}
+      {{:__block__, [delimiter: ~S(""")], [format_for_heredoc(string)]}, nil, []}
     else
-      {string, nil}
+      {string, nil, []}
     end
   end
 
@@ -40,23 +42,30 @@ defmodule Mneme.Serializer do
 
   def to_pattern({a, b}, context) do
     case {Mneme.Serializer.to_pattern(a, context), Mneme.Serializer.to_pattern(b, context)} do
-      {{expr1, nil}, {expr2, nil}} -> {{expr1, expr2}, nil}
-      {{expr1, guard}, {expr2, nil}} -> {{expr1, expr2}, guard}
-      {{expr1, nil}, {expr2, guard}} -> {{expr1, expr2}, guard}
-      {{expr1, guard1}, {expr2, guard2}} -> {{expr1, expr2}, {:and, [], [guard1, guard2]}}
+      {{expr1, nil, notes1}, {expr2, nil, notes2}} ->
+        {{expr1, expr2}, nil, notes1 ++ notes2}
+
+      {{expr1, guard, notes1}, {expr2, nil, notes2}} ->
+        {{expr1, expr2}, guard, notes1 ++ notes2}
+
+      {{expr1, nil, notes1}, {expr2, guard, notes2}} ->
+        {{expr1, expr2}, guard, notes1 ++ notes2}
+
+      {{expr1, guard1, notes1}, {expr2, guard2, notes2}} ->
+        {{expr1, expr2}, {:and, [], [guard1, guard2]}, notes1 ++ notes2}
     end
   end
 
   def to_pattern(tuple, context) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
-    {value_matches, guard} = enum_to_pattern(values, context)
-    {{:{}, [], value_matches}, guard}
+    {value_matches, guard, notes} = enum_to_pattern(values, context)
+    {{:{}, [], value_matches}, guard, notes}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
     def to_pattern(value, context) when unquote(guard)(value) do
       case fetch_pinned(value, context[:binding]) do
-        {:ok, pin} -> {pin, nil}
+        {:ok, pin} -> {pin, nil, []}
         :error -> guard(unquote(var_name), unquote(guard))
       end
     end
@@ -65,30 +74,31 @@ defmodule Mneme.Serializer do
   for module <- [DateTime, NaiveDateTime, Date, Time] do
     def to_pattern(%unquote(module){} = value, context) do
       case fetch_pinned(value, context[:binding]) do
-        {:ok, pin} -> {pin, nil}
-        :error -> {value |> inspect() |> Code.string_to_quoted!(), nil}
+        {:ok, pin} -> {pin, nil, []}
+        :error -> {value |> inspect() |> Code.string_to_quoted!(), nil, []}
       end
     end
   end
 
   def to_pattern(%URI{} = uri, context) do
-    struct_to_pattern(URI, Map.delete(uri, :authority), context)
+    struct_to_pattern(URI, Map.delete(uri, :authority), context, [])
   end
 
   def to_pattern(%struct{} = value, context) do
     if ecto_schema?(struct) do
-      struct_to_pattern(struct, prepare_ecto_struct(value), context)
+      {value, notes} = prepare_ecto_struct(value)
+      struct_to_pattern(struct, value, context, notes)
     else
-      struct_to_pattern(struct, value, context)
+      struct_to_pattern(struct, value, context, [])
     end
   end
 
   def to_pattern(%{} = map, context) do
-    {tuples, guard} = enum_to_pattern(map, context)
-    {{:%{}, [], tuples}, guard}
+    {tuples, guard, notes} = enum_to_pattern(map, context)
+    {{:%{}, [], tuples}, guard, notes}
   end
 
-  defp struct_to_pattern(struct, map, context) do
+  defp struct_to_pattern(struct, map, context, notes) do
     {aliased, _} =
       context
       |> Map.get(:aliases, [])
@@ -97,12 +107,12 @@ defmodule Mneme.Serializer do
     aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
     empty = struct.__struct__()
 
-    {map_expr, guard} =
+    {map_expr, guard, inner_notes} =
       map
       |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
       |> Mneme.Serializer.to_pattern(context)
 
-    {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard}
+    {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard, notes ++ inner_notes}
   end
 
   defp format_for_heredoc(string) when is_binary(string) do
@@ -121,18 +131,21 @@ defmodule Mneme.Serializer do
   end
 
   defp enum_to_pattern(values, context) do
-    Enum.map_reduce(values, nil, fn value, guard ->
-      case {guard, Mneme.Serializer.to_pattern(value, context)} do
-        {nil, {expr, guard}} -> {expr, guard}
-        {guard, {expr, nil}} -> {expr, guard}
-        {guard1, {expr, guard2}} -> {expr, {:and, [], [guard1, guard2]}}
-      end
-    end)
+    {list, {guard, notes}} =
+      Enum.map_reduce(values, {nil, []}, fn value, {guard, notes} ->
+        case {guard, Mneme.Serializer.to_pattern(value, context)} do
+          {nil, {expr, guard, ns}} -> {expr, {guard, notes ++ ns}}
+          {guard, {expr, nil, ns}} -> {expr, {guard, notes ++ ns}}
+          {guard1, {expr, guard2, ns}} -> {expr, {{:and, [], [guard1, guard2]}, notes ++ ns}}
+        end
+      end)
+
+    {list, guard, notes}
   end
 
   defp guard(name, guard) do
     var = {name, [], nil}
-    {var, {guard, [], [var]}}
+    {var, {guard, [], [var]}, []}
   end
 
   defp ecto_schema?(module) do
@@ -140,6 +153,9 @@ defmodule Mneme.Serializer do
   end
 
   defp prepare_ecto_struct(%schema{} = struct) do
+    autogenerated_fields = get_autogenerated_fields(schema)
+    primary_keys = schema.__schema__(:primary_key)
+
     drop_fields =
       Enum.concat([
         [:__meta__],
@@ -147,7 +163,17 @@ defmodule Mneme.Serializer do
         get_autogenerated_fields(schema)
       ])
 
-    Map.drop(struct, drop_fields)
+    {Map.drop(struct, drop_fields), ecto_struct_notes(primary_keys, autogenerated_fields)}
+  end
+
+  defp ecto_struct_notes(pk, []) do
+    ["Excluding Ecto primary key `#{inspect(pk)}` and meta field `:__meta__`."]
+  end
+
+  defp ecto_struct_notes(pk, auto_fields) do
+    [
+      "Excluding Ecto primary key `#{inspect(pk)}`, auto generated fields `#{inspect(auto_fields)}`, and meta field `:__meta__`."
+    ]
   end
 
   # The Schema.__schema__(:autogenerate_fields) call was introduced after
