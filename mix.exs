@@ -40,13 +40,13 @@ defmodule Mneme.MixProject do
       {:owl, "~> 0.6.0"},
       {:nimble_options, "~> 0.5.2"},
       {:sourceror, "~> 0.12"},
-      {:rewrite, "~> 0.4.0"},
+      {:rewrite, "0.4.0"},
 
       # Development
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9.4", only: :test},
-      {:ex_doc, github: "elixir-lang/ex_doc", only: :docs}
+      {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
 
@@ -62,8 +62,7 @@ defmodule Mneme.MixProject do
 
   defp preferred_cli_env do
     [
-      t: :test,
-      docs: :docs
+      t: :test
     ]
   end
 
