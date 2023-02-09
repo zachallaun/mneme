@@ -8,17 +8,11 @@ defmodule Mneme.Prompter.Terminal do
   import Owl.Data, only: [tag: 2]
 
   alias Mneme.Assertion
+  alias Rewrite.Source
 
   @impl true
-  def prompt!(patch) do
-    %{
-      original: %{type: type, context: context} = original,
-      replacement: replacement,
-      format_opts: format_opts
-    } = patch
-
-    original_source = Assertion.format(original, format_opts)
-    replacement_source = Assertion.format(replacement, format_opts)
+  def prompt!(%Source{} = source, %Assertion{} = assertion) do
+    %{type: type, context: context, pattern_notes: notes} = assertion
 
     prefix = tag("│ ", :light_black)
 
@@ -29,8 +23,8 @@ defmodule Mneme.Prompter.Terminal do
         "\n",
         file_tag(context),
         "\n\n",
-        diff(original_source, replacement_source),
-        notes_tag(replacement.pattern_notes)
+        diff(source),
+        notes_tag(notes)
       ]
       |> Owl.Data.add_prefix(prefix)
 
@@ -43,14 +37,19 @@ defmodule Mneme.Prompter.Terminal do
     Owl.IO.confirm(message: prompt)
   end
 
-  defp diff(old, new) do
-    Rewrite.TextDiff.format(old, new,
+  defp diff(source) do
+    Rewrite.TextDiff.format(
+      source |> Source.code(Source.version(source) - 1) |> eof_newline(),
+      source |> Source.code() |> eof_newline(),
       line_numbers: false,
-      before: 0,
-      after: 0,
-      format: [separator: "   ", gutter: [eq: "   ", ins: "  +", del: "  -", skip: "..."]]
+      format: [
+        separator: "",
+        gutter: [eq: "   ", ins: " + ", del: " - ", skip: "..."]
+      ]
     )
   end
+
+  defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
   defp file_tag(%{file: file, line: line} = _context) do
     path = Path.relative_to_cwd(file)

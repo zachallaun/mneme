@@ -2,15 +2,27 @@
 
 New • auto_assert
 
-  -   auto_assert 2 + 2
-  +   auto_assert 4 <- 2 + 2
+...
+     test "integers" do
+       # no assertion yet
+ -     auto_assert 2 + 2
+ +     auto_assert 4 <- 2 + 2
+
+       # correct assertion
+...
 
 Accept new assertion? [yN]: !{n
 }
 New • auto_assert
 
-  -   auto_assert "foo" <> "bar"
-  +   auto_assert "foobar" <- "foo" <> "bar"
+...
+     test "strings" do
+       # no assertion yet
+ -     auto_assert "foo" <> "bar"
+ +     auto_assert "foobar" <- "foo" <> "bar"
+
+       # correct assertion
+...
 
 Accept new assertion? [yN]: !{n
 }

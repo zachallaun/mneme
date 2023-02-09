@@ -2,15 +2,27 @@
 
 New • auto_assert
 
-  -   auto_assert {1, 2, 3}
-  +   auto_assert {1, 2, 3} <- {1, 2, 3}
+...
+
+     test "tuples" do
+ -     auto_assert {1, 2, 3}
+ +     auto_assert {1, 2, 3} <- {1, 2, 3}
+     end
+
+...
 
 Accept new assertion? [yN]: !{y
 }
 New • auto_assert
 
-  -   auto_assert [1, 2, 3]
-  +   auto_assert [1, 2, 3] <- [1, 2, 3]
+...
+
+     test "lists" do
+ -     auto_assert [1, 2, 3]
+ +     auto_assert [1, 2, 3] <- [1, 2, 3]
+     end
+   end
+...
 
 Accept new assertion? [yN]: !{y
 }..

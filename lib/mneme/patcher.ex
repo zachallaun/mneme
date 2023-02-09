@@ -1,140 +1,112 @@
 defmodule Mneme.Patcher do
   @moduledoc false
 
-  alias Mneme.Utils
+  alias Mneme.Assertion
   alias Sourceror.Zipper
-
-  defmodule FileResult do
-    @moduledoc false
-    defstruct [:file, :source, :ast, accepted: [], rejected: []]
-  end
-
-  defmodule SuiteResult do
-    @moduledoc false
-    defstruct [:format_opts, files: %{}, finalized: false]
-  end
+  alias Rewrite.Project
+  alias Rewrite.Source
 
   @doc """
   Initialize patch state.
   """
   def init do
-    %SuiteResult{format_opts: Utils.formatter_opts()}
+    Rewrite.Project.from_sources([])
+  end
+
+  @doc """
+  Load and cache and source and AST required by the context.
+  """
+  def load_file!(%Project{} = project, %{file: file}) do
+    case Project.source(project, file) do
+      {:ok, _source} ->
+        project
+
+      :error ->
+        Project.update(project, Source.read!(file))
+    end
   end
 
   @doc """
   Finalize all patches, writing all results to disk.
   """
-  def finalize!(%SuiteResult{finalized: false} = state) do
-    %{files: files, format_opts: format_opts} = state
-
-    for {_, %FileResult{file: file, source: source, accepted: [_ | _] = patches}} <- files do
-      patched_iodata =
-        source
-        |> Sourceror.patch_string(patches)
-        |> Sourceror.parse_string!()
-        |> Sourceror.to_string(format_opts)
-
-      File.write!(file, [patched_iodata, "\n"])
-    end
-
-    %{state | finalized: true}
-  end
-
-  def finalize!(%SuiteResult{finalized: true} = state), do: state
+  def finalize!(project), do: Project.save(project)
 
   @doc """
   Run an assertion patch.
 
   Returns `{result, patch_state}`.
   """
-  def patch!(%SuiteResult{} = state, assertion, opts) do
-    {patch, assertion} = patch_assertion(state, assertion, opts)
+  def patch!(%Project{} = project, assertion, opts) do
+    {source, assertion} = patch_assertion(project, assertion, opts)
 
-    if accept_patch?(patch, opts) do
-      {{:ok, assertion}, accept_patch(state, patch, assertion)}
+    if accept_change?(source, assertion, opts) do
+      {{:ok, assertion}, Project.update(project, source)}
     else
-      {:error, reject_patch(state, patch, assertion)}
+      {:error, project}
     end
   end
 
-  @doc """
-  Load and cache and source and AST required by the context.
-  """
-  def load_file!(%SuiteResult{} = state, %{file: file}) do
-    case state.files[file] do
-      nil -> register_file(state, file, File.read!(file))
-      _ -> state
-    end
+  defp patch_assertion(project, assertion, opts) do
+    source = Project.source!(project, assertion.context.file)
+
+    zipper =
+      source
+      |> Source.ast()
+      |> Zipper.zip()
+      |> Zipper.find(&Assertion.same?(assertion, &1))
+
+    # Hack: String serialization fix
+    # Sourceror's AST is richer than the one we get back from a macro call.
+    # String literals are in a :__block__ tuple and include a delimiter;
+    # we use this information when formatting to ensure that the same
+    # delimiters are used for output.
+    assertion =
+      assertion
+      |> Map.put(:code, Zipper.node(zipper))
+      |> Assertion.regenerate_code(opts.target)
+
+    new_zipper = zipper_update_with_meta(zipper, assertion.code)
+
+    ast = new_zipper |> Zipper.root() |> escape_newlines()
+
+    {Source.update(source, :mneme, ast: ast), assertion}
   end
 
-  @doc """
-  Registers the source and AST for the given file and content.
-  """
-  def register_file(%SuiteResult{} = state, file, source) do
-    case state.files[file] do
-      nil ->
-        file_result = %FileResult{
-          file: file,
-          source: source,
-          ast: Sourceror.parse_string!(source)
-        }
+  defp zipper_update_with_meta(zipper, {:__block__, _, [{call1, _, args1}, {call2, _, args2}]}) do
+    {_, meta, _} = Zipper.node(zipper)
+    call1_meta = Keyword.put(meta, :end_of_expression, newlines: 1)
 
-        Map.update!(state, :files, &Map.put(&1, file, file_result))
-
-      _ ->
-        state
-    end
+    zipper
+    |> Zipper.insert_left({call1, call1_meta, args1})
+    |> Zipper.insert_left({call2, meta, args2})
+    |> Zipper.remove()
   end
 
-  defp patch_assertion(%{files: files} = state, assertion, opts) do
-    files
-    |> Map.fetch!(assertion.context.file)
-    |> Map.fetch!(:ast)
-    |> Zipper.zip()
-    |> Zipper.find(fn node -> Mneme.Assertion.same?(assertion, node) end)
-    |> Zipper.node()
-    |> create_patch(state, assertion, opts)
+  defp zipper_update_with_meta(zipper, {call, _, args}) do
+    Zipper.update(zipper, fn {_, meta, _} -> {call, meta, args} end)
   end
 
-  defp create_patch(node, %SuiteResult{format_opts: format_opts}, assertion, opts) do
-    # HACK: String serialization fix
-    # Sourceror's AST is richer than the one we get from the macro call.
-    # In particular, string literals are in a :__block__ tuple and include
-    # delimiter information. We use this when formatting to ensure that
-    # the same delimiters are used.
-    node = remove_comments(node)
-    assertion = Map.put(assertion, :code, node)
-
-    new_assertion = Mneme.Assertion.regenerate_code(assertion, opts.target)
-
-    patch = %{
-      change: Mneme.Assertion.format(new_assertion, format_opts),
-      range: Sourceror.get_range(node),
-      original: assertion,
-      replacement: new_assertion,
-      format_opts: format_opts
-    }
-
-    {patch, new_assertion}
+  defp accept_change?(source, assertion, %{action: :prompt, prompter: prompter}) do
+    prompter.prompt!(source, assertion)
   end
 
-  defp remove_comments({call, meta, body}) do
-    meta = Keyword.drop(meta, [:leading_comments, :trailing_comments])
-    {call, meta, body}
+  defp accept_change?(_, _, %{action: :accept}), do: true
+  defp accept_change?(_, _, %{action: :reject}), do: false
+
+  defp escape_newlines(code) when is_list(code) do
+    Enum.map(code, &escape_newlines/1)
   end
 
-  defp accept_patch?(patch, %{action: :prompt, prompter: prompter}) do
-    prompter.prompt!(patch)
-  end
+  defp escape_newlines(code) do
+    Sourceror.prewalk(code, fn
+      {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
+        case meta[:delimiter] do
+          "\"" -> {{:__block__, meta, [String.replace(string, "\n", "\\n")]}, state}
+          _ -> {quoted, state}
+        end
 
-  defp accept_patch?(_patch, %{action: :accept}), do: true
-  defp accept_patch?(_patch, %{action: :reject}), do: false
-
-  defp accept_patch(state, patch, assertion) do
-    update_in(state.files[assertion.context.file].accepted, &[patch | &1])
-  end
-
-  defp reject_patch(state, patch, assertion) do
-    update_in(state.files[assertion.context.file].rejected, &[patch | &1])
+      quoted, state ->
+        {quoted, state}
+    end)
   end
 end

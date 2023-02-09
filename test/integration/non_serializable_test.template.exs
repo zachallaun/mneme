@@ -2,7 +2,7 @@ defmodule MnemeIntegration.NonSerializableTest do
   use ExUnit.Case
   use Mneme
 
-  test "pinned reference" do
+  test "pinned" do
     my_ref = make_ref()
 
     auto_assert Function.identity(my_ref)
@@ -10,7 +10,7 @@ defmodule MnemeIntegration.NonSerializableTest do
     auto_assert [my_ref]
   end
 
-  test "is_reference guard" do
+  test "guard" do
     auto_assert make_ref()
 
     auto_assert [make_ref()]

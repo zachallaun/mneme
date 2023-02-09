@@ -135,15 +135,6 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Format the assertion as a string.
-  """
-  def format(%Assertion{code: code}, opts) do
-    code
-    |> escape_newlines()
-    |> Sourceror.to_string(opts)
-  end
-
-  @doc """
   Check whether the assertion struct represents the given AST node.
   """
   def same?(%Assertion{context: context}, node) do
@@ -167,31 +158,55 @@ defmodule Mneme.Assertion do
   def to_code(assertion, target) when target in [:auto_assert, :assert] do
     case assertion.pattern do
       {falsy, nil} when falsy in [nil, false] ->
-        build_call(target, :compare, assertion.code, falsy, nil)
+        build_call(
+          target,
+          :compare,
+          assertion.code,
+          block_with_line(falsy, meta(assertion.code)),
+          nil
+        )
 
       {expr, guard} ->
-        build_call(target, :match, assertion.code, expr, guard)
+        build_call(
+          target,
+          :match,
+          assertion.code,
+          block_with_line(expr, meta(assertion.code)),
+          guard
+        )
     end
   end
 
+  # This gets around a bug in Elixir's `Code.Normalizer` prior to this
+  # PR being merged: https://github.com/elixir-lang/elixir/pull/12389
+  defp block_with_line({call, meta, args}, parent_meta) do
+    {call, Keyword.put(meta, :line, parent_meta[:line]), args}
+  end
+
+  defp block_with_line(value, parent_meta) do
+    {:__block__, [line: parent_meta[:line]], [value]}
+  end
+
   defp build_call(:auto_assert, :compare, code, falsy_expr, nil) do
-    {:auto_assert, [], [{:==, [], [value_expr(code), falsy_expr]}]}
+    {:auto_assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy_expr]}]}
   end
 
   defp build_call(:auto_assert, :match, code, expr, nil) do
-    {:auto_assert, [], [{:<-, [], [expr, value_expr(code)]}]}
+    {:auto_assert, meta(code), [{:<-, meta(value_expr(code)), [expr, value_expr(code)]}]}
   end
 
   defp build_call(:auto_assert, :match, code, expr, guard) do
-    {:auto_assert, [], [{:<-, [], [{:when, [], [expr, guard]}, value_expr(code)]}]}
+    {:auto_assert, meta(code),
+     [{:<-, meta(value_expr(code)), [{:when, [], [expr, guard]}, value_expr(code)]}]}
   end
 
   defp build_call(:assert, :compare, code, falsy, nil) do
-    {:assert, [], [{:==, [], [value_expr(code), falsy]}]}
+    {:assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy]}]}
   end
 
   defp build_call(:assert, :match, code, expr, nil) do
-    {:assert, [], [{:=, [], [normalize_heredoc(expr), value_expr(code)]}]}
+    {:assert, meta(code),
+     [{:=, meta(value_expr(code)), [normalize_heredoc(expr), value_expr(code)]}]}
   end
 
   defp build_call(:assert, :match, code, expr, guard) do
@@ -202,6 +217,9 @@ defmodule Mneme.Assertion do
       assert unquote(guard)
     end
   end
+
+  defp meta({_, meta, _}), do: meta
+  defp meta(_), do: []
 
   defp code_for_eval(code, pattern) do
     case pattern do
@@ -275,21 +293,4 @@ defmodule Mneme.Assertion do
   end
 
   defp normalize_heredoc(expr), do: expr
-
-  defp escape_newlines(code) when is_list(code) do
-    Enum.map(code, &escape_newlines/1)
-  end
-
-  defp escape_newlines(code) do
-    Sourceror.prewalk(code, fn
-      {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
-        case meta[:delimiter] do
-          "\"" -> {{:__block__, meta, [String.replace(string, "\n", "\\n")]}, state}
-          _ -> {quoted, state}
-        end
-
-      quoted, state ->
-        {quoted, state}
-    end)
-  end
 end

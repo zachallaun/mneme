@@ -2,21 +2,34 @@
 
 New • auto_assert
 
-  -   auto_assert "foo\nbar\n"
-  +   auto_assert """
-  +               foo
-  +               bar
-  +               """ <- "foo\nbar\n"
+...
+     describe "multi-line strings" do
+       test "should be formatted as heredocs" do
+ -       auto_assert "foo\nbar\n"
+ +       auto_assert """
+ +                   foo
+ +                   bar
+ +                   """ <- "foo\nbar\n"
+ +
+         auto_assert "foo\nbar"
+       end
+...
 
 Accept new assertion? [yN]: !{y
 }
 New • auto_assert
 
-  -   auto_assert "foo\nbar"
-  +   auto_assert """
-  +               foo
-  +               bar\
-  +               """ <- "foo\nbar"
+...
+                     """ <- "foo\nbar\n"
+
+ -       auto_assert "foo\nbar"
+ +       auto_assert """
+ +                   foo
+ +                   bar\
+ +                   """ <- "foo\nbar"
+       end
+     end
+...
 
 Accept new assertion? [yN]: !{y
 }.

@@ -3,5 +3,5 @@ defmodule Mneme.Prompter do
   Behaviour controlling how to prompt acceptance or rejection of an assertion patch.
   """
 
-  @callback prompt!(patch :: map()) :: boolean()
+  @callback prompt!(Rewrite.Source.t(), Mneme.Assertion.t()) :: boolean()
 end

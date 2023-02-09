@@ -2,8 +2,14 @@
 
 New • auto_assert
 
-  -   auto_assert 1 + 1
-  +   assert 2 = 1 + 1
+...
+     @mneme target: :assert
+     test "should rewrite to an ExUnit assertion" do
+ -     auto_assert 1 + 1
+ +     assert 2 = 1 + 1
+     end
+
+...
 
 Accept new assertion? [yN]: !{y
 }.
