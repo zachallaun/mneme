@@ -1,7 +1,7 @@
 defmodule Mneme.Patcher do
   @moduledoc false
 
-  alias Rewrite.DotFormatter
+  alias Mneme.Utils
   alias Sourceror.Zipper
 
   defmodule FileResult do
@@ -18,7 +18,7 @@ defmodule Mneme.Patcher do
   Initialize patch state.
   """
   def init do
-    %SuiteResult{format_opts: DotFormatter.opts()}
+    %SuiteResult{format_opts: Utils.formatter_opts()}
   end
 
   @doc """

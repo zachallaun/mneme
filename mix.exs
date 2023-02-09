@@ -40,7 +40,7 @@ defmodule Mneme.MixProject do
       {:owl, "~> 0.6.0"},
       {:nimble_options, "~> 0.5.2"},
       {:sourceror, "~> 0.12"},
-      {:rewrite, "0.4.0"},
+      {:rewrite, github: "zachallaun/rewrite", ref: "put-private"},
 
       # Development
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},

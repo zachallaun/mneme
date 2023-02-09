@@ -3,7 +3,7 @@ defmodule Mneme.AssertionTest do
   use Mneme
   alias Mneme.Assertion
 
-  @format_opts Rewrite.DotFormatter.opts()
+  @format_opts Mneme.Utils.formatter_opts()
 
   test "w/o guard" do
     assertion =

@@ -3,7 +3,7 @@ defmodule Mneme.SerializerTest do
   use Mneme
   alias Mneme.Serializer
 
-  @format_opts Rewrite.DotFormatter.opts()
+  @format_opts Mneme.Utils.formatter_opts()
 
   describe "patterns" do
     test "atoms" do
