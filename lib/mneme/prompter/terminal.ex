@@ -1,7 +1,5 @@
 defmodule Mneme.Prompter.Terminal do
-  @moduledoc """
-  Default terminal-based prompter.
-  """
+  @moduledoc false
 
   @behaviour Mneme.Prompter
 
