@@ -3,5 +3,7 @@ defmodule Mneme.Prompter do
   # assertion patch. This behaviour may become public in the future.
   @moduledoc false
 
-  @callback prompt!(Rewrite.Source.t(), assertion :: term()) :: boolean()
+  @type response :: :accept | :reject | :shrink | :expand
+
+  @callback prompt!(Rewrite.Source.t(), assertion :: term(), reprompt :: boolean()) :: response
 end

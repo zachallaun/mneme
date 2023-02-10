@@ -41,6 +41,18 @@ defmodule Mneme.Integration.EctoSchemaTest do
     {:ok, user} = create(User, email: "user@example.org")
     # y
     auto_assert {:ok, %Post{user: ^user}} <- create(Post, user_id: user.id, user: user)
+    # s y
+    auto_assert {:ok, %Post{}} <- create(Post, user_id: user.id, user: user)
+    # s s y
+    auto_assert {:ok, %Post{}} <- create(Post, user_id: user.id, user: user)
+
+    # e y
+    auto_assert {:ok, %Post{user: %User{email: "user@example.org"}}} <-
+                  create(Post, user_id: user.id, user: user)
+
+    # e e y
+    auto_assert {:ok, %Post{user: %User{email: "user@example.org"}}} <-
+                  create(Post, user_id: user.id, user: user)
   end
 
   # TODO: Set up a Repo to ensure these fields are being properly set.

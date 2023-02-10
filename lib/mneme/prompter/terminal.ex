@@ -9,31 +9,90 @@ defmodule Mneme.Prompter.Terminal do
   alias Rewrite.Source
 
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion) do
-    %{type: type, context: context, pattern_notes: notes} = assertion
+  def prompt!(%Source{} = source, %Assertion{} = assertion, reprompt) do
+    %{type: type, context: context, patterns: patterns} = assertion
+    {_, {_, _, notes}, _} = patterns
 
     prefix = tag("│ ", :light_black)
 
+    header =
+      if reprompt do
+        []
+      else
+        [
+          type_tag(type),
+          tag(" • auto_assert", :light_black),
+          "\n",
+          file_tag(context),
+          "\n"
+        ]
+      end
+
     message =
       [
-        type_tag(type),
-        tag(" • auto_assert", :light_black),
+        header,
         "\n",
-        file_tag(context),
-        "\n\n",
         diff(source),
-        notes_tag(notes)
+        notes_tag(notes),
+        "\n",
+        explanation_tag(type),
+        " ",
+        input_options_tag(assertion)
       ]
       |> Owl.Data.add_prefix(prefix)
 
-    Owl.IO.puts(["\n", message])
+    if reprompt do
+      Owl.IO.puts(message)
+    else
+      Owl.IO.puts(["\n", message])
+    end
 
-    prompt_accept?([prefix, explanation_tag(type)])
+    prompt = tag([prefix, "> "], :light_black) |> Owl.Data.to_ansidata()
+    input(prompt, assertion)
   end
 
-  defp prompt_accept?(prompt) do
-    Owl.IO.confirm(message: prompt)
+  defp input(prompt, assertion) do
+    case gets(prompt) do
+      "y" ->
+        :accept
+
+      "n" ->
+        :reject
+
+      "s" ->
+        if Assertion.can_shrink?(assertion) do
+          :shrink
+        else
+          input(prompt, assertion)
+        end
+
+      "e" ->
+        if Assertion.can_expand?(assertion) do
+          :expand
+        else
+          input(prompt, assertion)
+        end
+
+      _ ->
+        input(prompt, assertion)
+    end
   end
+
+  defp gets(prompt) do
+    prompt
+    |> Owl.Data.to_ansidata()
+    |> IO.gets()
+    |> normalize_gets()
+  end
+
+  defp normalize_gets(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      string -> String.downcase(string)
+    end
+  end
+
+  defp normalize_gets(_), do: nil
 
   defp diff(source) do
     Rewrite.TextDiff.format(
@@ -79,5 +138,25 @@ defmodule Mneme.Prompter.Terminal do
       "\n"
     ]
     |> tag(:light_black)
+  end
+
+  defp input_options_tag(assertion) do
+    bullet = tag("●", [:faint, :light_black])
+
+    make_char = fn char, name, color, enabled? ->
+      [
+        tag(char, if(enabled?, do: color, else: [:faint, :light_black])),
+        " ",
+        tag(name, if(enabled?, do: [:faint, color], else: [:faint, :light_black]))
+      ]
+    end
+
+    [
+      make_char.("y", "yes", :green, true),
+      make_char.("n", "no", :red, true),
+      make_char.("e", "expand", :cyan, Assertion.can_expand?(assertion)),
+      make_char.("s", "shrink", :cyan, Assertion.can_shrink?(assertion))
+    ]
+    |> Enum.intersperse([" ", bullet, " "])
   end
 end

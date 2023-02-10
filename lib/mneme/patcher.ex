@@ -36,13 +36,14 @@ defmodule Mneme.Patcher do
 
   Returns `{result, patch_state}`.
   """
-  def patch!(%Project{} = project, assertion, opts) do
+  def patch!(%Project{} = project, assertion, opts, reprompt \\ false) do
     {source, assertion} = patch_assertion(project, assertion, opts)
 
-    if accept_change?(source, assertion, opts) do
-      {{:ok, assertion}, Project.update(project, source)}
-    else
-      {:error, project}
+    case prompt_change(source, assertion, opts, reprompt) do
+      :accept -> {{:ok, assertion}, Project.update(project, source)}
+      :reject -> {:error, project}
+      :shrink -> patch!(project, Assertion.shrink!(assertion, opts.target), opts, true)
+      :expand -> patch!(project, Assertion.expand!(assertion, opts.target), opts, true)
     end
   end
 
@@ -86,12 +87,11 @@ defmodule Mneme.Patcher do
     Zipper.update(zipper, fn {_, meta, _} -> {call, meta, args} end)
   end
 
-  defp accept_change?(source, assertion, %{action: :prompt, prompter: prompter}) do
-    prompter.prompt!(source, assertion)
+  defp prompt_change(source, assertion, %{action: :prompt, prompter: prompter}, reprompt) do
+    prompter.prompt!(source, assertion, reprompt)
   end
 
-  defp accept_change?(_, _, %{action: :accept}), do: true
-  defp accept_change?(_, _, %{action: :reject}), do: false
+  defp prompt_change(_, _, %{action: action}, _), do: action
 
   defp escape_newlines(code) when is_list(code) do
     Enum.map(code, &escape_newlines/1)
