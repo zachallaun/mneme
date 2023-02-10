@@ -143,20 +143,20 @@ defmodule Mneme.Prompter.Terminal do
   defp input_options_tag(assertion) do
     bullet = tag("●", [:faint, :light_black])
 
-    make_char = fn char, name, color, enabled? ->
-      [
-        tag(char, if(enabled?, do: color, else: [:faint, :light_black])),
-        " ",
-        tag(name, if(enabled?, do: [:faint, color], else: [:faint, :light_black]))
-      ]
-    end
-
     [
-      make_char.("y", "yes", :green, true),
-      make_char.("n", "no", :red, true),
-      make_char.("e", "expand", :cyan, Assertion.can_expand?(assertion)),
-      make_char.("s", "shrink", :cyan, Assertion.can_shrink?(assertion))
+      input_option("y", "yes", :green, true),
+      input_option("n", "no", :red, true),
+      input_option("e", "expand", :cyan, Assertion.can_expand?(assertion)),
+      input_option("s", "shrink", :cyan, Assertion.can_shrink?(assertion))
     ]
     |> Enum.intersperse([" ", bullet, " "])
+  end
+
+  defp input_option(char, name, color, enabled?) do
+    [
+      tag(char, if(enabled?, do: color, else: [:faint, :light_black])),
+      " ",
+      tag(name, if(enabled?, do: [:faint, color], else: [:faint, :light_black]))
+    ]
   end
 end
