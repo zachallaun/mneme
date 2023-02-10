@@ -1,4 +1,5 @@
-defmodule MnemeIntegration.OptionsTest do
+# exit:2
+defmodule Mneme.Integration.OptionsTest do
   use ExUnit.Case
   use Mneme
 

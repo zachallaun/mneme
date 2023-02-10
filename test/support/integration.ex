@@ -1,54 +1,200 @@
-defmodule Mneme.Integration.TestError do
-  defexception [:message]
-end
-
 defmodule Mneme.Integration do
-  @integration_test_dir File.cwd!() |> Path.join("test/integration")
+  @moduledoc """
+  Builds modules for integration testing.
+
+  To debug a specific integration test set the `DBG` environment var to
+  a substring matching the test's file name. This will print additional
+  information about the generated test module and result.
+
+  ```bash
+  $ DBG=some_test mix test
+  ```
+  """
+
+  alias Rewrite.Project
+  alias Rewrite.Source
+
+  defmodule TestError do
+    defexception [:message]
+  end
 
   @doc """
-  Generate an integration test module that will be run by ExUnit.
+  Build integration test modules for each file matching the wildcard.
   """
-  defmacro integration_test(template_basename, expect_basename \\ nil) do
-    expect_basename = expect_basename || template_basename
+  defmacro build_tests!(wildcard) when is_binary(wildcard) do
+    project = Project.read!(wildcard)
+    project = Enum.reduce(Project.sources(project), project, &set_up_source/2)
 
-    quote do
-      defmodule unquote(module_name(expect_basename)) do
-        use ExUnit.Case, async: true
+    for source <- Project.sources(project) do
+      module = source |> Source.modules() |> List.last()
+      "Elixir." <> module_name = to_string(module)
 
-        @tag :tmp_dir
-        test unquote(template_basename), %{tmp_dir: tmp_dir} do
-          Mneme.Integration.__run__(unquote(template_basename), unquote(expect_basename), tmp_dir)
+      quote do
+        defmodule unquote(module) do
+          use ExUnit.Case, async: true
+
+          @tag :tmp_dir
+          test unquote(module_name), %{tmp_dir: tmp_dir} do
+            data = %{
+              path: unquote(Source.path(source)),
+              tmp_dir: tmp_dir,
+              test_input: unquote(test_input(source)),
+              test_code: unquote(test_code(source)),
+              expected_code: unquote(expected_code(source)),
+              expected_exit_code: unquote(expected_exit_code(source))
+            }
+
+            Mneme.Integration.run_test(data)
+          end
         end
       end
     end
   end
 
-  def __run__(template_basename, expect_basename, tmp_dir) do
-    source_file = Path.join(tmp_dir, template_basename <> ".exs")
-    File.cp!(file(:template, template_basename), source_file)
+  @doc false
+  def run_test(test) do
+    debug_setup(System.get_env("DBG"), test)
 
-    {expected_exit_code, expected_output, input} = read_io_file!(expect_basename)
-    expected_source = read!(:expected, expect_basename)
+    file_path = Path.join([test.tmp_dir, "integration_test.exs"])
+    File.write!(file_path, test.test_code)
 
-    {output, exit_code} =
-      System.shell(~s(echo "#{input}" | CI=false mix test #{source_file} --seed 0))
+    test_command = """
+    echo "#{test.test_input}" | \
+      CI=false \
+      mix test #{file_path} --seed 0 \
+    """
 
-    actual_source = File.read!(source_file)
-    actual_output = normalize_output(output)
+    {output, exit_code} = System.shell(test_command, close_stdin: true)
+
+    code_after_test = File.read!(file_path)
 
     errors =
       [
-        {exit_code == expected_exit_code,
-         "Exit code was #{exit_code} (expected #{expected_exit_code})"},
-        {actual_source == expected_source, diff("Source", expected_source, actual_source)},
-        {actual_output == expected_output, diff("Output", expected_output, actual_output)}
+        {exit_code == test.expected_exit_code,
+         "Exit code was #{exit_code} (expected #{test.expected_exit_code})"},
+        {code_after_test == test.expected_code,
+         diff("Source", test.expected_code, code_after_test)}
       ]
       |> Enum.reject(fn {check, _} -> check end)
       |> Enum.map(fn {_, message} -> message end)
 
+    debug_output(System.get_env("DBG"), test, output)
+
     unless errors == [] do
       message = "\n" <> Enum.join(errors, "\n")
       raise Mneme.Integration.TestError, message: message
+    end
+  end
+
+  defp debug_setup(nil, _), do: :ok
+
+  defp debug_setup(debug, test) do
+    if String.contains?(test.path, debug) do
+      Owl.IO.puts([
+        [Owl.Data.tag("Path: ", :cyan), test.path, "\n"],
+        [Owl.Data.tag("Exit code: ", :cyan), to_string(test.expected_exit_code), "\n"],
+        [Owl.Data.tag("Input:\n", :cyan), test.test_input, "\n"],
+        [Owl.Data.tag("Test:\n\n", :cyan), test.test_code, "\n\n"],
+        [Owl.Data.tag("Expected:\n\n", :cyan), test.expected_code, "\n"]
+      ])
+    end
+  end
+
+  defp debug_output(nil, _, _), do: :ok
+
+  defp debug_output(debug, test, output) do
+    if String.contains?(test.path, debug) do
+      Owl.IO.puts([Owl.Data.tag("Output: ", :cyan), output, "\n"])
+    end
+  end
+
+  defp set_up_source(source, project) do
+    ast = Source.ast(source)
+
+    {test_ast, test_input} = build_test_ast_and_input(ast)
+    test_code = source |> Source.update(:mneme, ast: test_ast) |> Source.code()
+
+    expected_ast = build_expected_ast(ast)
+    expected_code = source |> Source.update(:mneme, ast: expected_ast) |> Source.code()
+
+    expected_exit_code = get_exit_code(ast)
+
+    source =
+      Source.put_private(source, :mneme,
+        test_input: test_input,
+        test_code: test_code,
+        expected_code: expected_code,
+        expected_exit_code: expected_exit_code
+      )
+
+    Project.update(project, source)
+  end
+
+  defp test_code(source), do: source.private[:mneme][:test_code] |> eof_newline()
+  defp test_input(source), do: source.private[:mneme][:test_input]
+  defp expected_code(source), do: source.private[:mneme][:expected_code] |> eof_newline()
+  defp expected_exit_code(source), do: source.private[:mneme][:expected_exit_code]
+
+  defp build_test_ast_and_input(ast) do
+    {test_ast, comments} =
+      Sourceror.prewalk(ast, [], fn
+        {:auto_assert, meta, _} = quoted, %{acc: comments} = state ->
+          {test_auto_assert(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
+
+        quoted, state ->
+          {quoted, state}
+      end)
+
+    {test_ast, input_string_from_comments(comments)}
+  end
+
+  defp build_expected_ast(ast) do
+    Sourceror.prewalk(ast, fn
+      {:auto_assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
+      quoted, state -> {quoted, state}
+    end)
+  end
+
+  defp test_auto_assert({call, meta, [current, _expected]}) do
+    {call, meta, [current]}
+  end
+
+  defp test_auto_assert({call, meta, [{:<-, _, [_expected_pattern, expr]}]}) do
+    {call, meta, [expr]}
+  end
+
+  defp test_auto_assert({call, meta, [{:==, _, [expr, _expected_value]}]}) do
+    {call, meta, [expr]}
+  end
+
+  defp test_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
+
+  defp expected_auto_assert({call, meta, [_current, expected]}) do
+    {call, meta, [expected]}
+  end
+
+  defp expected_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
+
+  @input_re ~r/#\s?(.+)/
+  defp input_string_from_comments(comments) do
+    comments
+    |> Enum.sort_by(& &1.line)
+    |> Enum.flat_map(fn %{text: text} ->
+      case(Regex.run(@input_re, text)) do
+        [_, input] -> input |> String.split() |> Enum.map(&[&1, "\n"])
+        _ -> []
+      end
+    end)
+    |> IO.iodata_to_binary()
+  end
+
+  defp get_exit_code({:defmodule, meta, _args}) do
+    with [%{text: comment} | _] <- meta[:leading_comments],
+         [_, exit_code_str] <- Regex.run(~r/.*exit:(\d).*/, comment),
+         {exit_code, ""} <- Integer.parse(exit_code_str) do
+      exit_code
+    else
+      _ -> 0
     end
   end
 
@@ -63,68 +209,5 @@ defmodule Mneme.Integration do
     |> IO.iodata_to_binary()
   end
 
-  defp file(:template, basename),
-    do: Path.join(@integration_test_dir, basename <> ".template.exs")
-
-  defp file(:io, basename), do: Path.join(@integration_test_dir, basename <> ".io.txt")
-
-  defp file(:expected, basename),
-    do: Path.join(@integration_test_dir, basename <> ".expected.exs")
-
-  defp read!(type, basename), do: file(type, basename) |> File.read!()
-
-  defp read_io_file!(basename) do
-    [exit_string, contents] = read!(:io, basename) |> String.split("\n", parts: 2)
-    "# exit:" <> code = exit_string
-    {exit_code, ""} = Integer.parse(code)
-
-    {outputs, inputs} =
-      contents
-      |> String.split(~r/!\{[^}]+\}/, include_captures: true)
-      |> alternate()
-
-    output =
-      outputs
-      |> Enum.join()
-      |> normalize_output()
-
-    input =
-      inputs
-      |> Enum.map(&(&1 |> String.trim_leading("!{") |> String.trim_trailing("}")))
-      |> Enum.join()
-
-    {exit_code, output, input}
-  end
-
-  defp alternate(list), do: alternate(list, :left, {[], []})
-
-  defp alternate([], _, {left, right}) do
-    {Enum.reverse(left), Enum.reverse(right)}
-  end
-
-  defp alternate([head | tail], :left, {left, right}) do
-    alternate(tail, :right, {[head | left], right})
-  end
-
-  defp alternate([head | tail], :right, {left, right}) do
-    alternate(tail, :left, {left, [head | right]})
-  end
-
-  defp normalize_output(output) do
-    output
-    |> String.replace(~r/Finished in.+\n/, "")
-    |> String.replace(~r/\nRandomized with seed.+\n/, "")
-    |> String.replace(~r/\[Mneme\] ((Update)|(New)) assertion.+\n/, "[Mneme] \\1 assertion\n")
-    |> String.replace(~r/tmp\/.+\n/, "")
-    |> String.replace(~r/stacktrace:\n[^\n\n]+/, "stacktrace:\n")
-    |> String.replace(~r/│\s/, "")
-    |> String.replace(~r/Reference<[^>]+>/, "Reference<>")
-    |> String.replace(~r/PID<[^>]+>/, "PID<>")
-    |> String.replace(~r/Port<[^>]+>/, "Port<>")
-    |> String.split("\n")
-    |> Enum.map(&String.trim/1)
-    |> Enum.join("\n")
-  end
-
-  defp module_name(name), do: Module.concat([__MODULE__, Macro.camelize(name)])
+  defp eof_newline(string), do: String.trim_trailing(string) <> "\n"
 end
