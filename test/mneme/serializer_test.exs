@@ -24,7 +24,7 @@ defmodule Mneme.SerializerTest do
 
       auto_assert {{:two, :elements}, nil, []} <- Serializer.to_pattern({:two, :elements}, %{})
 
-      auto_assert {{:{}, [], [:more, :than, :two, :elements]}, nil, []} <-
+      auto_assert {{:{}, [line: nil], [:more, :than, :two, :elements]}, nil, []} <-
                     Serializer.to_pattern({:more, :than, :two, :elements}, %{})
     end
 

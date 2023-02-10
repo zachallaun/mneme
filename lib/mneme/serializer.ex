@@ -22,15 +22,19 @@ defmodule Mneme.Serializer do
   Default implementation of `c:to_pattern`.
   """
   def to_pattern(value, context) do
-    case fetch_pinned(value, context[:binding] || []) do
+    case fetch_pinned(value, context) do
       {:ok, pin} -> {pin, nil, []}
       :error -> do_to_pattern(value, context)
     end
   end
 
-  defp fetch_pinned(value, binding) do
-    case List.keyfind(binding || [], value, 1) do
-      {name, ^value} -> {:ok, {:^, [], [{name, [], nil}]}}
+  defp with_meta(meta \\ [], context) do
+    Keyword.merge([line: context[:line]], meta)
+  end
+
+  defp fetch_pinned(value, context) do
+    case List.keyfind(context[:binding] || [], value, 1) do
+      {name, ^value} -> {:ok, {:^, with_meta(context), [make_var(name, context)]}}
       _ -> :error
     end
   end
@@ -40,9 +44,10 @@ defmodule Mneme.Serializer do
     {value, nil, []}
   end
 
-  defp do_to_pattern(string, _context) when is_binary(string) do
+  defp do_to_pattern(string, context) when is_binary(string) do
     if String.contains?(string, "\n") do
-      {{:__block__, [delimiter: ~S(""")], [format_for_heredoc(string)]}, nil, []}
+      {{:__block__, with_meta([delimiter: ~S(""")], context), [format_for_heredoc(string)]}, nil,
+       []}
     else
       {string, nil, []}
     end
@@ -64,19 +69,19 @@ defmodule Mneme.Serializer do
         {{expr1, expr2}, guard, notes1 ++ notes2}
 
       {{expr1, guard1, notes1}, {expr2, guard2, notes2}} ->
-        {{expr1, expr2}, {:and, [], [guard1, guard2]}, notes1 ++ notes2}
+        {{expr1, expr2}, {:and, with_meta(context), [guard1, guard2]}, notes1 ++ notes2}
     end
   end
 
   defp do_to_pattern(tuple, context) when is_tuple(tuple) do
     values = Tuple.to_list(tuple)
     {value_matches, guard, notes} = enum_to_pattern(values, context)
-    {{:{}, [], value_matches}, guard, notes}
+    {{:{}, with_meta(context), value_matches}, guard, notes}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
-    defp do_to_pattern(value, _context) when unquote(guard)(value) do
-      guard_non_serializable(unquote(var_name), unquote(guard), value)
+    defp do_to_pattern(value, context) when unquote(guard)(value) do
+      guard_non_serializable(unquote(var_name), unquote(guard), value, context)
     end
   end
 
@@ -101,7 +106,7 @@ defmodule Mneme.Serializer do
 
   defp do_to_pattern(%{} = map, context) do
     {tuples, guard, notes} = enum_to_pattern(map, context)
-    {{:%{}, [], tuples}, guard, notes}
+    {{:%{}, with_meta(context), tuples}, guard, notes}
   end
 
   defp struct_to_pattern(struct, map, context, notes) do
@@ -118,7 +123,8 @@ defmodule Mneme.Serializer do
       |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
       |> Mneme.Serializer.to_pattern(context)
 
-    {{:%, [], [{:__aliases__, [], aliases}, map_expr]}, guard, notes ++ inner_notes}
+    {{:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_expr]}, guard,
+     notes ++ inner_notes}
   end
 
   defp format_for_heredoc(string) when is_binary(string) do
@@ -133,18 +139,29 @@ defmodule Mneme.Serializer do
     {list, {guard, notes}} =
       Enum.map_reduce(values, {nil, []}, fn value, {guard, notes} ->
         case {guard, Mneme.Serializer.to_pattern(value, context)} do
-          {nil, {expr, guard, ns}} -> {expr, {guard, notes ++ ns}}
-          {guard, {expr, nil, ns}} -> {expr, {guard, notes ++ ns}}
-          {guard1, {expr, guard2, ns}} -> {expr, {{:and, [], [guard1, guard2]}, notes ++ ns}}
+          {nil, {expr, guard, ns}} ->
+            {expr, {guard, notes ++ ns}}
+
+          {guard, {expr, nil, ns}} ->
+            {expr, {guard, notes ++ ns}}
+
+          {guard1, {expr, guard2, ns}} ->
+            {expr, {{:and, with_meta(context), [guard1, guard2]}, notes ++ ns}}
         end
       end)
 
     {list, guard, notes}
   end
 
-  defp guard_non_serializable(name, guard, value) do
-    var = {name, [], nil}
-    {var, {guard, [], [var]}, ["Using guard for non-serializable value `#{inspect(value)}`"]}
+  defp guard_non_serializable(name, guard, value, context) do
+    var = make_var(name, context)
+
+    {var, {guard, with_meta(context), [var]},
+     ["Using guard for non-serializable value `#{inspect(value)}`"]}
+  end
+
+  defp make_var(name, context) do
+    {name, with_meta(context), nil}
   end
 
   defp ecto_schema?(module) do
