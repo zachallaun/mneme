@@ -11,7 +11,7 @@ defmodule Mneme.Prompter.Terminal do
   @impl true
   def prompt!(%Source{} = source, %Assertion{} = assertion, reprompt) do
     %{type: type, context: context, patterns: patterns} = assertion
-    {_, {_, _, notes}, _} = patterns
+    [{_, _, notes} | _] = patterns
 
     prefix = tag("│ ", :light_black)
 
@@ -53,22 +53,22 @@ defmodule Mneme.Prompter.Terminal do
 
   defp input(prompt, assertion) do
     case gets(prompt) do
-      "y" ->
+      "a" ->
         :accept
 
-      "n" ->
+      "r" ->
         :reject
 
-      "s" ->
-        if Assertion.can_shrink?(assertion) do
-          :shrink
+      "p" ->
+        if Assertion.has_prev?(assertion) do
+          :prev
         else
           input(prompt, assertion)
         end
 
-      "e" ->
-        if Assertion.can_expand?(assertion) do
-          :expand
+      "n" ->
+        if Assertion.has_next?(assertion) do
+          :next
         else
           input(prompt, assertion)
         end
@@ -144,10 +144,10 @@ defmodule Mneme.Prompter.Terminal do
     bullet = tag("●", [:faint, :light_black])
 
     [
-      input_option("y", "yes", :green, true),
-      input_option("n", "no", :red, true),
-      input_option("e", "expand", :cyan, Assertion.can_expand?(assertion)),
-      input_option("s", "shrink", :cyan, Assertion.can_shrink?(assertion))
+      input_option("a", "accept", :green, true),
+      input_option("r", "reject", :red, true),
+      input_option("n", "next", :cyan, Assertion.has_next?(assertion)),
+      input_option("p", "previous", :cyan, Assertion.has_prev?(assertion))
     ]
     |> Enum.intersperse([" ", bullet, " "])
   end

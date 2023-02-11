@@ -42,8 +42,8 @@ defmodule Mneme.Patcher do
     case prompt_change(source, assertion, opts, reprompt) do
       :accept -> {{:ok, assertion}, Project.update(project, source)}
       :reject -> {:error, project}
-      :shrink -> patch!(project, Assertion.shrink!(assertion, opts.target), opts, true)
-      :expand -> patch!(project, Assertion.expand!(assertion, opts.target), opts, true)
+      :prev -> patch!(project, Assertion.prev!(assertion, opts.target), opts, true)
+      :next -> patch!(project, Assertion.next!(assertion, opts.target), opts, true)
     end
   end
 

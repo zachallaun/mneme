@@ -10,7 +10,8 @@ defmodule Mneme.Assertion do
     :value,
     :context,
     :eval,
-    :patterns
+    :patterns,
+    prev_patterns: []
   ]
 
   @doc """
@@ -133,32 +134,32 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Shrink the current assertion pattern. Raises if the pattern cannot shrink.
+  Select the previous pattern. Raises if no previous pattern is available.
   """
-  def shrink!(%Assertion{patterns: {[new | rest], current, expanded}} = assertion, target) do
-    %{assertion | patterns: {rest, new, [current | expanded]}}
+  def prev!(%Assertion{prev_patterns: [prev | rest], patterns: patterns} = assertion, target) do
+    %{assertion | prev_patterns: rest, patterns: [prev | patterns]}
     |> regenerate_code(target)
   end
 
   @doc """
-  Expand the current assertion pattern. Raises if the pattern cannot expand.
+  Select the next pattern. Raises if no next pattern is available.
   """
-  def expand!(%Assertion{patterns: {shrunk, current, [new | rest]}} = assertion, target) do
-    %{assertion | patterns: {[current | shrunk], new, rest}}
+  def next!(%Assertion{prev_patterns: prev, patterns: [current | rest]} = assertion, target) do
+    %{assertion | prev_patterns: [current | prev], patterns: rest}
     |> regenerate_code(target)
   end
 
   @doc """
-  Returns whether the assertion pattern can shrink.
+  Returns whether a next pattern is available.
   """
-  def can_shrink?(%Assertion{patterns: {[_ | _], _, _}}), do: true
-  def can_shrink?(_), do: false
+  def has_next?(%Assertion{patterns: [_, _ | _]}), do: true
+  def has_next?(_), do: false
 
   @doc """
-  Returns whether the assertion pattern can expand.
+  Returns whether a previous pattern is available.
   """
-  def can_expand?(%Assertion{patterns: {_, _, [_ | _]}}), do: true
-  def can_expand?(_), do: false
+  def has_prev?(%Assertion{prev_patterns: [_ | _]}), do: true
+  def has_prev?(_), do: false
 
   @doc """
   Check whether the assertion struct represents the given AST node.
@@ -183,7 +184,7 @@ defmodule Mneme.Assertion do
   """
   def to_code(assertion, target) when target in [:auto_assert, :assert] do
     case assertion.patterns do
-      {_, {falsy, nil, _}, _} when falsy in [nil, false] ->
+      [{falsy, nil, _} | _] when falsy in [nil, false] ->
         build_call(
           target,
           :compare,
@@ -192,7 +193,7 @@ defmodule Mneme.Assertion do
           nil
         )
 
-      {_, {expr, guard, _}, _} ->
+      [{expr, guard, _} | _] ->
         build_call(
           target,
           :match,
@@ -247,7 +248,7 @@ defmodule Mneme.Assertion do
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
 
-  defp code_for_eval(code, {_, pattern, _}) do
+  defp code_for_eval(code, [pattern | _]) do
     case pattern do
       {falsy, nil, _} when falsy in [nil, false] ->
         build_eval(:compare, code, falsy, nil)
