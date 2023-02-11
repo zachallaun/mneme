@@ -7,61 +7,66 @@ defmodule Mneme.SerializerTest do
 
   describe "patterns" do
     test "atoms" do
-      auto_assert ":foo" <- to_pattern_string(:foo)
-      auto_assert "true" <- to_pattern_string(true)
+      auto_assert [":foo"] <- to_pattern_strings(:foo)
+      auto_assert ["true"] <- to_pattern_strings(true)
     end
 
     test "literals" do
-      auto_assert "123" <- to_pattern_string(123)
-      auto_assert "123.5" <- to_pattern_string(123.5)
-      auto_assert "\"string\"" <- to_pattern_string("string")
-      auto_assert ":atom" <- to_pattern_string(:atom)
+      auto_assert ["123"] <- to_pattern_strings(123)
+      auto_assert ["123.5"] <- to_pattern_strings(123.5)
+      auto_assert ["\"string\""] <- to_pattern_strings("string")
+      auto_assert [":atom"] <- to_pattern_strings(:atom)
     end
 
     test "tuples" do
-      auto_assert "{1, \"string\", :atom}" <- to_pattern_string({1, "string", :atom})
-      auto_assert "{{:nested}, {\"tuples\"}}" <- to_pattern_string({{:nested}, {"tuples"}})
+      auto_assert ["{1, \"string\", :atom}"] <- to_pattern_strings({1, "string", :atom})
+      auto_assert ["{{:nested}, {\"tuples\"}}"] <- to_pattern_strings({{:nested}, {"tuples"}})
 
-      auto_assert {[], {{:two, :elements}, nil, []}, []} <-
-                    Serializer.to_patterns({:two, :elements}, %{})
+      auto_assert [{{:two, :elements}, nil, []}] <- Serializer.to_patterns({:two, :elements}, %{})
 
-      auto_assert {[], {{:{}, [line: nil], [:more, :than, :two, :elements]}, nil, []}, []} <-
+      auto_assert [{{:{}, [line: nil], [:more, :than, :two, :elements]}, nil, []}] <-
                     Serializer.to_patterns({:more, :than, :two, :elements}, %{})
     end
 
     test "lists" do
-      auto_assert "[1, 2, 3]" <- to_pattern_string([1, 2, 3])
-      auto_assert "[1, [:nested], 3]" <- to_pattern_string([1, [:nested], 3])
+      auto_assert ["[1, 2, 3]"] <- to_pattern_strings([1, 2, 3])
+      auto_assert ["[1, [:nested], 3]"] <- to_pattern_strings([1, [:nested], 3])
     end
 
     test "pins and guards" do
       ref = make_ref()
-      auto_assert "ref when is_reference(ref)" <- to_pattern_string(ref)
-      auto_assert "^my_ref" <- to_pattern_string(ref, binding: [my_ref: ref])
+      auto_assert ["is_reference(ref) when ref"] <- to_pattern_strings(ref)
+
+      auto_assert ["^my_ref", "is_reference(ref) when ref"] <-
+                    to_pattern_strings(ref, binding: [my_ref: ref])
 
       self = self()
-      auto_assert "pid when is_pid(pid)" <- to_pattern_string(self)
-      auto_assert "^me" <- to_pattern_string(self, binding: [me: self])
+      auto_assert ["is_pid(pid) when pid"] <- to_pattern_strings(self)
+      auto_assert ["^me", "is_pid(pid) when pid"] <- to_pattern_strings(self, binding: [me: self])
 
       {:ok, port} = :gen_tcp.listen(0, [])
 
       try do
-        auto_assert "port when is_port(port)" <- to_pattern_string(port)
-        auto_assert "^my_port" <- to_pattern_string(port, binding: [my_port: port])
+        auto_assert ["is_port(port) when port"] <- to_pattern_strings(port)
+
+        auto_assert ["^my_port", "is_port(port) when port"] <-
+                      to_pattern_strings(port, binding: [my_port: port])
       after
         Port.close(port)
       end
     end
 
     test "maps" do
-      auto_assert "%{bar: 2, foo: 1}" <- to_pattern_string(%{foo: 1, bar: 2})
-      auto_assert "%{:foo => 1, \"bar\" => 2}" <- to_pattern_string(%{:foo => 1, "bar" => 2})
+      auto_assert ["%{}", "%{bar: 2, foo: 1}"] <- to_pattern_strings(%{foo: 1, bar: 2})
 
-      auto_assert "%{bar: ref, foo: pid} when is_reference(ref) and is_pid(pid)" <-
-                    to_pattern_string(%{foo: self(), bar: make_ref()})
+      auto_assert ["%{}", "%{:foo => 1, \"bar\" => 2}"] <-
+                    to_pattern_strings(%{:foo => 1, "bar" => 2})
 
-      auto_assert "%{bar: %{baz: [3, 4]}, foo: [1, 2]}" <-
-                    to_pattern_string(%{foo: [1, 2], bar: %{baz: [3, 4]}})
+      auto_assert ["%{}", "is_reference(ref) and is_pid(pid) when %{bar: ref, foo: pid}"] <-
+                    to_pattern_strings(%{foo: self(), bar: make_ref()})
+
+      auto_assert ["%{}", "%{bar: %{}, foo: [1, 2]}", "%{bar: %{baz: [3, 4]}, foo: [1, 2]}"] <-
+                    to_pattern_strings(%{foo: [1, 2], bar: %{baz: [3, 4]}})
     end
 
     test "dates and times" do
@@ -70,38 +75,44 @@ defmodule Mneme.SerializerTest do
       iso8601_datetime = iso8601_date <> "T" <> iso8601_time
 
       {:ok, datetime, 0} = DateTime.from_iso8601(iso8601_datetime)
-      auto_assert "~U[2023-01-01 12:00:00Z]" <- to_pattern_string(datetime)
-      auto_assert "^jan1" <- to_pattern_string(datetime, binding: [jan1: datetime])
+      auto_assert ["~U[2023-01-01 12:00:00Z]"] <- to_pattern_strings(datetime)
+
+      auto_assert ["^jan1", "~U[2023-01-01 12:00:00Z]"] <-
+                    to_pattern_strings(datetime, binding: [jan1: datetime])
 
       naive_datetime = NaiveDateTime.from_iso8601!(iso8601_datetime)
-      auto_assert "~N[2023-01-01 12:00:00]" <- to_pattern_string(naive_datetime)
-      auto_assert "^jan1" <- to_pattern_string(naive_datetime, binding: [jan1: naive_datetime])
+      auto_assert ["~N[2023-01-01 12:00:00]"] <- to_pattern_strings(naive_datetime)
+
+      auto_assert ["^jan1", "~N[2023-01-01 12:00:00]"] <-
+                    to_pattern_strings(naive_datetime, binding: [jan1: naive_datetime])
 
       date = Date.from_iso8601!(iso8601_date)
-      auto_assert "~D[2023-01-01]" <- to_pattern_string(date)
-      auto_assert "^jan1" <- to_pattern_string(date, binding: [jan1: date])
+      auto_assert ["~D[2023-01-01]"] <- to_pattern_strings(date)
+      auto_assert ["^jan1", "~D[2023-01-01]"] <- to_pattern_strings(date, binding: [jan1: date])
 
       time = Time.from_iso8601!(iso8601_time)
-      auto_assert "~T[12:00:00]" <- to_pattern_string(time)
-      auto_assert "^noon" <- to_pattern_string(time, binding: [noon: time])
+      auto_assert ["~T[12:00:00]"] <- to_pattern_strings(time)
+      auto_assert ["^noon", "~T[12:00:00]"] <- to_pattern_strings(time, binding: [noon: time])
     end
 
     test "URIs don't include deprecated :authority" do
-      auto_assert "%URI{host: \"example.com\", port: 443, scheme: \"https\"}" <-
-                    to_pattern_string(URI.parse("https://example.com"))
+      auto_assert ["%URI{}", "%URI{host: \"example.com\", port: 443, scheme: \"https\"}"] <-
+                    to_pattern_strings(URI.parse("https://example.com"))
     end
 
     test "structs" do
-      auto_assert "%Version{major: 1, minor: 1, patch: 1}" <-
-                    to_pattern_string(Version.parse!("1.1.1"))
+      auto_assert ["%Version{}", "%Version{major: 1, minor: 1, patch: 1}"] <-
+                    to_pattern_strings(Version.parse!("1.1.1"))
     end
   end
 
-  defp to_pattern_string(value, context \\ []) do
-    case Serializer.to_patterns(value, Enum.into(context, %{})) do
-      {_, {expr, nil, _}, _} -> expr
-      {_, {expr, guard, _}, _} -> {:when, [], [expr, guard]}
-    end
-    |> Sourceror.to_string(@format_opts)
+  defp to_pattern_strings(value, context \\ []) do
+    value
+    |> Serializer.to_patterns(Enum.into(context, %{line: 1}))
+    |> Enum.map(fn
+      {expr, nil, _} -> expr
+      {expr, guard, _} -> {:when, [], [guard, expr]}
+    end)
+    |> Enum.map(&Sourceror.to_string(&1, @format_opts))
   end
 end

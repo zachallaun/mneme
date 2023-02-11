@@ -4,10 +4,10 @@ defmodule Mneme.Integration.RejectTest1 do
   use Mneme
 
   test "integers" do
-    # y
+    # a
     auto_assert 4 <- 2 + 2
 
-    # n
+    # r
     auto_assert 4 <- 2 + 1, 4 <- 2 + 1
   end
 end

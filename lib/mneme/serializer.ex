@@ -19,23 +19,19 @@ defmodule Mneme.Serializer do
     * `:binding` - a keyword list of variables/values present in the
       calling environment
 
-  Must return a three element tuple of the form:
-
-      {[shrunk_pattern, ...], default_pattern, [expanded_pattern, ...]}
-
-  Where each pattern is of type `t:pattern/0`.
+  Returns a list of possible matching patterns.
   """
-  @callback to_patterns(value :: any(), context :: map()) :: {[pattern], pattern, [pattern]}
+  @callback to_patterns(value :: any(), context :: map()) :: [pattern, ...]
 
   @doc """
   Default implementation of `c:to_pattern`.
   """
   def to_patterns(value, context) do
-    {shrunk, default, expanded} = do_to_patterns(value, context)
+    patterns = do_to_patterns(value, context)
 
     case fetch_pinned(value, context) do
-      {:ok, pin} -> {shrunk, {pin, nil, []}, [default | expanded]}
-      :error -> {shrunk, default, expanded}
+      {:ok, pin} -> [{pin, nil, []} | patterns]
+      :error -> patterns
     end
   end
 
@@ -53,7 +49,7 @@ defmodule Mneme.Serializer do
   defp do_to_patterns(value, _context)
        when is_atom(value) or is_integer(value) or is_float(value) do
     pattern = {value, nil, []}
-    {[], pattern, []}
+    [pattern]
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
@@ -65,7 +61,7 @@ defmodule Mneme.Serializer do
         {string, nil, []}
       end
 
-    {[], pattern, []}
+    [pattern]
   end
 
   defp do_to_patterns(list, context) when is_list(list) do
@@ -88,7 +84,7 @@ defmodule Mneme.Serializer do
   for module <- [DateTime, NaiveDateTime, Date, Time] do
     defp do_to_patterns(%unquote(module){} = value, _context) do
       pattern = {value |> inspect() |> Code.string_to_quoted!(), nil, []}
-      {[], pattern, []}
+      [pattern]
     end
   end
 
@@ -108,39 +104,21 @@ defmodule Mneme.Serializer do
   defp do_to_patterns(map, context) when is_map(map) do
     empty_map_pattern = map_pattern({[], nil, []}, context)
 
-    {shrunk, default, expanded} =
+    patterns =
       map
       |> enum_to_patterns(context)
       |> transform_patterns(&map_pattern/2, context)
 
-    {[empty_map_pattern | shrunk], default, expanded}
+    [empty_map_pattern | patterns]
   end
 
   defp struct_to_patterns(struct, map, context, extra_notes) do
-    empty_map_pattern = map_pattern({[], nil, []}, context)
-    empty_struct_pattern = struct_pattern(struct, empty_map_pattern, context)
-
     empty = struct.__struct__()
 
-    {shrunk, default, expanded} =
-      map
-      |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
-      |> Mneme.Serializer.to_patterns(context)
-      |> transform_patterns(&struct_pattern(struct, &1, &2, extra_notes), context)
-
-    {[empty_struct_pattern | shrunk], default, expanded}
-  end
-
-  defp struct_pattern(struct, {map_expr, guard, notes}, context, extra_notes \\ []) do
-    {aliased, _} =
-      context
-      |> Map.get(:aliases, [])
-      |> List.keyfind(struct, 1, {struct, struct})
-
-    aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
-
-    {{:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_expr]}, guard,
-     extra_notes ++ notes}
+    map
+    |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
+    |> Mneme.Serializer.to_patterns(context)
+    |> transform_patterns(&struct_pattern(struct, &1, &2, extra_notes), context)
   end
 
   defp format_for_heredoc(string) when is_binary(string) do
@@ -152,13 +130,39 @@ defmodule Mneme.Serializer do
   end
 
   defp enum_to_patterns(values, context) do
-    nested_patterns = Enum.map(values, &Mneme.Serializer.to_patterns(&1, context))
-    shrunk = combine_until(&all_shrunk?/1, &shrink_and_get/1, nested_patterns, context)
-    expanded = combine_until(&all_expanded?/1, &expand_and_get/1, nested_patterns, context)
-    patterns = nested_patterns |> Enum.map(&elem(&1, 1)) |> combine_patterns(context)
-
-    {shrunk, patterns, expanded}
+    values
+    |> Enum.map(&Mneme.Serializer.to_patterns(&1, context))
+    |> unzip_combine(context)
   end
+
+  defp unzip_combine(nested_patterns, context, acc \\ []) do
+    if last_pattern?(nested_patterns) do
+      {patterns, _} = combine_and_pop(nested_patterns, context)
+      Enum.reverse([patterns | acc])
+    else
+      {patterns, rest} = combine_and_pop(nested_patterns, context)
+      unzip_combine(rest, context, [patterns | acc])
+    end
+  end
+
+  defp last_pattern?(nested_patterns) do
+    Enum.all?(nested_patterns, fn
+      [_] -> true
+      _ -> false
+    end)
+  end
+
+  defp combine_and_pop(nested_patterns, context) do
+    {patterns, rest_patterns} =
+      nested_patterns
+      |> Enum.map(&pop_pattern/1)
+      |> Enum.unzip()
+
+    {combine_patterns(patterns, context), rest_patterns}
+  end
+
+  defp pop_pattern([current, next | rest]), do: {current, [next | rest]}
+  defp pop_pattern([current]), do: {current, [current]}
 
   defp combine_patterns(patterns, context) do
     {exprs, {guard, notes}} =
@@ -167,51 +171,6 @@ defmodule Mneme.Serializer do
       end)
 
     {exprs, guard, notes}
-  end
-
-  defp combine_until(check, next, patterns, context, acc \\ []) do
-    if check.(patterns) do
-      Enum.reverse(acc)
-    else
-      {batch, rest_patterns} =
-        patterns
-        |> Enum.map(next)
-        |> Enum.unzip()
-
-      combined = combine_patterns(batch, context)
-
-      combine_until(check, next, rest_patterns, context, [combined | acc])
-    end
-  end
-
-  defp shrink_and_get({[next | rest], current, expanded}) do
-    {next, {rest, next, [current | expanded]}}
-  end
-
-  defp shrink_and_get({[], current, expanded}) do
-    {current, {[], current, expanded}}
-  end
-
-  defp expand_and_get({shrunk, current, [next | rest]}) do
-    {next, {[current | shrunk], next, rest}}
-  end
-
-  defp expand_and_get({shrunk, current, []}) do
-    {current, {shrunk, current, []}}
-  end
-
-  defp all_shrunk?(patterns) do
-    Enum.all?(patterns, fn
-      {[], _, _} -> true
-      _ -> false
-    end)
-  end
-
-  defp all_expanded?(patterns) do
-    Enum.all?(patterns, fn
-      {_, _, []} -> true
-      _ -> false
-    end)
   end
 
   defp combine_guards(nil, guard, _context), do: guard
@@ -225,18 +184,15 @@ defmodule Mneme.Serializer do
       {var, {guard, with_meta(context), [var]},
        ["Using guard for non-serializable value `#{inspect(value)}`"]}
 
-    {[], pattern, []}
+    [pattern]
   end
 
   defp make_var(name, context) do
     {name, with_meta(context), nil}
   end
 
-  defp transform_patterns({shrunk, default, expanded}, transform, context) do
-    transformed_shrunk = Enum.map(shrunk, &transform.(&1, context))
-    transformed_expanded = Enum.map(expanded, &transform.(&1, context))
-
-    {transformed_shrunk, transform.(default, context), transformed_expanded}
+  defp transform_patterns(patterns, transform, context) do
+    Enum.map(patterns, &transform.(&1, context))
   end
 
   defp tuple_pattern({[e1, e2], guard, notes}, _context) do
@@ -249,6 +205,18 @@ defmodule Mneme.Serializer do
 
   defp map_pattern({tuples, guard, notes}, context) do
     {{:%{}, with_meta(context), tuples}, guard, notes}
+  end
+
+  defp struct_pattern(struct, {map_expr, guard, notes}, context, extra_notes) do
+    {aliased, _} =
+      context
+      |> Map.get(:aliases, [])
+      |> List.keyfind(struct, 1, {struct, struct})
+
+    aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
+
+    {{:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_expr]}, guard,
+     extra_notes ++ notes}
   end
 
   defp ecto_schema?(module) do
