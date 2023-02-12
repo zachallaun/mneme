@@ -26,3 +26,6 @@ mneme-*.tar
 /tmp/
 
 /priv/plts
+
+# Scratch code
+scratch.exs
