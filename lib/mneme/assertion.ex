@@ -169,6 +169,11 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
+  Returns any notes associated with the current pattern.
+  """
+  def notes(%Assertion{patterns: [{_, _, notes} | _]}), do: notes
+
+  @doc """
   Check whether the assertion struct represents the given AST node.
   """
   def same?(%Assertion{context: context}, node) do

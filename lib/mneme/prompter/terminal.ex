@@ -14,30 +14,23 @@ defmodule Mneme.Prompter.Terminal do
   @clear_to_end_of_screen "\e[0J"
 
   @bullet_char "●"
+  @empty_bullet_char "○"
   @info_char "🛈"
+  @arrow_left_char "❮"
+  @arrow_right_car "❯"
 
   @impl true
   def prompt!(%Source{} = source, %Assertion{} = assertion, prompt_state) do
-    %{type: type, context: context, patterns: patterns} = assertion
-    [{_, _, notes} | _] = patterns
-
-    prefix = tag("│ ", :light_black)
+    %{type: type, context: context} = assertion
 
     message =
-      [
-        header_tag(type, context),
-        "\n",
-        diff(source),
-        notes_tag(notes),
-        "\n",
-        explanation_tag(type),
-        "\n",
-        tag("> ", :light_black),
-        @cursor_save,
-        "\n",
-        input_options_tag(assertion)
-      ]
-      |> Owl.Data.add_prefix(prefix)
+      message(
+        source,
+        type,
+        context,
+        Assertion.pattern_index(assertion),
+        Assertion.notes(assertion)
+      )
 
     lines = message |> Owl.Data.lines() |> length()
 
@@ -57,6 +50,26 @@ defmodule Mneme.Prompter.Terminal do
     reset_cursor = [IO.ANSI.cursor_down(2), "\r"]
 
     {input(assertion, reset_cursor), %{prev_lines: lines}}
+  end
+
+  @doc false
+  def message(source, type, context, pattern_nav, notes) do
+    prefix = tag("│ ", :light_black)
+
+    [
+      header_tag(type, context),
+      "\n",
+      diff(source),
+      notes_tag(notes),
+      "\n",
+      explanation_tag(type),
+      "\n",
+      tag("> ", :light_black),
+      @cursor_save,
+      "\n",
+      input_options_tag(pattern_nav)
+    ]
+    |> Owl.Data.add_prefix(prefix)
   end
 
   defp input(assertion, reset_cursor) do
@@ -161,23 +174,20 @@ defmodule Mneme.Prompter.Terminal do
     |> tag(:light_black)
   end
 
-  defp input_options_tag(assertion) do
+  defp input_options_tag(nav) do
     [
       [tag("y ", :green), tag("yes", [:faint, :green])],
       [tag("n ", :red), tag("no", [:faint, :red])],
-      nav_options_tag(Assertion.pattern_index(assertion))
+      nav_options_tag(nav)
     ]
     |> Enum.intersperse(["  "])
   end
 
   defp nav_options_tag({index, count}) do
-    dots =
-      for i <- 0..(count - 1) do
-        if index == i, do: "●", else: "○"
-      end
+    dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
 
     tag(
-      ["❮ j ", dots, " k ❯"],
+      ["#{@arrow_left_char} j ", dots, " k #{@arrow_right_car}"],
       if(count > 1, do: :light_black, else: [:faint, :light_black])
     )
   end
