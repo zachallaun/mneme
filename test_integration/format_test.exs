@@ -4,13 +4,13 @@ defmodule Mneme.Integration.FormatTest do
 
   describe "multi-line strings" do
     test "should be formatted as heredocs" do
-      # a
+      # y
       auto_assert """
                   foo
                   bar
                   """ <- "foo\nbar\n"
 
-      # a
+      # y
       auto_assert """
                   foo
                   bar\

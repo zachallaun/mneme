@@ -8,81 +8,82 @@ defmodule Mneme.Prompter.Terminal do
   alias Mneme.Assertion
   alias Rewrite.Source
 
+  @cursor_save "\e7"
+  @cursor_restore "\e8"
+  @clear_to_end_of_line "\e[0K"
+  @clear_to_end_of_screen "\e[0J"
+
+  @bullet_char "●"
+  @info_char "🛈"
+
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion, reprompt) do
+  def prompt!(%Source{} = source, %Assertion{} = assertion, prompt_state) do
     %{type: type, context: context, patterns: patterns} = assertion
     [{_, _, notes} | _] = patterns
 
     prefix = tag("│ ", :light_black)
 
-    header =
-      if reprompt do
-        []
-      else
-        [
-          type_tag(type),
-          tag(" • auto_assert", :light_black),
-          "\n",
-          file_tag(context),
-          "\n"
-        ]
-      end
-
     message =
       [
-        header,
+        header_tag(type, context),
         "\n",
         diff(source),
         notes_tag(notes),
         "\n",
         explanation_tag(type),
-        " ",
+        "\n",
+        tag("> ", :light_black),
+        @cursor_save,
+        "\n",
         input_options_tag(assertion)
       ]
       |> Owl.Data.add_prefix(prefix)
 
-    if reprompt do
-      Owl.IO.puts(message)
-    else
-      Owl.IO.puts(["\n", message])
-    end
+    lines = message |> Owl.Data.lines() |> length()
 
-    prompt = tag([prefix, "> "], :light_black) |> Owl.Data.to_ansidata()
-    input(prompt, assertion)
+    message =
+      case {prompt_state, Owl.IO.rows()} do
+        {%{prev_lines: prev_lines}, _} ->
+          [IO.ANSI.cursor_up(prev_lines), "\r", @clear_to_end_of_screen, "\n", message]
+
+        {_, nil} ->
+          message
+
+        {_, rows} ->
+          [String.duplicate("\n", rows), IO.ANSI.home(), "\n", message]
+      end
+
+    Owl.IO.puts(message)
+    reset_cursor = [IO.ANSI.cursor_down(2), "\r"]
+
+    {input(assertion, reset_cursor), %{prev_lines: lines}}
   end
 
-  defp input(prompt, assertion) do
-    case gets(prompt) do
-      "a" ->
+  defp input(assertion, reset_cursor) do
+    IO.write([@cursor_restore, @clear_to_end_of_line])
+
+    case gets() do
+      "y" ->
+        IO.write(reset_cursor)
         :accept
 
-      "r" ->
+      "n" ->
+        IO.write(reset_cursor)
         :reject
 
-      "p" ->
-        if Assertion.has_prev?(assertion) do
-          :prev
-        else
-          input(prompt, assertion)
-        end
+      "k" ->
+        :next
 
-      "n" ->
-        if Assertion.has_next?(assertion) do
-          :next
-        else
-          input(prompt, assertion)
-        end
+      "j" ->
+        :prev
 
       _ ->
-        input(prompt, assertion)
+        input(assertion, reset_cursor)
     end
   end
 
-  defp gets(prompt) do
-    prompt
-    |> Owl.Data.to_ansidata()
-    |> IO.gets()
-    |> normalize_gets()
+  defp gets do
+    IO.gets("") |> normalize_gets()
   end
 
   defp normalize_gets(value) when is_binary(value) do
@@ -101,20 +102,40 @@ defmodule Mneme.Prompter.Terminal do
       line_numbers: false,
       format: [
         separator: "",
-        gutter: [eq: "   ", ins: " + ", del: " - ", skip: "..."]
-      ]
+        gutter: [eq: "   ", ins: " + ", del: " - ", skip: "..."],
+        colors: [
+          ins: [text: :green, space: IO.ANSI.color_background(0, 1, 0)],
+          del: [text: :red, space: IO.ANSI.color_background(1, 0, 0)],
+          skip: [text: :yellow],
+          separator: [text: :yellow]
+        ]
+      ],
+      colorizer: &tag/2
     )
   end
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
+
+  defp header_tag(type, context) do
+    [
+      type_tag(type),
+      tag([" ", @bullet_char, " "], [:faint, :light_black]),
+      to_string(context.test),
+      " (",
+      to_string(context.module),
+      ")\n",
+      file_tag(context),
+      "\n"
+    ]
+  end
 
   defp file_tag(%{file: file, line: line} = _context) do
     path = Path.relative_to_cwd(file)
     tag([path, ":", to_string(line)], :light_black)
   end
 
-  defp type_tag(:new), do: tag("New", :green)
-  defp type_tag(:update), do: tag("Changed", :yellow)
+  defp type_tag(:new), do: tag("[Mneme] New", :green)
+  defp type_tag(:update), do: tag("[Mneme] Changed", :yellow)
 
   defp explanation_tag(:new) do
     "Accept new assertion?"
@@ -123,7 +144,7 @@ defmodule Mneme.Prompter.Terminal do
   defp explanation_tag(:update) do
     [
       tag("Value has changed! ", :yellow),
-      "Update to new value?"
+      "Update pattern?"
     ]
   end
 
@@ -133,7 +154,7 @@ defmodule Mneme.Prompter.Terminal do
     notes = Enum.uniq(notes)
 
     [
-      "\n🛈 Notes about this assertion:\n",
+      "\n#{@info_char} Notes about this assertion:\n",
       notes |> Owl.Data.unlines() |> Owl.Data.add_prefix("  * "),
       "\n"
     ]
@@ -141,22 +162,23 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   defp input_options_tag(assertion) do
-    bullet = tag("●", [:faint, :light_black])
-
     [
-      input_option("a", "accept", :green, true),
-      input_option("r", "reject", :red, true),
-      input_option("n", "next", :cyan, Assertion.has_next?(assertion)),
-      input_option("p", "previous", :cyan, Assertion.has_prev?(assertion))
+      [tag("y ", :green), tag("yes", [:faint, :green])],
+      [tag("n ", :red), tag("no", [:faint, :red])],
+      nav_options_tag(Assertion.pattern_index(assertion))
     ]
-    |> Enum.intersperse([" ", bullet, " "])
+    |> Enum.intersperse(["  "])
   end
 
-  defp input_option(char, name, color, enabled?) do
-    [
-      tag(char, if(enabled?, do: color, else: [:faint, :light_black])),
-      " ",
-      tag(name, if(enabled?, do: [:faint, color], else: [:faint, :light_black]))
-    ]
+  defp nav_options_tag({index, count}) do
+    dots =
+      for i <- 0..(count - 1) do
+        if index == i, do: "●", else: "○"
+      end
+
+    tag(
+      ["❮ j ", dots, " k ❯"],
+      if(count > 1, do: :light_black, else: [:faint, :light_black])
+    )
   end
 end

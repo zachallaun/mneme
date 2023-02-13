@@ -4,14 +4,14 @@ defmodule Mneme.Integration.RejectTest2 do
   use Mneme
 
   test "integers" do
-    # r
+    # n
     auto_assert 2 + 2, 2 + 2
 
     auto_assert 2 + 1
   end
 
   test "strings" do
-    # r
+    # n
     auto_assert "foo" <> "bar", "foo" <> "bar"
 
     auto_assert "foo" <> "baz"

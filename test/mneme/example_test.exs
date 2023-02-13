@@ -15,13 +15,13 @@ defmodule Mneme.ExampleTest do
   test "2" do
     s2 = %MyStruct{field: 5}
 
-    auto_assert %MyStruct{field: 5, list: [:foo, :baz]} <- Map.put(s2, :list, [:foo, :baz])
+    auto_assert %MyStruct{} <- Map.put(s2, :list, [:foo, :baz])
   end
 
   test "3" do
     s3 = %MyStruct{field: self()}
 
-    auto_assert %MyStruct{field: pid} when is_pid(pid) <- s3
+    auto_assert ^s3 <- s3
   end
 
   test "4" do

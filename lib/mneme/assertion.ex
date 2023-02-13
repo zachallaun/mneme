@@ -134,32 +134,39 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Select the previous pattern. Raises if no previous pattern is available.
+  Select the previous pattern.
   """
-  def prev!(%Assertion{prev_patterns: [prev | rest], patterns: patterns} = assertion, target) do
+  def prev(%Assertion{prev_patterns: [prev | rest], patterns: patterns} = assertion, target) do
     %{assertion | prev_patterns: rest, patterns: [prev | patterns]}
     |> regenerate_code(target)
   end
 
+  def prev(%Assertion{prev_patterns: [], patterns: patterns} = assertion, target) do
+    [pattern | new_prev] = Enum.reverse(patterns)
+
+    %{assertion | prev_patterns: new_prev, patterns: [pattern]}
+    |> regenerate_code(target)
+  end
+
   @doc """
-  Select the next pattern. Raises if no next pattern is available.
+  Select the next pattern.
   """
-  def next!(%Assertion{prev_patterns: prev, patterns: [current | rest]} = assertion, target) do
+  def next(%Assertion{prev_patterns: prev, patterns: [current]} = assertion, target) do
+    %{assertion | prev_patterns: [], patterns: Enum.reverse(prev) ++ [current]}
+    |> regenerate_code(target)
+  end
+
+  def next(%Assertion{prev_patterns: prev, patterns: [current | rest]} = assertion, target) do
     %{assertion | prev_patterns: [current | prev], patterns: rest}
     |> regenerate_code(target)
   end
 
   @doc """
-  Returns whether a next pattern is available.
+  Returns a tuple of `{current_index, count}` of all patterns for this assertion.
   """
-  def has_next?(%Assertion{patterns: [_, _ | _]}), do: true
-  def has_next?(_), do: false
-
-  @doc """
-  Returns whether a previous pattern is available.
-  """
-  def has_prev?(%Assertion{prev_patterns: [_ | _]}), do: true
-  def has_prev?(_), do: false
+  def pattern_index(%Assertion{prev_patterns: prev, patterns: patterns}) do
+    {length(prev), length(prev) + length(patterns)}
+  end
 
   @doc """
   Check whether the assertion struct represents the given AST node.

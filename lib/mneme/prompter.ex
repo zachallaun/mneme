@@ -4,6 +4,11 @@ defmodule Mneme.Prompter do
   @moduledoc false
 
   @type response :: :accept | :reject | :prev | :next
+  @type prompt_state :: term()
 
-  @callback prompt!(Rewrite.Source.t(), assertion :: term(), reprompt :: boolean()) :: response
+  @callback prompt!(
+              Rewrite.Source.t(),
+              assertion :: term(),
+              reprompt :: nil | prompt_state
+            ) :: {response, prompt_state}
 end

@@ -4,27 +4,27 @@ defmodule Mneme.Integration.ExampleTest do
   use Mneme
 
   test "first example" do
-    # a
+    # y
     auto_assert [1, 2, 3] <- [1, 2, 3]
   end
 
   test "second example" do
-    # a
+    # y
     auto_assert [1, 2, 3] <- [4, 5, 6], [4, 5, 6] <- [4, 5, 6]
   end
 
   test "third example" do
-    # r
+    # n
     auto_assert [4, 5, 6]
 
     auto_assert [7, 8, 9]
   end
 
   test "fourth example" do
-    # a
+    # y
     auto_assert Function.identity(nil) == false, Function.identity(nil) == nil
 
-    # a
+    # y
     auto_assert Function.identity(nil) == nil
   end
 end

@@ -36,16 +36,29 @@ defmodule Mneme.Patcher do
 
   Returns `{result, patch_state}`.
   """
-  def patch!(%Project{} = project, assertion, opts, reprompt \\ false) do
+  def patch!(%Project{} = project, assertion, opts, prompt_state \\ nil) do
     {source, assertion} = patch_assertion(project, assertion, opts)
 
-    case prompt_change(source, assertion, opts, reprompt) do
-      :accept -> {{:ok, assertion}, Project.update(project, source)}
-      :reject -> {:error, project}
-      :prev -> patch!(project, Assertion.prev!(assertion, opts.target), opts, true)
-      :next -> patch!(project, Assertion.next!(assertion, opts.target), opts, true)
+    case prompt_change(source, assertion, opts, prompt_state) do
+      {:accept, _} ->
+        {{:ok, assertion}, Project.update(project, source)}
+
+      {:reject, _} ->
+        {:error, project}
+
+      {:prev, prompt_state} ->
+        patch!(project, Assertion.prev(assertion, opts.target), opts, prompt_state)
+
+      {:next, prompt_state} ->
+        patch!(project, Assertion.next(assertion, opts.target), opts, prompt_state)
     end
   end
+
+  defp prompt_change(source, assertion, %{action: :prompt, prompter: prompter}, prompt_state) do
+    prompter.prompt!(source, assertion, prompt_state)
+  end
+
+  defp prompt_change(_, _, %{action: action}, _), do: {action, nil}
 
   defp patch_assertion(project, assertion, opts) do
     source = Project.source!(project, assertion.context.file)
@@ -86,12 +99,6 @@ defmodule Mneme.Patcher do
   defp zipper_update_with_meta(zipper, {call, _, args}) do
     Zipper.update(zipper, fn {_, meta, _} -> {call, meta, args} end)
   end
-
-  defp prompt_change(source, assertion, %{action: :prompt, prompter: prompter}, reprompt) do
-    prompter.prompt!(source, assertion, reprompt)
-  end
-
-  defp prompt_change(_, _, %{action: action}, _), do: action
 
   defp escape_newlines(code) when is_list(code) do
     Enum.map(code, &escape_newlines/1)
