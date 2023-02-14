@@ -2,6 +2,8 @@
 
 Mneme helps you write tests.
 
+[Documentation on hexdocs.pm](https://hexdocs.pm/mneme)
+
 Inspired by [Jane Street's expect-test](https://github.com/janestreet/ppx_expect), which you can [read about here](https://blog.janestreet.com/the-joy-of-expect-tests/).
 
 Prior art: [assert_value](https://github.com/assert-value/assert_value_elixir)
@@ -16,7 +18,7 @@ If available in Hex, the package can be installed by adding `mneme` to your list
 ```elixir
 def deps do
   [
-    {:mneme, ">= 0.0.0"}
+    {:mneme, ">= 0.0.0", only: :test}
   ]
 end
 ```
