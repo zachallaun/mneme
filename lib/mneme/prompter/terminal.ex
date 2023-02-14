@@ -10,8 +10,6 @@ defmodule Mneme.Prompter.Terminal do
 
   @cursor_save "\e7"
   @cursor_restore "\e8"
-  @clear_to_end_of_line "\e[0K"
-  @clear_to_end_of_screen "\e[0J"
 
   @bullet_char "●"
   @empty_bullet_char "○"
@@ -20,7 +18,7 @@ defmodule Mneme.Prompter.Terminal do
   @arrow_right_car "❯"
 
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion, prompt_state) do
+  def prompt!(%Source{} = source, %Assertion{} = assertion, _prompt_state) do
     %{type: type, context: context} = assertion
 
     message =
@@ -32,24 +30,11 @@ defmodule Mneme.Prompter.Terminal do
         Assertion.notes(assertion)
       )
 
-    lines = message |> Owl.Data.lines() |> length()
+    Owl.IO.puts(["\n\n", message])
+    result = input()
+    IO.write([IO.ANSI.cursor_down(2), "\r"])
 
-    message =
-      case {prompt_state, Owl.IO.rows()} do
-        {%{prev_lines: prev_lines}, _} ->
-          [IO.ANSI.cursor_up(prev_lines), "\r", @clear_to_end_of_screen, "\n", message]
-
-        {_, nil} ->
-          message
-
-        {_, rows} ->
-          [String.duplicate("\n", rows), IO.ANSI.home(), "\n", message]
-      end
-
-    Owl.IO.puts(message)
-    reset_cursor = [IO.ANSI.cursor_down(2), "\r"]
-
-    {input(assertion, reset_cursor), %{prev_lines: lines}}
+    {result, nil}
   end
 
   @doc false
@@ -72,26 +57,15 @@ defmodule Mneme.Prompter.Terminal do
     |> Owl.Data.add_prefix(prefix)
   end
 
-  defp input(assertion, reset_cursor) do
-    IO.write([@cursor_restore, @clear_to_end_of_line])
+  defp input() do
+    IO.write(@cursor_restore)
 
     case gets() do
-      "y" ->
-        IO.write(reset_cursor)
-        :accept
-
-      "n" ->
-        IO.write(reset_cursor)
-        :reject
-
-      "k" ->
-        :next
-
-      "j" ->
-        :prev
-
-      _ ->
-        input(assertion, reset_cursor)
+      "y" -> :accept
+      "n" -> :reject
+      "k" -> :next
+      "j" -> :prev
+      _ -> input()
     end
   end
 

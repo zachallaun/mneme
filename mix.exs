@@ -40,8 +40,7 @@ defmodule Mneme.MixProject do
       {:owl, "~> 0.6.0"},
       {:nimble_options, "~> 0.5.2"},
       {:sourceror, "~> 0.12"},
-      {:rewrite, path: "../../forks/rewrite"},
-      # {:rewrite, "~> 0.5.0"},
+      {:rewrite, "~> 0.6.0"},
 
       # Development
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
