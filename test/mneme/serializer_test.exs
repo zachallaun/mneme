@@ -57,6 +57,8 @@ defmodule Mneme.SerializerTest do
     end
 
     test "maps" do
+      auto_assert ["%{}"] <- to_pattern_strings(%{})
+
       auto_assert ["%{}", "%{bar: 2, foo: 1}"] <- to_pattern_strings(%{foo: 1, bar: 2})
 
       auto_assert ["%{}", "%{:foo => 1, \"bar\" => 2}"] <-
@@ -103,6 +105,8 @@ defmodule Mneme.SerializerTest do
     test "structs" do
       auto_assert ["%Version{}", "%Version{major: 1, minor: 1, patch: 1}"] <-
                     to_pattern_strings(Version.parse!("1.1.1"))
+
+      auto_assert ["%URI{}"] <- to_pattern_strings(%URI{})
     end
   end
 

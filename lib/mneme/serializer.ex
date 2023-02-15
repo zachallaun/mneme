@@ -101,15 +101,17 @@ defmodule Mneme.Serializer do
     end
   end
 
-  defp do_to_patterns(map, context) when is_map(map) do
-    empty_map_pattern = map_pattern({[], nil, []}, context)
+  defp do_to_patterns(%{} = map, context) when map_size(map) == 0 do
+    [map_pattern(context)]
+  end
 
+  defp do_to_patterns(%{} = map, context) do
     patterns =
       map
       |> enum_to_patterns(context)
       |> transform_patterns(&map_pattern/2, context)
 
-    [empty_map_pattern | patterns]
+    [map_pattern(context) | patterns]
   end
 
   defp struct_to_patterns(struct, map, context, extra_notes) do
@@ -203,7 +205,7 @@ defmodule Mneme.Serializer do
     {{:{}, with_meta(context), exprs}, guard, notes}
   end
 
-  defp map_pattern({tuples, guard, notes}, context) do
+  defp map_pattern({tuples, guard, notes} \\ {[], nil, []}, context) do
     {{:%{}, with_meta(context), tuples}, guard, notes}
   end
 
