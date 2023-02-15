@@ -34,6 +34,7 @@ defmodule Mneme.Integration do
           use ExUnit.Case, async: true
 
           @tag :tmp_dir
+          @tag :integration
           test unquote(module_name), %{tmp_dir: tmp_dir} do
             data = %{
               path: unquote(Source.path(source)),

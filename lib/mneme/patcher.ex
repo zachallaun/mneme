@@ -29,7 +29,10 @@ defmodule Mneme.Patcher do
   @doc """
   Finalize all patches, writing all results to disk.
   """
-  def finalize!(project), do: Project.save(project)
+  def finalize!(project) do
+    :ok = Project.save(project)
+    project
+  end
 
   @doc """
   Run an assertion patch.
