@@ -1,4 +1,4 @@
-defmodule Mneme.Serializer do
+defmodule Mneme.Assertion.Builder do
   @moduledoc false
 
   @typedoc """
@@ -119,7 +119,7 @@ defmodule Mneme.Serializer do
 
     map
     |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
-    |> Mneme.Serializer.to_patterns(context)
+    |> to_patterns(context)
     |> transform_patterns(&struct_pattern(struct, &1, &2, extra_notes), context)
   end
 
@@ -133,7 +133,7 @@ defmodule Mneme.Serializer do
 
   defp enum_to_patterns(values, context) do
     values
-    |> Enum.map(&Mneme.Serializer.to_patterns(&1, context))
+    |> Enum.map(&to_patterns(&1, context))
     |> unzip_combine(context)
   end
 

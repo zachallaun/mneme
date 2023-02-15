@@ -2,7 +2,7 @@ defmodule Mneme.Assertion do
   @moduledoc false
 
   alias __MODULE__
-  alias Mneme.Serializer
+  alias Mneme.Assertion.Builder
 
   defstruct [
     :type,
@@ -107,7 +107,7 @@ defmodule Mneme.Assertion do
 
   @doc false
   def new(code, value, context) do
-    patterns = Serializer.to_patterns(value, context)
+    patterns = Builder.to_patterns(value, context)
 
     %Assertion{
       type: get_type(code),
