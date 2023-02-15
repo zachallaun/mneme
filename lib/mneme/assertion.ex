@@ -6,11 +6,16 @@ defmodule Mneme.Assertion do
 
   defstruct [
     :type,
-    :code,
     :value,
-    :context,
+    :code,
     :eval,
+    :file,
+    :line,
+    :module,
+    :test,
     :patterns,
+    aliases: [],
+    binding: [],
     prev_patterns: []
   ]
 
@@ -58,7 +63,7 @@ defmodule Mneme.Assertion do
   end
 
   defp code_for_setup_and_eval(code, caller) do
-    context = test_context(caller)
+    context = assertion_context(caller)
 
     setup =
       quote do
@@ -68,7 +73,7 @@ defmodule Mneme.Assertion do
           Mneme.Assertion.new(
             unquote(Macro.escape(code)),
             var!(value, :mneme),
-            unquote(Macro.escape(context)) |> Map.put(:binding, binding())
+            unquote(Macro.escape(context)) |> Keyword.put(:binding, binding())
           )
 
         binding = binding() ++ binding(:mneme)
@@ -83,10 +88,10 @@ defmodule Mneme.Assertion do
     {setup, eval}
   end
 
-  defp test_context(caller) do
+  defp assertion_context(caller) do
     {test, _arity} = caller.function
 
-    %{
+    [
       file: caller.file,
       line: caller.line,
       module: caller.module,
@@ -102,21 +107,26 @@ defmodule Mneme.Assertion do
       # but I have Foo.Bar and need to know that Bar is the alias in
       # the current environment.
       aliases: caller.aliases
-    }
+    ]
   end
 
   @doc false
   def new(code, value, context) do
-    patterns = Builder.to_patterns(value, context)
-
-    %Assertion{
+    assertion = %Assertion{
       type: get_type(code),
-      code: code,
       value: value,
-      context: context,
-      patterns: patterns,
-      eval: code_for_eval(code, patterns)
+      code: code,
+      file: context[:file],
+      line: context[:line],
+      module: context[:module],
+      test: context[:test],
+      aliases: context[:aliases] || [],
+      binding: context[:binding] || []
     }
+
+    patterns = Builder.to_patterns(value, assertion)
+
+    %{assertion | patterns: patterns, eval: code_for_eval(code, patterns)}
   end
 
   defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
@@ -176,9 +186,9 @@ defmodule Mneme.Assertion do
   @doc """
   Check whether the assertion struct represents the given AST node.
   """
-  def same?(%Assertion{context: context}, node) do
+  def same?(%Assertion{line: line}, node) do
     case node do
-      {:auto_assert, meta, [_]} -> meta[:line] == context[:line]
+      {:auto_assert, meta, [_]} -> meta[:line] == line
       _ -> false
     end
   end

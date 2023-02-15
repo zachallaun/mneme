@@ -19,16 +19,7 @@ defmodule Mneme.Prompter.Terminal do
 
   @impl true
   def prompt!(%Source{} = source, %Assertion{} = assertion, _prompt_state) do
-    %{type: type, context: context} = assertion
-
-    message =
-      message(
-        source,
-        type,
-        context,
-        Assertion.pattern_index(assertion),
-        Assertion.notes(assertion)
-      )
+    message = message(source, assertion)
 
     Owl.IO.puts(["\n\n", message])
     result = input()
@@ -38,11 +29,13 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, type, context, pattern_nav, notes) do
+  def message(source, %Assertion{type: type} = assertion) do
+    notes = Assertion.notes(assertion)
+    pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
 
     [
-      header_tag(type, context),
+      header_tag(assertion),
       "\n",
       diff(source),
       notes_tag(notes),
@@ -103,20 +96,20 @@ defmodule Mneme.Prompter.Terminal do
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp header_tag(type, context) do
+  defp header_tag(%Assertion{type: type, test: test, module: module} = assertion) do
     [
       type_tag(type),
       tag([" ", @bullet_char, " "], [:faint, :light_black]),
-      to_string(context.test),
+      to_string(test),
       " (",
-      to_string(context.module),
+      to_string(module),
       ")\n",
-      file_tag(context),
+      file_tag(assertion),
       "\n"
     ]
   end
 
-  defp file_tag(%{file: file, line: line} = _context) do
+  defp file_tag(%Assertion{file: file, line: line}) do
     path = Path.relative_to_cwd(file)
     tag([path, ":", to_string(line)], :light_black)
   end

@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.BuilderTest do
   use ExUnit.Case
   use Mneme
 
+  alias Mneme.Assertion
   alias Mneme.Assertion.Builder
 
   @format_opts Mneme.Utils.formatter_opts()
@@ -23,10 +24,11 @@ defmodule Mneme.Assertion.BuilderTest do
       auto_assert ["{1, \"string\", :atom}"] <- to_pattern_strings({1, "string", :atom})
       auto_assert ["{{:nested}, {\"tuples\"}}"] <- to_pattern_strings({{:nested}, {"tuples"}})
 
-      auto_assert [{{:two, :elements}, nil, []}] <- Builder.to_patterns({:two, :elements}, %{})
+      auto_assert [{{:two, :elements}, nil, []}] <-
+                    Builder.to_patterns({:two, :elements}, %Assertion{})
 
       auto_assert [{{:{}, [line: nil], [:more, :than, :two, :elements]}, nil, []}] <-
-                    Builder.to_patterns({:more, :than, :two, :elements}, %{})
+                    Builder.to_patterns({:more, :than, :two, :elements}, %Assertion{})
     end
 
     test "lists" do
@@ -112,8 +114,10 @@ defmodule Mneme.Assertion.BuilderTest do
   end
 
   defp to_pattern_strings(value, context \\ []) do
+    assertion = struct(Assertion, Keyword.put_new(context, :line, 1))
+
     value
-    |> Builder.to_patterns(Enum.into(context, %{line: 1}))
+    |> Builder.to_patterns(assertion)
     |> Enum.map(fn
       {expr, nil, _} -> expr
       {expr, guard, _} -> {:when, [], [guard, expr]}

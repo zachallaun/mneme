@@ -36,11 +36,11 @@ defmodule Mneme.Assertion.Builder do
   end
 
   defp with_meta(meta \\ [], context) do
-    Keyword.merge([line: context[:line]], meta)
+    Keyword.merge([line: context.line], meta)
   end
 
   defp fetch_pinned(value, context) do
-    case List.keyfind(context[:binding] || [], value, 1) do
+    case List.keyfind(context.binding || [], value, 1) do
       {name, ^value} -> {:ok, {:^, with_meta(context), [make_var(name, context)]}}
       _ -> :error
     end

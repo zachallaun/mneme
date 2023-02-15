@@ -16,7 +16,7 @@ defmodule Mneme.Patcher do
   @doc """
   Load and cache and source and AST required by the context.
   """
-  def load_file!(%Project{} = project, %{file: file}) do
+  def load_file!(%Project{} = project, file) do
     case Project.source(project, file) do
       {:ok, _source} ->
         project
@@ -61,7 +61,7 @@ defmodule Mneme.Patcher do
   defp prompt_change(_, _, %{action: action}, _), do: {action, nil}
 
   defp patch_assertion(project, assertion, opts) do
-    source = Project.source!(project, assertion.context.file)
+    source = Project.source!(project, assertion.file)
 
     zipper =
       source

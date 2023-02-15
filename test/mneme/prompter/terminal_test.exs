@@ -5,8 +5,12 @@ defmodule Mneme.Prompter.TerminalTest do
   alias Mneme.Prompter.Terminal
 
   describe "message/5" do
-    test "new assertion" do
-      message = Terminal.message(mock_source(), :new, mock_context(), {0, 1}, [])
+    setup do
+      [source: mock_source(), assertion: mock_assertion()]
+    end
+
+    test "new assertion", %{source: source, assertion: assertion} do
+      message = Terminal.message(source, assertion)
 
       auto_assert """
                   │ [Mneme] New ● example test (ExampleTest)
@@ -21,8 +25,9 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <- message |> untag_to_string()
     end
 
-    test "new assertion with multiple patterns" do
-      message = Terminal.message(mock_source(), :new, mock_context(), {0, 3}, [])
+    test "new assertion with multiple patterns", %{source: source, assertion: assertion} do
+      assertion = %{assertion | patterns: assertion.patterns ++ [nil, nil]}
+      message = Terminal.message(source, assertion)
 
       auto_assert """
                   │ [Mneme] New ● example test (ExampleTest)
@@ -37,8 +42,9 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <- message |> untag_to_string()
     end
 
-    test "changed assertion" do
-      message = Terminal.message(mock_source(), :update, mock_context(), {0, 3}, [])
+    test "changed assertion", %{source: source, assertion: assertion} do
+      assertion = %{assertion | type: :update}
+      message = Terminal.message(source, assertion)
 
       auto_assert """
                   │ [Mneme] Changed ● example test (ExampleTest)
@@ -49,7 +55,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ 
                   │ Value has changed! Update pattern?
                   │ > \e7
-                  │ y yes  n no  ❮ j ●○○ k ❯\
+                  │ y yes  n no  ❮ j ● k ❯\
                   """ <- message |> untag_to_string()
     end
   end
@@ -60,12 +66,14 @@ defmodule Mneme.Prompter.TerminalTest do
     |> IO.iodata_to_binary()
   end
 
-  defp mock_context do
-    %{
+  defp mock_assertion do
+    %Mneme.Assertion{
+      type: :new,
       file: "example_test.ex",
       line: 1,
       module: "ExampleTest",
-      test: :"example test"
+      test: :"example test",
+      patterns: [{nil, nil, []}]
     }
   end
 
