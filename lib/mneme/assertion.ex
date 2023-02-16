@@ -1,3 +1,7 @@
+defmodule Mneme.AssertionError do
+  defexception [:message]
+end
+
 defmodule Mneme.Assertion do
   @moduledoc false
 
@@ -53,7 +57,7 @@ defmodule Mneme.Assertion do
               unquote(eval_assertion)
 
             :error ->
-              raise ExUnit.AssertionError, message: "No match present"
+              raise Mneme.AssertionError, message: "No pattern present"
           end
         end
 
