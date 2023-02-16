@@ -12,11 +12,12 @@ defmodule Mneme.Options do
       """
     ],
     target: [
-      type: {:in, [:auto_assert, :assert]},
-      default: :auto_assert,
+      type: {:in, [:mneme, :ex_unit]},
+      default: :mneme,
       doc: """
-      The call output when an auto-assertion updates. If `:assert`, auto-assertions
-      will be rewritten with ExUnit's `assert` when they update.
+      The target output for auto-assertions. If `:mneme`, the expression will
+      remain an auto-assertion. If `:ex_unit`, the expression will be rewritten
+      as an ExUnit assertion.
       """
     ]
   ]

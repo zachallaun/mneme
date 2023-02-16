@@ -113,7 +113,7 @@ defmodule Mneme.Assertion do
   @doc """
   Regenerate assertion code for the given target.
   """
-  def regenerate_code(%Assertion{} = assertion, target) when target in [:auto_assert, :assert] do
+  def regenerate_code(%Assertion{} = assertion, target) do
     new_code = to_code(assertion, target)
 
     assertion
@@ -173,16 +173,8 @@ defmodule Mneme.Assertion do
 
   @doc """
   Generates assertion code for the given target.
-
-  Target is one of:
-
-    * `:auto_assert` - Generate an `auto_assert` call that is appropriate
-      for updating the source code.
-
-    * `:assert` - Generate an `assert` call that is appropriate for
-      updating the source code.
   """
-  def to_code(assertion, target) when target in [:auto_assert, :assert] do
+  def to_code(assertion, target) do
     case assertion.patterns do
       [{falsy, nil, _} | _] when falsy in [nil, false] ->
         build_call(
@@ -214,30 +206,30 @@ defmodule Mneme.Assertion do
     {:__block__, [line: parent_meta[:line]], [value]}
   end
 
-  defp build_call(:auto_assert, :compare, code, falsy_expr, nil) do
+  defp build_call(:mneme, :compare, code, falsy_expr, nil) do
     {:auto_assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy_expr]}]}
   end
 
-  defp build_call(:auto_assert, :match, code, expr, nil) do
+  defp build_call(:mneme, :match, code, expr, nil) do
     {:auto_assert, meta(code), [{:<-, meta(value_expr(code)), [expr, value_expr(code)]}]}
   end
 
-  defp build_call(:auto_assert, :match, code, expr, guard) do
+  defp build_call(:mneme, :match, code, expr, guard) do
     {:auto_assert, meta(code),
      [{:<-, meta(value_expr(code)), [{:when, [], [expr, guard]}, value_expr(code)]}]}
   end
 
-  defp build_call(:assert, :compare, code, falsy, nil) do
+  defp build_call(:ex_unit, :compare, code, falsy, nil) do
     {:assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy]}]}
   end
 
-  defp build_call(:assert, :match, code, expr, nil) do
+  defp build_call(:ex_unit, :match, code, expr, nil) do
     {:assert, meta(code),
      [{:=, meta(value_expr(code)), [normalize_heredoc(expr), value_expr(code)]}]}
   end
 
-  defp build_call(:assert, :match, code, expr, guard) do
-    check = build_call(:assert, :match, code, expr, nil)
+  defp build_call(:ex_unit, :match, code, expr, guard) do
+    check = build_call(:ex_unit, :match, code, expr, nil)
 
     quote do
       unquote(check)

@@ -13,9 +13,9 @@ defmodule Mneme.AssertionTest do
         %{}
       )
 
-    auto_assert "auto_assert [1, 2, 3] <- [1, 2, 3]" <- to_code_string(assertion, :auto_assert)
+    auto_assert "auto_assert [1, 2, 3] <- [1, 2, 3]" <- to_code_string(assertion, :mneme)
 
-    auto_assert "assert [1, 2, 3] = [1, 2, 3]" <- to_code_string(assertion, :assert)
+    auto_assert "assert [1, 2, 3] = [1, 2, 3]" <- to_code_string(assertion, :ex_unit)
 
     auto_assert "assert [1, 2, 3] = value" <- to_code_string(assertion, :eval)
   end
@@ -27,16 +27,15 @@ defmodule Mneme.AssertionTest do
       Assertion.new(
         quote(do: auto_assert(pid when is_pid(pid) <- me)),
         me,
-        %{locals: [me: me]}
+        %{}
       )
 
-    auto_assert "auto_assert pid when is_pid(pid) <- me" <-
-                  to_code_string(assertion, :auto_assert)
+    auto_assert "auto_assert pid when is_pid(pid) <- me" <- to_code_string(assertion, :mneme)
 
     auto_assert """
                 assert pid = me
                 assert is_pid(pid)\
-                """ <- to_code_string(assertion, :assert)
+                """ <- to_code_string(assertion, :ex_unit)
 
     auto_assert """
                 value = assert (pid when is_pid(pid)) = value
@@ -52,12 +51,12 @@ defmodule Mneme.AssertionTest do
       Assertion.new(
         quote(do: auto_assert(_ <- x)),
         x,
-        %{locals: [x: x]}
+        %{}
       )
 
-    auto_assert "auto_assert x == nil" <- to_code_string(assertion, :auto_assert)
+    auto_assert "auto_assert x == nil" <- to_code_string(assertion, :mneme)
 
-    auto_assert "assert x == nil" <- to_code_string(assertion, :assert)
+    auto_assert "assert x == nil" <- to_code_string(assertion, :ex_unit)
 
     auto_assert "assert _ == value" <- to_code_string(assertion, :eval)
   end

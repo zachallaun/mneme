@@ -13,13 +13,13 @@ defmodule Mneme.Integration.OptionsTest do
     auto_assert 1 + 1
   end
 
-  @mneme target: :assert
+  @mneme target: :ex_unit
   test "should rewrite to an ExUnit assertion" do
     assert 2 = 1 + 1
   end
 
   describe "describe tag attributes" do
-    @mneme_describe target: :assert, action: :accept
+    @mneme_describe target: :ex_unit, action: :accept
 
     test "should rewrite to ExUnit assertion 1" do
       assert 2 = 1 + 1

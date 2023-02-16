@@ -24,7 +24,7 @@ defmodule Mneme.ExampleTest do
     auto_assert ^s3 <- s3
   end
 
-  @mneme target: :assert
+  @mneme target: :ex_unit
   test "4" do
     me = self()
     s4 = %MyStruct{field: me}

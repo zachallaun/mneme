@@ -162,11 +162,11 @@ defmodule Mneme.Server do
     opts = state.opts[{module, test}]
 
     case opts.target do
-      :auto_assert ->
+      :mneme ->
         GenServer.reply(from, {:ok, assertion})
         state
 
-      :assert ->
+      :ex_unit ->
         %{state | to_patch: [{assertion, from} | state.to_patch]}
     end
   end
