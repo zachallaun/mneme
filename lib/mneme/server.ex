@@ -27,7 +27,7 @@ defmodule Mneme.Server do
     :io_pid,
     :current_module,
     opts: %{},
-    assertions: []
+    to_patch: []
   ]
 
   @type t :: %__MODULE__{
@@ -35,7 +35,7 @@ defmodule Mneme.Server do
           io_pid: pid(),
           current_module: module(),
           opts: %{{mod :: module(), test :: atom()} => map()},
-          assertions: [{any(), from :: pid()}]
+          to_patch: [{any(), from :: pid()}]
         }
 
   @doc """
@@ -46,9 +46,16 @@ defmodule Mneme.Server do
   end
 
   @doc """
+  Register a new assertion.
+  """
+  def register_assertion(assertion) do
+    GenServer.call(__MODULE__, {:register_assertion, assertion}, :infinity)
+  end
+
+  @doc """
   Await the result of an assertion patch.
   """
-  def await_assertion(assertion) do
+  def update_assertion(assertion) do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
@@ -68,9 +75,20 @@ defmodule Mneme.Server do
   end
 
   @impl true
+  def handle_call({:register_assertion, assertion}, from, state) do
+    case assertion.type do
+      :new ->
+        state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+        {:noreply, state, {:continue, :process_patches}}
+
+      :update ->
+        {:reply, {:ok, assertion}, state}
+    end
+  end
+
   def handle_call({:patch_assertion, assertion}, from, state) do
-    state = Map.update!(state, :assertions, &[{assertion, from} | &1])
-    {:noreply, state, {:continue, :process_assertions}}
+    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+    {:noreply, state, {:continue, :process_patches}}
   end
 
   def handle_call({:capture_formatter, io_pid}, _from, state) do
@@ -81,7 +99,7 @@ defmodule Mneme.Server do
     %{module: module, name: test_name, tags: tags} = test
     state = put_in(state.opts[{module, test_name}], Options.options(tags))
 
-    {:reply, :ok, state, {:continue, :process_assertions}}
+    {:reply, :ok, state, {:continue, :process_patches}}
   end
 
   def handle_call(
@@ -90,7 +108,7 @@ defmodule Mneme.Server do
         %{current_module: mod} = state
       ) do
     {:reply, :ok, state |> flush_io() |> Map.put(:current_module, nil),
-     {:continue, :process_assertions}}
+     {:continue, :process_patches}}
   end
 
   def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
@@ -109,8 +127,8 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_continue(:process_assertions, state) do
-    case pop_assertion(state) do
+  def handle_continue(:process_patches, state) do
+    case pop_to_patch(state) do
       {next, state} -> {:noreply, patch_assertion(state, next)}
       nil -> {:noreply, state}
     end
@@ -138,17 +156,17 @@ defmodule Mneme.Server do
     state
   end
 
-  defp pop_assertion(state), do: pop_assertion(state, [])
+  defp pop_to_patch(state), do: pop_to_patch(state, [])
 
-  defp pop_assertion(%{assertions: []}, _acc), do: nil
+  defp pop_to_patch(%{to_patch: []}, _acc), do: nil
 
-  defp pop_assertion(%{assertions: [next | rest]} = state, acc) do
+  defp pop_to_patch(%{to_patch: [next | rest]} = state, acc) do
     {%{module: module, test: test}, _from} = next
 
     if current_module?(state, module) && state.opts[{module, test}] do
-      {next, %{state | assertions: acc ++ rest}}
+      {next, %{state | to_patch: acc ++ rest}}
     else
-      pop_assertion(%{state | assertions: rest}, [next | acc])
+      pop_to_patch(%{state | to_patch: rest}, [next | acc])
     end
   end
 

@@ -47,40 +47,30 @@ defmodule Mneme.Assertion do
         result
       end
 
-    case get_type(code) do
-      :new ->
-        quote do
-          unquote(set_assertion)
+    quote do
+      unquote(set_assertion)
 
-          case Mneme.Server.await_assertion(assertion) do
+      try do
+        case Mneme.Server.register_assertion(assertion) do
+          {:ok, assertion} ->
+            unquote(eval_assertion)
+
+          :error ->
+            raise Mneme.AssertionError, message: "No pattern present"
+        end
+      rescue
+        error in [ExUnit.AssertionError] ->
+          case Mneme.Server.update_assertion(assertion) do
             {:ok, assertion} ->
               unquote(eval_assertion)
 
             :error ->
-              raise Mneme.AssertionError, message: "No pattern present"
-          end
-        end
-
-      :update ->
-        quote do
-          unquote(set_assertion)
-
-          try do
-            unquote(eval_assertion)
-          rescue
-            error in [ExUnit.AssertionError] ->
-              case Mneme.Server.await_assertion(assertion) do
-                {:ok, assertion} ->
-                  unquote(eval_assertion)
-
-                :error ->
-                  case __STACKTRACE__ do
-                    [head | _] -> reraise error, [head]
-                    [] -> reraise error, []
-                  end
+              case __STACKTRACE__ do
+                [head | _] -> reraise error, [head]
+                [] -> reraise error, []
               end
           end
-        end
+      end
     end
   end
 
