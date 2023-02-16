@@ -23,12 +23,30 @@ defmodule Mneme.Assertion do
   Build an assertion.
   """
   def build(code, caller) do
-    {setup_assertion, eval_assertion} = code_for_setup_and_eval(code, caller)
+    set_assertion =
+      quote do
+        value = unquote(value_expr(code))
+
+        assertion =
+          Mneme.Assertion.new(
+            unquote(Macro.escape(code)),
+            value,
+            unquote(assertion_context(caller)) |> Keyword.put(:binding, binding())
+          )
+
+        eval_binding = [{{:value, :mneme}, value} | binding()]
+      end
+
+    eval_assertion =
+      quote do
+        {result, _} = Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
+        result
+      end
 
     case get_type(code) do
       :new ->
         quote do
-          unquote(setup_assertion)
+          unquote(set_assertion)
 
           case Mneme.Server.await_assertion(assertion) do
             {:ok, assertion} ->
@@ -41,7 +59,7 @@ defmodule Mneme.Assertion do
 
       :update ->
         quote do
-          unquote(setup_assertion)
+          unquote(set_assertion)
 
           try do
             unquote(eval_assertion)
@@ -62,32 +80,6 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp code_for_setup_and_eval(code, caller) do
-    context = assertion_context(caller)
-
-    setup =
-      quote do
-        var!(value, :mneme) = unquote(value_expr(code))
-
-        assertion =
-          Mneme.Assertion.new(
-            unquote(Macro.escape(code)),
-            var!(value, :mneme),
-            unquote(Macro.escape(context)) |> Keyword.put(:binding, binding())
-          )
-
-        binding = binding() ++ binding(:mneme)
-      end
-
-    eval =
-      quote do
-        {result, _} = Code.eval_quoted(assertion.eval, binding, __ENV__)
-        result
-      end
-
-    {setup, eval}
-  end
-
   defp assertion_context(caller) do
     {test, _arity} = caller.function
 
@@ -96,16 +88,8 @@ defmodule Mneme.Assertion do
       line: caller.line,
       module: caller.module,
       test: test,
-      #
-      # TODO: access aliases some other way.
-      #
-      # Env :aliases is considered private and should not be relied on,
-      # but I'm not sure where else to access the alias information
-      # needed. Macro.Env.fetch_alias/2 is a thing, but it goes from
-      # alias to resolved module, and I need resolved module to alias.
-      # E.g. Macro.Env.fetch_alias(env, Bar) might return {:ok, Foo.Bar},
-      # but I have Foo.Bar and need to know that Bar is the alias in
-      # the current environment.
+      # TODO: Macro.Env :aliases is technically private; so we should
+      # access some other way
       aliases: caller.aliases
     ]
   end
@@ -285,11 +269,11 @@ defmodule Mneme.Assertion do
   end
 
   defp build_eval(:compare, code, _falsy, nil) do
-    {:assert, [], [{:==, [], [normalized_expect_expr(code), {:value, [], nil}]}]}
+    {:assert, [], [{:==, [], [normalized_expect_expr(code), Macro.var(:value, :mneme)]}]}
   end
 
   defp build_eval(:match, code, _expr, nil) do
-    {:assert, [], [{:=, [], [normalized_expect_expr(code), {:value, [], nil}]}]}
+    {:assert, [], [{:=, [], [normalized_expect_expr(code), Macro.var(:value, :mneme)]}]}
   end
 
   defp build_eval(:match, code, expr, guard) do
