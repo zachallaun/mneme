@@ -60,7 +60,7 @@ defmodule Mneme.Assertion do
         end
       rescue
         error in [ExUnit.AssertionError] ->
-          case Mneme.Server.update_assertion(assertion) do
+          case Mneme.Server.patch_assertion(assertion) do
             {:ok, assertion} ->
               unquote(eval_assertion)
 
@@ -280,7 +280,9 @@ defmodule Mneme.Assertion do
     end
   end
 
+  defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
   defp value_expr({_, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
+  defp value_expr({_, _, [{:=, _, [_, value_expr]}]}), do: value_expr
   defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
   defp value_expr({_, _, [value_expr]}), do: value_expr
 

@@ -27,6 +27,7 @@ defmodule Mneme.Server do
     :io_pid,
     :current_module,
     opts: %{},
+    to_register: [],
     to_patch: []
   ]
 
@@ -35,6 +36,7 @@ defmodule Mneme.Server do
           io_pid: pid(),
           current_module: module(),
           opts: %{{mod :: module(), test :: atom()} => map()},
+          to_register: [{any(), from :: pid()}],
           to_patch: [{any(), from :: pid()}]
         }
 
@@ -55,7 +57,7 @@ defmodule Mneme.Server do
   @doc """
   Await the result of an assertion patch.
   """
-  def update_assertion(assertion) do
+  def patch_assertion(assertion) do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
@@ -76,19 +78,18 @@ defmodule Mneme.Server do
 
   @impl true
   def handle_call({:register_assertion, assertion}, from, state) do
-    case assertion.type do
-      :new ->
-        state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
-        {:noreply, state, {:continue, :process_patches}}
+    state =
+      case assertion.type do
+        :new -> Map.update!(state, :to_patch, &[{assertion, from} | &1])
+        :update -> Map.update!(state, :to_register, &[{assertion, from} | &1])
+      end
 
-      :update ->
-        {:reply, {:ok, assertion}, state}
-    end
+    {:noreply, state, {:continue, :process_next}}
   end
 
   def handle_call({:patch_assertion, assertion}, from, state) do
     state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
-    {:noreply, state, {:continue, :process_patches}}
+    {:noreply, state, {:continue, :process_next}}
   end
 
   def handle_call({:capture_formatter, io_pid}, _from, state) do
@@ -99,7 +100,7 @@ defmodule Mneme.Server do
     %{module: module, name: test_name, tags: tags} = test
     state = put_in(state.opts[{module, test_name}], Options.options(tags))
 
-    {:reply, :ok, state, {:continue, :process_patches}}
+    {:reply, :ok, state, {:continue, :process_next}}
   end
 
   def handle_call(
@@ -108,7 +109,7 @@ defmodule Mneme.Server do
         %{current_module: mod} = state
       ) do
     {:reply, :ok, state |> flush_io() |> Map.put(:current_module, nil),
-     {:continue, :process_patches}}
+     {:continue, :process_next}}
   end
 
   def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
@@ -127,14 +128,20 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_continue(:process_patches, state) do
-    case pop_to_patch(state) do
-      {next, state} -> {:noreply, patch_assertion(state, next)}
-      nil -> {:noreply, state}
+  def handle_continue(:process_next, state) do
+    case pop_to_register(state) do
+      {next, state} ->
+        {:noreply, do_register_assertion(state, next), {:continue, :process_next}}
+
+      nil ->
+        case pop_to_patch(state) do
+          {next, state} -> {:noreply, do_patch_assertion(state, next)}
+          nil -> {:noreply, state}
+        end
     end
   end
 
-  defp patch_assertion(state, {assertion, from}) do
+  defp do_patch_assertion(state, {assertion, from}) do
     %{module: module, test: test} = assertion
     opts = state.opts[{module, test}]
 
@@ -150,10 +157,38 @@ defmodule Mneme.Server do
     %{state | patch_state: patch_state}
   end
 
+  defp do_register_assertion(state, {assertion, from}) do
+    %{module: module, test: test} = assertion
+    opts = state.opts[{module, test}]
+
+    case opts.target do
+      :auto_assert ->
+        GenServer.reply(from, {:ok, assertion})
+        state
+
+      :assert ->
+        %{state | to_patch: [{assertion, from} | state.to_patch]}
+    end
+  end
+
   defp flush_io(%{io_pid: io_pid} = state) do
     output = StringIO.flush(io_pid)
     if output != "", do: IO.write(output)
     state
+  end
+
+  defp pop_to_register(state), do: pop_to_register(state, [])
+
+  defp pop_to_register(%{to_register: []}, _acc), do: nil
+
+  defp pop_to_register(%{to_register: [next | rest]} = state, acc) do
+    {%{module: module, test: test}, _from} = next
+
+    if state.opts[{module, test}] do
+      {next, %{state | to_register: acc ++ rest}}
+    else
+      pop_to_register(%{state | to_register: rest}, [next | acc])
+    end
   end
 
   defp pop_to_patch(state), do: pop_to_patch(state, [])
