@@ -102,9 +102,36 @@ defmodule Mneme.Assertion do
       binding: context[:binding] || []
     }
 
-    patterns = Builder.to_patterns(value, assertion)
+    {prev_patterns, patterns} = build_and_select_pattern(assertion)
 
-    %{assertion | patterns: patterns, eval: code_for_eval(code, patterns)}
+    Map.merge(assertion, %{
+      patterns: patterns,
+      prev_patterns: prev_patterns,
+      eval: code_for_eval(code, hd(patterns))
+    })
+  end
+
+  defp build_and_select_pattern(%{type: :new, value: value} = assertion) do
+    {[], Builder.to_patterns(value, assertion)}
+  end
+
+  defp build_and_select_pattern(%{type: :update, value: value, code: code} = assertion) do
+    {expr, guard} =
+      case code do
+        {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> {expr, guard}
+        {_, _, [{:<-, _, [expr, _]}]} -> {expr, nil}
+        {_, _, [{:==, _, [_, expr]}]} -> {expr, nil}
+      end
+
+    Builder.to_patterns(value, assertion)
+    |> Enum.split_while(fn
+      {^expr, ^guard, _} -> false
+      _ -> true
+    end)
+    |> case do
+      {patterns, []} -> {[], patterns}
+      {prev_reverse, patterns} -> {Enum.reverse(prev_reverse), patterns}
+    end
   end
 
   defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
@@ -118,7 +145,7 @@ defmodule Mneme.Assertion do
 
     assertion
     |> Map.put(:code, new_code)
-    |> Map.put(:eval, code_for_eval(new_code, assertion.patterns))
+    |> Map.put(:eval, code_for_eval(new_code, hd(assertion.patterns)))
   end
 
   @doc """
@@ -240,14 +267,12 @@ defmodule Mneme.Assertion do
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
 
-  defp code_for_eval(code, [pattern | _]) do
-    case pattern do
-      {falsy, nil, _} when falsy in [nil, false] ->
-        build_eval(:compare, code, falsy, nil)
+  defp code_for_eval(code, {falsy, nil, _}) when falsy in [nil, false] do
+    build_eval(:compare, code, falsy, nil)
+  end
 
-      {expr, guard, _} ->
-        build_eval(:match, code, expr, guard)
-    end
+  defp code_for_eval(code, {expr, guard, _}) do
+    build_eval(:match, code, expr, guard)
   end
 
   defp build_eval(_, {:__block__, _, _} = code, _, _) do

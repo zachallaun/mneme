@@ -8,9 +8,6 @@ defmodule Mneme.Prompter.Terminal do
   alias Mneme.Assertion
   alias Rewrite.Source
 
-  @cursor_save "\e7"
-  @cursor_restore "\e8"
-
   @bullet_char "●"
   @empty_bullet_char "○"
   @info_char "🛈"
@@ -23,7 +20,6 @@ defmodule Mneme.Prompter.Terminal do
 
     Owl.IO.puts(["\n\n", message])
     result = input()
-    IO.write([IO.ANSI.cursor_down(2), "\r"])
 
     {result, nil}
   end
@@ -43,16 +39,13 @@ defmodule Mneme.Prompter.Terminal do
       explanation_tag(type),
       "\n",
       tag("> ", :light_black),
-      @cursor_save,
       "\n",
       input_options_tag(pattern_nav)
     ]
     |> Owl.Data.add_prefix(prefix)
   end
 
-  defp input() do
-    IO.write(@cursor_restore)
-
+  defp input do
     case gets() do
       "y" -> :accept
       "n" -> :reject
@@ -63,7 +56,14 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   defp gets do
-    IO.gets("") |> normalize_gets()
+    resp =
+      [IO.ANSI.cursor_up(2), IO.ANSI.cursor_right(4)]
+      |> IO.gets()
+      |> normalize_gets()
+
+    IO.write([IO.ANSI.cursor_down(1), "\r"])
+
+    resp
   end
 
   defp normalize_gets(value) when is_binary(value) do

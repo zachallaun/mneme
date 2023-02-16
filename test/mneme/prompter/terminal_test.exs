@@ -20,7 +20,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   │  + auto_assert :something <- :something
                   │ 
                   │ Accept new assertion?
-                  │ > \e7
+                  │ > 
                   │ y yes  n no  ❮ j ● k ❯\
                   """ <- message |> untag_to_string()
     end
@@ -37,7 +37,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   │  + auto_assert :something <- :something
                   │ 
                   │ Accept new assertion?
-                  │ > \e7
+                  │ > 
                   │ y yes  n no  ❮ j ●○○ k ❯\
                   """ <- message |> untag_to_string()
     end
@@ -54,7 +54,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   │  + auto_assert :something <- :something
                   │ 
                   │ Value has changed! Update pattern?
-                  │ > \e7
+                  │ > 
                   │ y yes  n no  ❮ j ● k ❯\
                   """ <- message |> untag_to_string()
     end
