@@ -144,27 +144,31 @@ defmodule Mneme do
         end
       end
 
-  See `__using__/1` for a description of available options.
+  ### Options
+
+  #{Mneme.Options.docs()}
 
   ## Formatting
 
-  Mneme uses the [`Rewrite`](https://github.com/hrzndhrn/rewrite) to
-  update source code, which formats code before it is saved to a file.
+  Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update
+  source source code, formatting that code before saving the file.
   Currently, the Elixir formatter and `FreedomFormatter` are supported.
-  If you do not use a formatter, the first auto-assertion will reformat
-  the entire file.
+  **If you do not use a formatter, the first auto-assertion will reformat
+  the entire file.**
+
+  ## Alternatives
+
+    * [`assert_value`](https://github.com/assert-value/assert_value_elixir),
+      from which I stole a number of good ideas.
+
+    * You could write your own expected values... like a caveman!
   """
 
   @doc """
   Sets up Mneme configuration for this module and imports `auto_assert/1`.
 
-  ## Options
-
-  Options passed to `use Mneme` can be overriden in `describe` blocks or
-  for individual tests. See the "Configuration" section in the module
-  documentation for more.
-
-  #{Mneme.Options.docs()}
+  This macro accepts all options described in the "Configuration"
+  section above.
 
   ## Example
 
@@ -231,7 +235,7 @@ defmodule Mneme do
   Prompts are only issued if the pattern doesn't match the value, so
   that pattern can also be changed manually.
 
-      # this assertion succeeds
+      # this assertion succeeds, so no prompt is issued
       auto_assert [1, 2, | _] <- [1, 2] ++ [:a, :b]
 
   ## Differences from ExUnit `assert`
