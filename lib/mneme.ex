@@ -49,46 +49,38 @@ defmodule Mneme do
 
   ## Quick start
 
-    1. Add `:mneme` do your deps in `mix.exs`:
+  1.  Add `:mneme` do your deps in `mix.exs`:
 
-       ```
-       defp deps do
-         [
-           {:mneme, "~> #{Mneme.MixProject.version()}", only: :test}
-         ]
-       end
-       ```
+          defp deps do
+            [
+              {:mneme, "~> #{Mneme.MixProject.version()}", only: :test}
+            ]
+          end
 
-    2. Add `:mneme` to your `:import_deps` in `.formatter.exs`:
+  2.  Add `:mneme` to your `:import_deps` in `.formatter.exs`:
 
-       ```
-       [
-         import_deps: [:mneme],
-         inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
-       ]
-       ```
+          [
+            import_deps: [:mneme],
+            inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+          ]
 
-  3. Start Mneme right after you start ExUnit in `test/test_helper.exs`:
+  3.  Start Mneme right after you start ExUnit in `test/test_helper.exs`:
 
-     ```
-     ExUnit.start()
-     Mneme.start()
-     ```
+          ExUnit.start()
+          Mneme.start()
 
-  4. Add `use Mneme` wherever you `use ExUnit.Case`:
+  4.  Add `use Mneme` wherever you `use ExUnit.Case`:
 
-     ```
-     defmodule MyTest do
-       use ExUnit.Case, async: true
-       use Mneme
+          defmodule MyTest do
+            use ExUnit.Case, async: true
+            use Mneme
 
-       test "arithmetic" do
-         # use auto_assert instead of ExUnit's assert - run this test
-         # and delight in all the typing you don't have to do
-         auto_assert 2 + 2
-       end
-     end
-     ```
+            test "arithmetic" do
+              # use auto_assert instead of ExUnit's assert - run this test
+              # and delight in all the typing you don't have to do
+              auto_assert 2 + 2
+            end
+          end
 
   ## Match patterns
 
