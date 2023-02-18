@@ -27,33 +27,22 @@ defmodule Mneme.Assertion do
   Build an assertion.
   """
   def build(code, caller) do
-    set_assertion =
-      quote do
-        value = unquote(value_expr(code))
-
-        assertion =
-          Mneme.Assertion.new(
-            unquote(Macro.escape(code)),
-            value,
-            unquote(assertion_context(caller)) |> Keyword.put(:binding, binding())
-          )
-
-        eval_binding = [{{:value, :mneme}, value} | binding()]
-      end
-
-    eval_assertion =
-      quote do
-        {result, _} = Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
-        result
-      end
-
     quote do
-      unquote(set_assertion)
+      value = unquote(value_expr(code))
+
+      assertion =
+        Mneme.Assertion.new(
+          unquote(Macro.escape(code)),
+          value,
+          unquote(assertion_context(caller)) |> Keyword.put(:binding, binding())
+        )
+
+      eval_binding = [{{:value, :mneme}, value} | binding()]
 
       try do
         case Mneme.Server.register_assertion(assertion) do
           {:ok, assertion} ->
-            unquote(eval_assertion)
+            Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
 
           :error ->
             raise Mneme.AssertionError, message: "No pattern present"
@@ -62,7 +51,7 @@ defmodule Mneme.Assertion do
         error in [ExUnit.AssertionError] ->
           case Mneme.Server.patch_assertion(assertion) do
             {:ok, assertion} ->
-              unquote(eval_assertion)
+              Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
 
             :error ->
               case __STACKTRACE__ do
@@ -71,6 +60,8 @@ defmodule Mneme.Assertion do
               end
           end
       end
+
+      value
     end
   end
 
