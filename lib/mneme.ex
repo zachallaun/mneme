@@ -1,10 +1,16 @@
 defmodule Mneme do
   @moduledoc """
-  /ni:mi:/ - Snapshot testing for regular ol' Elixir code.
+  /ni:mi:/ - Snapshot testing integrated into ExUnit.
 
-  Mneme helps you write tests using `auto_assert/1`, a replacement of
-  sorts for ExUnit's `assert`. With `auto_assert`, you write an
-  expression and Mneme updates the assertion based on the runtime value.
+  Snapshot tests assert that some expression matches a reference value.
+  It's like an ExUnit `assert`, except that the reference value is
+  managed for you by Mneme.
+
+  Mneme follows in the footsteps of existing snapshot testing libraries
+  like [Insta (Rust)](https://insta.rs/), [expect-test (OCaml)](https://github.com/janestreet/ppx_expect),
+  and [assert_value (Elixir)](https://github.com/assert-value/assert_value_elixir).
+
+  ## Example
 
   For example, let's say you've written a test for a function that
   removes even numbers from a list:
@@ -155,13 +161,6 @@ defmodule Mneme do
   Currently, the Elixir formatter and `FreedomFormatter` are supported.
   **If you do not use a formatter, the first auto-assertion will reformat
   the entire file.**
-
-  ## Alternatives
-
-    * [`assert_value`](https://github.com/assert-value/assert_value_elixir),
-      from which I stole a number of good ideas.
-
-    * You could write your own expected values... like a caveman!
   """
 
   @doc """
