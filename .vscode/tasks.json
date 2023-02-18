@@ -2,34 +2,28 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "group": "test",
       "type": "mix",
       "task": "Run tests",
-      "group": "test",
-      "label": "mix: Run tests",
       "presentation": {
-        "panel": "new",
-        "focus": true
-      }
+        "focus": true,
+      },
     },
     {
-      "type": "mix",
-      "task": "Run test at cursor",
       "group": "test",
-      "label": "mix: Run test at cursor",
-      "presentation": {
-        "panel": "new",
-        "focus": true
-      }
-    },
-    {
       "type": "mix",
       "task": "Run tests in current file",
-      "group": "test",
-      "label": "mix: Run tests in current file",
       "presentation": {
-        "panel": "new",
-        "focus": true
-      }
+        "focus": true,
+      },
+    },
+    {
+      "group": "test",
+      "type": "mix",
+      "task": "Run test at cursor",
+      "presentation": {
+        "focus": true,
+      },
     },
   ],
 }

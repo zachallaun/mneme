@@ -43,10 +43,11 @@ defmodule Mneme.MixProject do
       {:rewrite, "~> 0.6.0"},
 
       # Development
-      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9.4", only: :test},
-      {:ex_doc, ">= 0.0.0", only: :dev}
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:makeup_json, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 
@@ -77,7 +78,17 @@ defmodule Mneme.MixProject do
   defp docs do
     [
       main: "Mneme",
-      source_url: @source_url
+      api_reference: false,
+      source_url: @source_url,
+      extra_section: "GUIDES",
+      extras: [
+        "guides/vscode_setup.md": [title: "VS Code"]
+      ],
+      groups_for_extras: [
+        "Editor Setup": [
+          "guides/vscode_setup.md"
+        ]
+      ]
     ]
   end
 

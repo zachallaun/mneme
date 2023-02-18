@@ -178,6 +178,12 @@ defmodule Mneme do
   ```bash
   export CI=true
   ```
+
+  ## Editor support
+
+  Guides for optional editor integration can be found here:
+
+    * [`VS Code`](vscode_setup.md)
   """
 
   @doc """
