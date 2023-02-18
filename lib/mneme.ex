@@ -7,13 +7,14 @@ defmodule Mneme do
   managed for you by Mneme.
 
   Mneme follows in the footsteps of existing snapshot testing libraries
-  like [Insta (Rust)](https://insta.rs/), [expect-test (OCaml)](https://github.com/janestreet/ppx_expect),
-  and [assert_value (Elixir)](https://github.com/assert-value/assert_value_elixir).
+  like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect)
+  (OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir)
+  (Elixir).
 
   ## Example
 
-  For example, let's say you've written a test for a function that
-  removes even numbers from a list:
+  Let's say you've written a test for a function that removes even
+  numbers from a list:
 
       test "drop_evens/1 should remove all even numbers from an enum" do
         auto_assert drop_evens(1..10)
@@ -23,9 +24,10 @@ defmodule Mneme do
         auto_assert drop_evens([:a, :b, 2, :c])
       end
 
-  The first time you run this test, you'll receive three prompts
-  (complete with diffs) asking if you'd like to update each of these
-  expressions. After accepting, your test is re-written:
+  The first time you run this test, you'll see interactive prompts for
+  each call to `auto_assert` showing a diff and asking if you'd like to
+  accept the generated pattern. After accepting them, your test is
+  updated:
 
       test "drop_evens/1 should remove all even numbers from an enum" do
         auto_assert [1, 3, 5, 7, 9] <- drop_evens(1..10)
@@ -36,10 +38,15 @@ defmodule Mneme do
       end
 
   The next time you run this test, you won't receive a prompt and these
-  will act (almost) like any other assertion. (See `auto_assert/1` for
-  details on the differences from ExUnit's `assert`.)
+  will act (almost) like any other assertion. If the result of the call
+  ever changes, you'll be prompted again and can choose to update the
+  test or reject it and let it fail.
 
-  ## Setup
+  With a few exceptions, `auto_assert/1` acts very similarly to a normal
+  `assert`. See the [macro docs](`auto_assert/1`) for a list of
+  differences.
+
+  ## Quick start
 
       # 1) add :mneme to your :import_deps in .formatter.exs
       [
@@ -80,9 +87,9 @@ defmodule Mneme do
       # after running the test and accepting the change
       auto_assert pid when is_pid(pid) <- self()
 
-  Additionally, variables in scope of the assertion will be pinned if
-  they match the value of the expression. This is especially helpful
-  when testing Ecto structs with associations, for instance:
+  Additionally, local variables can be found and pinned as a part of the
+  pattern. This keeps the number of hard-coded values down, reducing the
+  likelihood that tests have to be updated in the future.
 
       test "create_post/1 creates a new post with valid attrs", %{user: user} do
         valid_attrs = %{title: "my_post", author: user}
@@ -161,6 +168,16 @@ defmodule Mneme do
   Currently, the Elixir formatter and `FreedomFormatter` are supported.
   **If you do not use a formatter, the first auto-assertion will reformat
   the entire file.**
+
+  ## Continuous Integration
+
+  In a CI environment, Mneme will not attempt to prompt and update any
+  assertions. This behavior is enabled by the `CI` environment variable,
+  which is set by convention by many continuous integration providers.
+
+  ```bash
+  export CI=true
+  ```
   """
 
   @doc """
