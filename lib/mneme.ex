@@ -1,4 +1,5 @@
 defmodule Mneme do
+  @external_resource "mix.exs"
   @moduledoc """
   /ni:mi:/ - Snapshot testing integrated into ExUnit.
 
@@ -48,29 +49,46 @@ defmodule Mneme do
 
   ## Quick start
 
-      # 1) add :mneme to your :import_deps in .formatter.exs
-      [
-        import_deps: [:mneme],
-        inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
-      ]
+    1. Add `:mneme` do your deps in `mix.exs`:
 
-      # 2) start Mneme right after you start ExUnit in test/test_helper.exs
-      ExUnit.start()
-      Mneme.start()
+       ```
+       defp deps do
+         [
+           {:mneme, "~> #{Mneme.MixProject.version()}", only: :test}
+         ]
+       end
+       ```
 
-      # test/my_test.exs
-      defmodule MyTest do
-        use ExUnit.Case, async: true
+    2. Add `:mneme` to your `:import_deps` in `.formatter.exs`:
 
-        # 3) use Mneme wherever you use ExUnit.Case
-        use Mneme
+       ```
+       [
+         import_deps: [:mneme],
+         inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+       ]
+       ```
 
-        test "arithmetic" do
-          # 4) use auto_assert instead of ExUnit's assert - run this test
-          #    and delight in all the typing you don't have to do
-          auto_assert 2 + 2
-        end
-      end
+  3. Start Mneme right after you start ExUnit in `test/test_helper.exs`:
+
+     ```
+     ExUnit.start()
+     Mneme.start()
+     ```
+
+  4. Add `use Mneme` wherever you `use ExUnit.Case`:
+
+     ```
+     defmodule MyTest do
+       use ExUnit.Case, async: true
+       use Mneme
+
+       test "arithmetic" do
+         # use auto_assert instead of ExUnit's assert - run this test
+         # and delight in all the typing you don't have to do
+         auto_assert 2 + 2
+       end
+     end
+     ```
 
   ## Match patterns
 
