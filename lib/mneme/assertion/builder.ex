@@ -180,13 +180,31 @@ defmodule Mneme.Assertion.Builder do
   defp combine_guards(g1, g2, context), do: {:and, with_meta(context), [g2, g1]}
 
   defp guard_non_serializable(name, guard, value, context) do
-    var = make_var(name, context)
+    var = make_unique_var(name, context)
 
     pattern =
       {var, {guard, with_meta(context), [var]},
        ["Using guard for non-serializable value `#{inspect(value)}`"]}
 
     [pattern]
+  end
+
+  defp make_unique_var(name, context) do
+    if List.keymember?(context.binding, name, 0) do
+      make_unique_var(name, context, 1)
+    else
+      make_var(name, context)
+    end
+  end
+
+  defp make_unique_var(name, context, n) do
+    new_name = :"#{name}_#{n}"
+
+    if List.keymember?(context.binding, new_name, 0) do
+      make_unique_var(name, context, n + 1)
+    else
+      make_var(new_name, context)
+    end
   end
 
   defp make_var(name, context) do

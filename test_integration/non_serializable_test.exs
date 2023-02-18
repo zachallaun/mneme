@@ -17,7 +17,7 @@ defmodule Mneme.Integration.NonSerializableTest do
     auto_assert ref when is_reference(ref) <- make_ref()
 
     # y
-    auto_assert [ref] when is_reference(ref) <- [make_ref()]
+    auto_assert [ref_1] when is_reference(ref_1) <- [make_ref()]
 
     # y
     auto_assert pid when is_pid(pid) <- self()

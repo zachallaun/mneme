@@ -27,50 +27,52 @@ defmodule Mneme.Assertion do
   Build an assertion.
   """
   def build(code, caller) do
-    set_assertion =
-      quote do
-        value = unquote(value_expr(code))
-
-        assertion =
-          Mneme.Assertion.new(
-            unquote(Macro.escape(code)),
-            value,
-            unquote(assertion_context(caller)) |> Keyword.put(:binding, binding())
-          )
-
-        eval_binding = [{{:value, :mneme}, value} | binding()]
-      end
-
-    eval_assertion =
-      quote do
-        {result, _} = Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
-        result
-      end
+    vars = code |> pattern_expr() |> collect_vars_from_pattern()
 
     quote do
-      unquote(set_assertion)
+      value = unquote(value_expr(code))
 
-      try do
-        case Mneme.Server.register_assertion(assertion) do
-          {:ok, assertion} ->
-            unquote(eval_assertion)
+      var!(binding_acc, :mneme) = Keyword.get(binding(:mneme), :binding_acc, [])
+      lookup_binding = Enum.uniq_by(binding() ++ var!(binding_acc, :mneme), &elem(&1, 0))
 
-          :error ->
-            raise Mneme.AssertionError, message: "No pattern present"
-        end
-      rescue
-        error in [ExUnit.AssertionError] ->
-          case Mneme.Server.patch_assertion(assertion) do
+      eval_binding =
+        Enum.uniq_by(
+          binding() ++ [{{:value, :mneme}, value}] ++ binding() ++ var!(binding_acc, :mneme),
+          &elem(&1, 0)
+        )
+
+      assertion =
+        Mneme.Assertion.new(
+          unquote(Macro.escape(code)),
+          value,
+          unquote(assertion_context(caller)) |> Keyword.put(:binding, lookup_binding)
+        )
+
+      {unquote(mark_as_generated(vars)), new_binding} =
+        try do
+          case Mneme.Server.register_assertion(assertion) do
             {:ok, assertion} ->
-              unquote(eval_assertion)
+              Assertion.eval(assertion, eval_binding, __ENV__, unquote(Macro.escape(vars)))
 
             :error ->
-              case __STACKTRACE__ do
-                [head | _] -> reraise error, [head]
-                [] -> reraise error, []
-              end
+              raise Mneme.AssertionError, message: "No pattern present"
           end
-      end
+        rescue
+          error in [ExUnit.AssertionError] ->
+            case Mneme.Server.patch_assertion(assertion) do
+              {:ok, assertion} ->
+                Assertion.eval(assertion, eval_binding, __ENV__, unquote(Macro.escape(vars)))
+
+              :error ->
+                case __STACKTRACE__ do
+                  [head | _] -> reraise error, [head]
+                  [] -> reraise error, []
+                end
+            end
+        end
+
+      var!(binding_acc, :mneme) = new_binding ++ var!(binding_acc, :mneme)
+      value
     end
   end
 
@@ -109,6 +111,87 @@ defmodule Mneme.Assertion do
       prev_patterns: prev_patterns,
       eval: code_for_eval(code, hd(patterns))
     })
+  end
+
+  defp mark_as_generated(vars) do
+    for {name, meta, context} <- vars do
+      {name, [generated: true] ++ meta, context}
+    end
+  end
+
+  defp collect_vars_from_pattern({:when, _, [expr, guard]}) do
+    expr_vars = collect_vars_from_pattern(expr)
+
+    guard_vars =
+      for {name, _, context} = var <- collect_vars_from_pattern(guard),
+          has_var?(expr_vars, name, context) do
+        var
+      end
+
+    expr_vars ++ guard_vars
+  end
+
+  defp collect_vars_from_pattern(expr) do
+    Macro.prewalk(expr, [], fn
+      {:"::", _, [left, right]}, acc ->
+        {[left], collect_vars_from_binary(right, acc)}
+
+      {skip, _, [_]}, acc when skip in [:^, :@] ->
+        {:ok, acc}
+
+      {:_, _, context}, acc when is_atom(context) ->
+        {:ok, acc}
+
+      {_, [{:expanded, expanded} | _], _}, acc ->
+        {[expanded], acc}
+
+      {name, meta, context}, acc when is_atom(name) and is_atom(context) ->
+        {:ok, [{name, meta, context} | acc]}
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp collect_vars_from_binary(right, original_acc) do
+    Macro.prewalk(right, original_acc, fn
+      {mode, _, [{name, meta, context}]}, acc
+      when is_atom(mode) and is_atom(name) and is_atom(context) ->
+        if has_var?(original_acc, name, context) do
+          {:ok, [{name, meta, context} | acc]}
+        else
+          {:ok, acc}
+        end
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
+
+  @doc false
+  def eval(%Assertion{} = assertion, binding, env, vars) do
+    {_result, binding} = Code.eval_quoted(assertion.eval, binding, env)
+    {var_bindings(vars, binding), sanitize_binding(binding)}
+  end
+
+  defp var_bindings(vars, binding) do
+    Enum.map(vars, fn {name, _, _} ->
+      case List.keyfind(binding, name, 0) do
+        {_, value} -> value
+        nil -> :__mneme_var_no_longer_bound__
+      end
+    end)
+  end
+
+  defp sanitize_binding(binding) do
+    Enum.filter(binding, fn
+      {name, _} when is_atom(name) -> true
+      _ -> false
+    end)
   end
 
   defp build_and_select_pattern(%{type: :new, value: value} = assertion) do
@@ -297,11 +380,17 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
-  defp value_expr({_, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
-  defp value_expr({_, _, [{:=, _, [_, value_expr]}]}), do: value_expr
-  defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
-  defp value_expr({_, _, [value_expr]}), do: value_expr
+  @doc false
+  def pattern_expr({_, _, [{:<-, _, [{:when, _, [pattern, _]}, _]}]}), do: pattern
+  def pattern_expr({_, _, [{:<-, _, [pattern, _]}]}), do: pattern
+  def pattern_expr(_), do: Macro.var(:_, nil)
+
+  @doc false
+  def value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
+  def value_expr({_, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
+  def value_expr({_, _, [{:=, _, [_, value_expr]}]}), do: value_expr
+  def value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
+  def value_expr({_, _, [value_expr]}), do: value_expr
 
   defp normalized_expect_expr({_, _, [{:<-, _, [expect_expr, _]}]}) do
     expect_expr |> normalize_heredoc()

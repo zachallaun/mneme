@@ -38,7 +38,7 @@ defmodule Mneme.Integration.BasicTest do
     # k y
     auto_assert {1, 2, ^my_ref} <- t2
     # k k y
-    auto_assert {1, 2, ref} when is_reference(ref) <- t2
+    auto_assert {1, 2, ref_1} when is_reference(ref_1) <- t2
   end
 
   test "lists" do
