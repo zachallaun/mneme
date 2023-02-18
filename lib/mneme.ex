@@ -10,7 +10,8 @@ defmodule Mneme do
   Mneme follows in the footsteps of existing snapshot testing libraries
   like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect)
   (OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir)
-  (Elixir).
+  (Elixir). Instead of simple value or string comparison, however, Mneme
+  leans heavily into pattern matching.
 
   ## Example
 
