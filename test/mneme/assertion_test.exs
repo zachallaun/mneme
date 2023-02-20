@@ -12,6 +12,7 @@ defmodule Mneme.AssertionTest do
         [1, 2, 3],
         %{}
       )
+      |> Assertion.regenerate_code(:mneme)
 
     auto_assert "auto_assert [1, 2, 3] <- [1, 2, 3]" <- to_code_string(assertion, :mneme)
 
@@ -29,6 +30,7 @@ defmodule Mneme.AssertionTest do
         me,
         %{}
       )
+      |> Assertion.regenerate_code(:mneme)
 
     auto_assert "auto_assert pid when is_pid(pid) <- me" <- to_code_string(assertion, :mneme)
 
@@ -38,7 +40,7 @@ defmodule Mneme.AssertionTest do
                 """ <- to_code_string(assertion, :ex_unit)
 
     auto_assert """
-                value = assert (pid when is_pid(pid)) = value
+                value = assert pid = value
                 assert is_pid(pid)
                 value\
                 """ <- to_code_string(assertion, :eval)
@@ -53,12 +55,13 @@ defmodule Mneme.AssertionTest do
         x,
         %{}
       )
+      |> Assertion.regenerate_code(:mneme)
 
     auto_assert "auto_assert x == nil" <- to_code_string(assertion, :mneme)
 
     auto_assert "assert x == nil" <- to_code_string(assertion, :ex_unit)
 
-    auto_assert "assert _ == value" <- to_code_string(assertion, :eval)
+    auto_assert "assert nil == value" <- to_code_string(assertion, :eval)
   end
 
   defp to_code_string(assertion, :eval) do

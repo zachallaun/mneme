@@ -28,41 +28,51 @@ defmodule Mneme.Assertion do
   """
   def build(code, caller) do
     quote do
-      value = unquote(value_expr(code))
+      Mneme.Assertion.run!(
+        unquote(Macro.escape(code)),
+        unquote(value_expr(code)),
+        unquote(assertion_context(caller)),
+        binding(),
+        __ENV__
+      )
+    end
+  end
 
-      assertion =
-        Mneme.Assertion.new(
-          unquote(Macro.escape(code)),
-          value,
-          unquote(assertion_context(caller)) |> Keyword.put(:binding, binding())
-        )
+  @doc false
+  def run!(code, value, context, binding, env) do
+    assertion =
+      new(
+        code,
+        value,
+        Keyword.put(context, :binding, binding)
+      )
 
-      eval_binding = [{{:value, :mneme}, value} | binding()]
+    eval_binding = [{{:value, :mneme}, value} | binding]
 
-      try do
-        case Mneme.Server.register_assertion(assertion) do
+    try do
+      case Mneme.Server.register_assertion(assertion) do
+        {:ok, assertion} ->
+          Code.eval_quoted(assertion.eval, eval_binding, env)
+
+        :error ->
+          raise Mneme.AssertionError, message: "No pattern present"
+      end
+    rescue
+      error in [ExUnit.AssertionError] ->
+        case Mneme.Server.patch_assertion(assertion) do
           {:ok, assertion} ->
-            Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
+            Code.eval_quoted(assertion.eval, eval_binding, env)
 
           :error ->
-            raise Mneme.AssertionError, message: "No pattern present"
+            reraise error, [stacktrace_entry(assertion)]
         end
-      rescue
-        error in [ExUnit.AssertionError] ->
-          case Mneme.Server.patch_assertion(assertion) do
-            {:ok, assertion} ->
-              Code.eval_quoted(assertion.eval, eval_binding, __ENV__)
-
-            :error ->
-              case __STACKTRACE__ do
-                [head | _] -> reraise error, [head]
-                [] -> reraise error, []
-              end
-          end
-      end
-
-      value
     end
+
+    value
+  end
+
+  defp stacktrace_entry(assertion) do
+    {assertion.module, assertion.test, 1, [file: assertion.file, line: assertion.line]}
   end
 
   defp assertion_context(caller) do
@@ -81,10 +91,11 @@ defmodule Mneme.Assertion do
 
   @doc false
   def new(code, value, context) do
-    assertion = %Assertion{
+    %Assertion{
       type: get_type(code),
       value: value,
       code: code,
+      eval: code_for_eval(code, value),
       file: context[:file],
       line: context[:line],
       module: context[:module],
@@ -92,14 +103,31 @@ defmodule Mneme.Assertion do
       aliases: context[:aliases] || [],
       binding: context[:binding] || []
     }
+  end
 
+  defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
+  defp get_type(_code), do: :new
+
+  @doc """
+  Regenerate assertion code for the given target.
+  """
+  def regenerate_code(%Assertion{patterns: nil} = assertion, target) do
     {prev_patterns, patterns} = build_and_select_pattern(assertion)
 
-    Map.merge(assertion, %{
+    assertion
+    |> Map.merge(%{
       patterns: patterns,
-      prev_patterns: prev_patterns,
-      eval: code_for_eval(code, hd(patterns))
+      prev_patterns: prev_patterns
     })
+    |> regenerate_code(target)
+  end
+
+  def regenerate_code(%Assertion{} = assertion, target) do
+    new_code = to_code(assertion, target)
+
+    assertion
+    |> Map.put(:code, new_code)
+    |> Map.put(:eval, code_for_eval(new_code, assertion.value))
   end
 
   defp build_and_select_pattern(%{type: :new, value: value} = assertion) do
@@ -123,20 +151,6 @@ defmodule Mneme.Assertion do
       {patterns, []} -> {[], patterns}
       {prev_reverse, patterns} -> {Enum.reverse(prev_reverse), patterns}
     end
-  end
-
-  defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
-  defp get_type(_code), do: :new
-
-  @doc """
-  Regenerate assertion code for the given target.
-  """
-  def regenerate_code(%Assertion{} = assertion, target) do
-    new_code = to_code(assertion, target)
-
-    assertion
-    |> Map.put(:code, new_code)
-    |> Map.put(:eval, code_for_eval(new_code, hd(assertion.patterns)))
   end
 
   @doc """
@@ -258,34 +272,40 @@ defmodule Mneme.Assertion do
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
 
-  defp code_for_eval(code, {falsy, nil, _}) when falsy in [nil, false] do
-    build_eval(:compare, code, falsy, nil)
+  defp code_for_eval({:__block__, _, _} = code, _value), do: code
+
+  defp code_for_eval({_, _, [{:<-, _, [expected, _]}]}, falsy) when falsy in [false, nil] do
+    assert_compare(expected)
   end
 
-  defp code_for_eval(code, {expr, guard, _}) do
-    build_eval(:match, code, expr, guard)
-  end
+  defp code_for_eval({_, _, [pattern]}, _value) do
+    case pattern do
+      {match, _, [{:when, _, [expected, guard]}, _]} when match in [:<-, :=] ->
+        quote do
+          value = unquote(assert_match(expected))
+          assert unquote(guard)
+          value
+        end
 
-  defp build_eval(_, {:__block__, _, _} = code, _, _) do
-    code
-  end
+      {match, _, [expected, _]} when match in [:<-, :=] ->
+        assert_match(expected)
 
-  defp build_eval(:compare, code, _falsy, nil) do
-    {:assert, [], [{:==, [], [normalized_expect_expr(code), Macro.var(:value, :mneme)]}]}
-  end
+      {:==, _, [_, expected]} ->
+        assert_compare(expected)
 
-  defp build_eval(:match, code, _expr, nil) do
-    {:assert, [], [{:=, [], [normalized_expect_expr(code), Macro.var(:value, :mneme)]}]}
-  end
-
-  defp build_eval(:match, code, expr, guard) do
-    check = build_eval(:match, code, expr, nil)
-
-    quote do
-      value = unquote(check)
-      assert unquote(guard)
-      value
+      _ ->
+        quote do
+          raise Mneme.AssertionError, message: "no match present"
+        end
     end
+  end
+
+  defp assert_compare(expr) do
+    {:assert, [], [{:==, [], [normalized_expect_expr(expr), Macro.var(:value, :mneme)]}]}
+  end
+
+  defp assert_match(expr) do
+    {:assert, [], [{:=, [], [normalized_expect_expr(expr), Macro.var(:value, :mneme)]}]}
   end
 
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
@@ -294,19 +314,9 @@ defmodule Mneme.Assertion do
   defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
   defp value_expr({_, _, [value_expr]}), do: value_expr
 
-  defp normalized_expect_expr({_, _, [{:<-, _, [expect_expr, _]}]}) do
+  defp normalized_expect_expr(expect_expr) do
     expect_expr |> normalize_heredoc()
   end
-
-  defp normalized_expect_expr({_, _, [{:=, _, [expect_expr, _]}]}) do
-    expect_expr |> normalize_heredoc()
-  end
-
-  defp normalized_expect_expr({_, _, [{:==, _, [_, expect_expr]}]}) do
-    expect_expr |> normalize_heredoc()
-  end
-
-  defp normalized_expect_expr(expect_expr), do: expect_expr
 
   # Allows us to format multiline strings as heredocs when they don't
   # end with a newline, e.g.

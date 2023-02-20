@@ -89,6 +89,10 @@ defmodule Mneme.Integration do
 
   defp debug_setup(nil, _), do: :ok
 
+  defp debug_setup("", test) do
+    Owl.IO.puts([Owl.Data.tag("Running: ", :cyan), test.path, "\n"])
+  end
+
   defp debug_setup(debug, test) do
     if String.contains?(test.path, debug) do
       Owl.IO.puts([
@@ -102,6 +106,10 @@ defmodule Mneme.Integration do
   end
 
   defp debug_output(nil, _, _), do: :ok
+
+  defp debug_output("", test, _) do
+    Owl.IO.puts([Owl.Data.tag("Complete: ", :green), test.path, "\n"])
+  end
 
   defp debug_output(debug, test, output) do
     if String.contains?(test.path, debug) do
