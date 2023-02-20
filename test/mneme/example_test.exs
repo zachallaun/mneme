@@ -1,5 +1,5 @@
 defmodule Mneme.ExampleTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   defmodule MyStruct do

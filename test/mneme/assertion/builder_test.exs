@@ -1,5 +1,5 @@
 defmodule Mneme.Assertion.BuilderTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   alias Mneme.Assertion

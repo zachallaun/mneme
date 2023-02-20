@@ -1,5 +1,5 @@
 defmodule Mneme.Prompter.TerminalTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   alias Mneme.Prompter.Terminal
