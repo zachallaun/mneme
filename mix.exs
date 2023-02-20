@@ -4,7 +4,7 @@ defmodule Mneme.MixProject do
   @app :mneme
   @source_url "https://github.com/zachallaun/mneme"
 
-  def version, do: "0.1.0"
+  def version, do: "0.1.1"
 
   def project do
     [
@@ -82,6 +82,7 @@ defmodule Mneme.MixProject do
       source_url: @source_url,
       extra_section: "GUIDES",
       extras: [
+        "CHANGELOG.md",
         "guides/vscode_setup.md": [title: "VS Code"]
       ],
       groups_for_extras: [
