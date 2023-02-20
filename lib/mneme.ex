@@ -195,6 +195,30 @@ defmodule Mneme do
   Guides for optional editor integration can be found here:
 
     * [`VS Code`](vscode_setup.md)
+
+  ## Acknowledgements
+
+  Special thanks to:
+
+    * [_What if writing tests was a joyful experience?_](https://blog.janestreet.com/the-joy-of-expect-tests/),
+      from the Jane Street Tech Blog, for inspiring this library.
+
+    * [Sourceror](https://github.com/doorgan/sourceror), a library that
+      makes complex code modifications simple.
+
+    * [Rewrite](https://github.com/hrzndhrn/rewrite), which provides the
+      diff functionality present in Mneme.
+
+    * [Owl](https://github.com/fuelen/owl), which makes it much easier
+      to build a pretty CLI.
+
+    * [Insta](https://insta.rs/), a snapshot testing tool for Rust,
+      whose great documentation provided an excellent reference for
+      snapshot testing.
+
+    * [assert_value](https://github.com/assert-value/assert_value_elixir),
+      an existing Elixir project that provides similar functionality.
+      Thank you for paving the way!
   """
 
   @doc """
