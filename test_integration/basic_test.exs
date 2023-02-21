@@ -10,12 +10,15 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert 4 <- 2 + 1, 3 <- 2 + 1
   end
 
-  test "strings" do
+  test "strings/binaries" do
     # y
     auto_assert "foobar" <- "foo" <> "bar"
 
     # y
     auto_assert "foobar" <- "foo" <> "baz", "foobaz" <- "foo" <> "baz"
+
+    # y
+    auto_assert <<0>> <- <<0>>
   end
 
   test "tuples" do
@@ -79,5 +82,24 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert %{ref: ^my_ref} <- m
     # k k k y
     auto_assert %{ref: ref} when is_reference(ref) <- m
+  end
+
+  test "sigils" do
+    # y
+    auto_assert "foo" <- ~s(foo)
+
+    # y
+    auto_assert "foo" <- ~S(foo)
+
+    # y
+    auto_assert 'foo' <- ~c(foo)
+
+    # y
+    auto_assert 'foo' <- ~C(foo)
+    # NOTE: Formatter bug in Elixir is causing this whitespace to collapse.
+    # y
+    auto_assert ~r/abc/ <- ~r/abc/
+    # y
+    auto_assert ~r/abc/mu <- ~r/abc/mu
   end
 end

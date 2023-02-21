@@ -54,11 +54,17 @@ defmodule Mneme.Assertion.Builder do
 
   defp do_to_patterns(string, context) when is_binary(string) do
     pattern =
-      if String.contains?(string, "\n") do
-        {{:__block__, with_meta([delimiter: ~S(""")], context), [format_for_heredoc(string)]},
-         nil, []}
-      else
-        {string, nil, []}
+      cond do
+        !String.printable?(string) ->
+          nonprintable = {:<<>>, [], String.to_charlist(string)}
+          {nonprintable, nil, []}
+
+        String.contains?(string, "\n") ->
+          s = {:__block__, with_meta([delimiter: ~S(""")], context), [format_for_heredoc(string)]}
+          {s, nil, []}
+
+        true ->
+          {string, nil, []}
       end
 
     [pattern]
@@ -81,9 +87,10 @@ defmodule Mneme.Assertion.Builder do
     end
   end
 
-  for module <- [DateTime, NaiveDateTime, Date, Time] do
-    defp do_to_patterns(%unquote(module){} = value, _context) do
-      pattern = {value |> inspect() |> Code.string_to_quoted!(), nil, []}
+  for module <- [Regex, DateTime, NaiveDateTime, Date, Time] do
+    defp do_to_patterns(%unquote(module){} = value, context) do
+      {call, meta, args} = value |> inspect() |> Code.string_to_quoted!()
+      pattern = {{call, with_meta(meta, context), args}, nil, []}
       [pattern]
     end
   end
