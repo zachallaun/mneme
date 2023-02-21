@@ -1,0 +1,89 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - '**'
+jobs:
+  lint:
+    runs-on: ubuntu-20.04
+    env:
+      MIX_ENV: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pair:
+              elixir: '1.14'
+              otp: 25
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Elixir
+        id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{matrix.pair.otp}}
+          elixir-version: ${{matrix.pair.elixir}}
+
+      - name: Deps Cache
+        uses: actions/cache@v3
+        with:
+          path: deps
+          key: mix-deps-${{ hashFiles('**/mix.lock') }}
+
+      - name: PLT Cache (Dialyzer)
+        uses: actions/cache@v3
+        id: plt_cache
+        with:
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          path: priv/plts
+
+      - run: mix deps.get
+
+      - run: mix format --check-formatted
+
+      - run: mix deps.unlock --check-unused
+
+      - run: mix deps.compile
+
+      - run: mix compile --warnings-as-errors
+
+      - name: Create PLTs
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        run: MIX_ENV=dev mix dialyzer --plt
+
+      - name: Run Dialyzer
+        run: MIX_ENV=dev mix dialyzer --format github
+
+  test:
+    runs-on: ubuntu-20.04
+    env:
+      MIX_ENV: test
+    strategy:
+      fail-fast: false
+      matrix:
+        elixir: [1.13, 1.14]
+        otp: [24.3, 25]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Elixir
+        id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+
+      - name: Deps Cache
+        uses: actions/cache@v3
+        with:
+          path: deps
+          key: mix-deps-${{ hashFiles('**/mix.lock') }}
+
+      - run: mix deps.get
+
+      - run: mix deps.compile
+
+      - run: mix test
