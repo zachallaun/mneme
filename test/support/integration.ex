@@ -65,7 +65,7 @@ defmodule Mneme.Integration do
       mix test #{file_path} --seed 0 \
     """
 
-    {output, exit_code} = System.shell(test_command, close_stdin: true)
+    {output, exit_code} = System.shell(test_command)
 
     code_after_test = File.read!(file_path)
 
