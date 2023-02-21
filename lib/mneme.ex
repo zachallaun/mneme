@@ -255,19 +255,32 @@ defmodule Mneme do
       # test/test_helper.exs
       ExUnit.start()
       Mneme.start()
+
+  ## Options
+
+    * `:restart` - Restarts Mneme if it has previously been started.
+      This option enables certain IEx-based testing workflows that allow
+      tests to be run without a startup penalty.
   """
-  def start do
+  def start(opts \\ []) do
     ExUnit.configure(
       formatters: [Mneme.ExUnitFormatter],
       default_formatter: ExUnit.CLIFormatter,
       timeout: :infinity
     )
 
-    children = [
-      Mneme.Server
-    ]
+    if opts[:restart] && Process.whereis(Mneme.Supervisor) do
+      Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
+    else
+      opts = [
+        name: Mneme.Supervisor,
+        strategy: :one_for_one
+      ]
 
-    Supervisor.start_link(children, strategy: :one_for_one)
+      Supervisor.start_link([Mneme.Server], opts)
+    end
+
+    :ok
   end
 
   @doc """
