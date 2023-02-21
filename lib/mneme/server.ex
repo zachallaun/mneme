@@ -5,17 +5,18 @@ defmodule Mneme.Server do
   # server is primarily responsible for managing IO. Because tests can
   # run asynchronously, we have to carefully control output so that test
   # results are not written to the terminal while we're prompting the
-  # user for input, etc.
+  # user for input.
   #
   # To do this, we replace ExUnit's default formatter with our own (see
-  # Mneme.ExUnitFormatter) that delegates to ExUnit's formatter as well
-  # as notifying the server of test events so that we can track tests
-  # and flush IO at appropriate times.
+  # Mneme.ExUnitFormatter) that delegates to ExUnit's formatter and
+  # allows us to capture the formatter output. It additionall notifies
+  # this server of test events so that we can flush IO at the right time.
   #
-  # We additionally receive Mneme options via the ExUnit formatter,
-  # which passes along test tags, so we may need to delay a Mneme
-  # assertion if we have not yet received the :test_started event that
-  # included that test's tags.
+  # Mneme options are additionally received via test tags, which we get
+  # via the formatter. It's possible that an auto-assertion runs before
+  # the formatter notifies us that the test has started (via a
+  # :test_started event), in which case we need to delay the assertion
+  # until we have the test's tags.
 
   use GenServer
 
