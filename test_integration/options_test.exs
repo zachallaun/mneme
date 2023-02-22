@@ -13,7 +13,7 @@ defmodule Mneme.Integration.OptionsTest do
     auto_assert 1 + 1
   end
 
-  @mneme target: :ex_unit
+  @mneme target: :ex_unit, action: :accept
   test "should rewrite to an ExUnit assertion" do
     assert 2 = 1 + 1
   end
@@ -29,12 +29,13 @@ defmodule Mneme.Integration.OptionsTest do
       assert 4 = 2 + 2
     end
 
-    test "should rewrite to ExUnit assertion with guards/pins" do
-      assert pid = self()
-      assert is_pid(pid)
-
+    test "should rewrite to ExUnit assertion with pin" do
       me = self()
       assert ^me = Function.identity(me)
+    end
+
+    test "should rewrite to ExUnit assertion keeping the same pattern" do
+      assert %{foo: 1} <- %{foo: 1}, %{foo: 1} = %{foo: 1}
     end
   end
 end

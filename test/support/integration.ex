@@ -150,6 +150,10 @@ defmodule Mneme.Integration do
         {:auto_assert, meta, _} = quoted, %{acc: comments} = state ->
           {test_auto_assert(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
 
+        {:assert, meta, args}, %{acc: comments} = state ->
+          {test_auto_assert({:auto_assert, meta, args}),
+           %{state | acc: meta[:leading_comments] ++ comments}}
+
         quoted, state ->
           {quoted, state}
       end)
@@ -160,6 +164,7 @@ defmodule Mneme.Integration do
   defp build_expected_ast(ast) do
     Sourceror.prewalk(ast, fn
       {:auto_assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
+      {:assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
       quoted, state -> {quoted, state}
     end)
   end
@@ -173,6 +178,10 @@ defmodule Mneme.Integration do
   end
 
   defp test_auto_assert({call, meta, [{:==, _, [expr, _expected_value]}]}) do
+    {call, meta, [expr]}
+  end
+
+  defp test_auto_assert({call, meta, [{:=, _, [_expected_pattern, expr]}]}) do
     {call, meta, [expr]}
   end
 

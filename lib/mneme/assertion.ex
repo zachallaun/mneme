@@ -135,22 +135,41 @@ defmodule Mneme.Assertion do
   end
 
   defp build_and_select_pattern(%{type: :update, value: value, code: code} = assertion) do
-    {expr, guard} =
+    [expr, guard] =
       case code do
-        {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> {expr, guard}
-        {_, _, [{:<-, _, [expr, _]}]} -> {expr, nil}
-        {_, _, [{:==, _, [_, expr]}]} -> {expr, nil}
+        {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
+        {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
+        {_, _, [{:==, _, [_, expr]}]} -> [expr, nil]
       end
+      |> Enum.map(&simplify_expr/1)
 
     Builder.to_patterns(value, assertion)
     |> Enum.split_while(fn
-      {^expr, ^guard, _} -> false
-      _ -> true
+      {pattern_expr, pattern_guard, _} ->
+        !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
+
+      _ ->
+        true
     end)
     |> case do
       {patterns, []} -> {[], patterns}
       {prev_reverse, patterns} -> {Enum.reverse(prev_reverse), patterns}
     end
+  end
+
+  defp simplify_expr(nil), do: nil
+
+  defp simplify_expr(expr) do
+    Sourceror.prewalk(expr, fn
+      {:__block__, _meta, [arg]}, state ->
+        {arg, state}
+
+      {name, _meta, args}, state ->
+        {{name, [], args}, state}
+
+      quoted, state ->
+        {quoted, state}
+    end)
   end
 
   @doc """
