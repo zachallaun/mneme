@@ -7,6 +7,7 @@
       "task": "Run tests",
       "presentation": {
         "focus": true,
+        "panel": "shared",
       },
     },
     {
@@ -15,6 +16,10 @@
       "task": "Run tests in current file",
       "presentation": {
         "focus": true,
+        "panel": "shared",
+      },
+      "runOptions": {
+        "reevaluateOnRerun": false,
       },
     },
     {
@@ -23,6 +28,10 @@
       "task": "Run test at cursor",
       "presentation": {
         "focus": true,
+        "panel": "shared",
+      },
+      "runOptions": {
+        "reevaluateOnRerun": false,
       },
     },
   ],
