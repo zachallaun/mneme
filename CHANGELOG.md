@@ -2,6 +2,16 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Enhancements
+
+  * Add a `:default_pattern` configuration option for auto-assertions which controls the pattern that should be selected by default when prompted.
+
+### Fixes
+
+  * When converting an auto-assertion to an ExUnit assertion, select the identical pattern when the `:default_pattern` is `:infer` (set by default).
+
 ## v0.1.2 (2023-02-21)
 
 ### Enhancements
