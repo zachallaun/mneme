@@ -38,4 +38,12 @@ defmodule Mneme.Integration.OptionsTest do
       assert %{foo: 1} <- %{foo: 1}, %{foo: 1} = %{foo: 1}
     end
   end
+
+  @mneme action: :accept, default_pattern: :last
+  test "should default to the last in the list of pattern options" do
+    auto_assert %{foo: 1} <- %{foo: 1}
+
+    me = self()
+    auto_assert %{foo: pid} when is_pid(pid) <- %{foo: me}
+  end
 end

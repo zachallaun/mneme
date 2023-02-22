@@ -31,4 +31,9 @@ defmodule Mneme.ExampleTest do
 
     assert %MyStruct{field: ^me} = s4
   end
+
+  @mneme default_pattern: :last
+  test "5" do
+    auto_assert %{foo: :bar} <- %{foo: :bar}
+  end
 end

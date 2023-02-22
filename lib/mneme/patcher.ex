@@ -80,7 +80,7 @@ defmodule Mneme.Patcher do
     assertion =
       assertion
       |> Map.put(:code, Zipper.node(zipper))
-      |> Assertion.regenerate_code(opts.target)
+      |> Assertion.regenerate_code(opts.target, opts.default_pattern)
 
     new_zipper = zipper_update_with_meta(zipper, assertion.code)
 

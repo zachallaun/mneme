@@ -111,8 +111,10 @@ defmodule Mneme.Assertion do
   @doc """
   Regenerate assertion code for the given target.
   """
-  def regenerate_code(%Assertion{patterns: nil} = assertion, target) do
-    {prev_patterns, patterns} = build_and_select_pattern(assertion)
+  def regenerate_code(assertion, target, default_pattern \\ :infer)
+
+  def regenerate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
+    {prev_patterns, patterns} = build_and_select_pattern(assertion, default_pattern)
 
     assertion
     |> Map.merge(%{
@@ -122,7 +124,7 @@ defmodule Mneme.Assertion do
     |> regenerate_code(target)
   end
 
-  def regenerate_code(%Assertion{} = assertion, target) do
+  def regenerate_code(%Assertion{} = assertion, target, _) do
     new_code = to_code(assertion, target)
 
     assertion
@@ -130,11 +132,20 @@ defmodule Mneme.Assertion do
     |> Map.put(:eval, code_for_eval(new_code, assertion.value))
   end
 
-  defp build_and_select_pattern(%{type: :new, value: value} = assertion) do
+  defp build_and_select_pattern(%{value: value} = assertion, :first) do
     {[], Builder.to_patterns(value, assertion)}
   end
 
-  defp build_and_select_pattern(%{type: :update, value: value, code: code} = assertion) do
+  defp build_and_select_pattern(%{value: value} = assertion, :last) do
+    [pattern | prev] = Builder.to_patterns(value, assertion) |> Enum.reverse()
+    {prev, [pattern]}
+  end
+
+  defp build_and_select_pattern(%{type: :new} = assertion, :infer) do
+    build_and_select_pattern(assertion, :first)
+  end
+
+  defp build_and_select_pattern(%{type: :update, value: value, code: code} = assertion, :infer) do
     [expr, guard] =
       case code do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]

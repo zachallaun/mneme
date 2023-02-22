@@ -11,6 +11,14 @@ defmodule Mneme.Options do
       variables, the action will _always_ be `:reject`.
       """
     ],
+    default_pattern: [
+      type: {:in, [:infer, :first, :last]},
+      default: :infer,
+      doc: """
+      The default pattern to be selected if prompted to update an assertion.
+      Can be one of `:infer`, `:first`, or `:last`.
+      """
+    ],
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,
