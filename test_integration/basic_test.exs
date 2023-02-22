@@ -101,5 +101,7 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert ~r/abc/ <- ~r/abc/
     # y
     auto_assert ~r/abc/mu <- ~r/abc/mu
+    # y
+    auto_assert ~r/a#\{b\}c/ <- ~R/a#\{b\}c/
   end
 end
