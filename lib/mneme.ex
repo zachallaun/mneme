@@ -7,6 +7,13 @@ defmodule Mneme do
 
   /ni:mi:/ - Snapshot testing integrated into ExUnit.
 
+  > #### Early days {: .info}
+  >
+  > Mneme is in its infancy and has an intentionally minimal API
+  > consisting largely of a single macro. Please feel free to submit
+  > any feedback, bugs, or suggestions as [issues on Github](https://github.com/zachallaun/mneme).
+  > Thanks!
+
   Snapshot tests assert that some expression matches a reference value.
   It's like an ExUnit `assert`, except that the reference value is
   managed for you by Mneme.
