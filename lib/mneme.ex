@@ -281,7 +281,8 @@ defmodule Mneme do
     )
 
     if opts[:restart] && Process.whereis(Mneme.Supervisor) do
-      Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
+      _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
+      {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
     else
       opts = [
         name: Mneme.Supervisor,
