@@ -46,10 +46,14 @@ defmodule Mneme.Assertion.Builder do
     end
   end
 
-  defp do_to_patterns(value, _context)
-       when is_atom(value) or is_integer(value) or is_float(value) do
-    pattern = {value, nil, []}
+  defp do_to_patterns(int, context) when is_integer(int) do
+    pattern = {{:__block__, with_meta([token: inspect(int)], context), [int]}, nil, []}
     [pattern]
+  end
+
+  defp do_to_patterns(value, _context)
+       when is_atom(value) or is_float(value) do
+    [{value, nil, []}]
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
@@ -71,7 +75,13 @@ defmodule Mneme.Assertion.Builder do
   end
 
   defp do_to_patterns(list, context) when is_list(list) do
-    enum_to_patterns(list, context)
+    patterns = enum_to_patterns(list, context)
+
+    if List.ascii_printable?(list) do
+      patterns ++ [{list, nil, []}]
+    else
+      patterns
+    end
   end
 
   defp do_to_patterns(tuple, context) when is_tuple(tuple) do

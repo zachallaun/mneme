@@ -48,6 +48,9 @@ defmodule Mneme.Integration.BasicTest do
     # y
     auto_assert [1, 2, 3] <- [1, 2, 3]
 
+    # y
+    auto_assert [8, 9, 10] <- [8, 9, 10]
+
     my_ref = make_ref()
     l = [my_ref]
     # y
@@ -92,10 +95,14 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert "foo" <- ~S(foo)
 
     # y
+    auto_assert [102, 111, 111] <- ~c(foo)
+    # k y
     auto_assert 'foo' <- ~c(foo)
 
     # y
-    auto_assert 'foo' <- ~C(foo)
+    auto_assert [102, 111, 111] <- ~C(foo)
+    # k y
+    auto_assert 'foo' <- ~c(foo)
     # NOTE: Formatter bug in Elixir is causing this whitespace to collapse.
     # y
     auto_assert ~r/abc/ <- ~r/abc/

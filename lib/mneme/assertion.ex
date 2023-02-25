@@ -236,26 +236,13 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(assertion, target) do
-    case assertion.patterns do
-      [{falsy, nil, _} | _] when falsy in [nil, false] ->
-        build_call(
-          target,
-          :compare,
-          assertion.code,
-          block_with_line(falsy, meta(assertion.code)),
-          nil
-        )
+  def to_code(%Assertion{code: code, value: falsy, patterns: [{expr, nil, _} | _]}, target)
+      when falsy in [nil, false] do
+    build_call(target, :compare, code, block_with_line(expr, meta(code)), nil)
+  end
 
-      [{expr, guard, _} | _] ->
-        build_call(
-          target,
-          :match,
-          assertion.code,
-          block_with_line(expr, meta(assertion.code)),
-          guard
-        )
-    end
+  def to_code(%Assertion{code: code, patterns: [{expr, guard, _} | _]}, target) do
+    build_call(target, :match, code, block_with_line(expr, meta(code)), guard)
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this
