@@ -5,80 +5,10 @@ defmodule Mneme.Diff do
   @moduledoc false
 
   alias Mneme.Diff.AST
+  alias Mneme.Diff.Edge
+  alias Mneme.Diff.Vertex
   alias Mneme.Diff.Pathfinding
   alias Mneme.Diff.Zipper
-
-  defmodule Edge do
-    defstruct [:type, :kind, :side, :depth_difference]
-
-    @type t :: %Edge{
-            type: :novel | :unchanged,
-            kind: :branch | :leaf,
-            side: :left | :right,
-            depth_difference: non_neg_integer()
-          }
-
-    @doc "Construct an edge representing a novel node."
-    def novel(kind, side, depth_difference \\ 0) do
-      %Edge{type: :novel, kind: kind, side: side, depth_difference: depth_difference}
-    end
-
-    @doc "Construct an edge representing an unchanged node."
-    def unchanged(kind, depth_difference \\ 0) do
-      %Edge{type: :unchanged, kind: kind, depth_difference: depth_difference}
-    end
-
-    @doc "The cost of taking this edge."
-    def cost(edge)
-
-    def cost(%Edge{type: :unchanged, kind: :leaf, depth_difference: dd}), do: min(40, dd + 1)
-
-    def cost(%Edge{type: :unchanged, kind: :branch, depth_difference: dd}) do
-      100 + min(40, dd + 1)
-    end
-
-    def cost(%Edge{type: :novel}), do: 300
-  end
-
-  defmodule Vertex do
-    defstruct [:id, :left, :right]
-
-    @type t :: %Vertex{
-            id: integer(),
-            left: {:branch | :leaf, Zipper.t()},
-            right: {:branch | :leaf, Zipper.t()}
-          }
-
-    @doc false
-    def new(left, right) do
-      left = wrap(left)
-      right = wrap(right)
-
-      %Vertex{id: id(left, right), left: left, right: right}
-    end
-
-    defp id(left, right), do: :erlang.phash2({id(left), id(right)})
-    defp id(nil), do: :erlang.phash2(nil)
-
-    defp id({_, zipper}) do
-      zipper
-      |> Zipper.node()
-      |> elem(1)
-      |> Keyword.fetch!(:__id__)
-    end
-
-    defp wrap(nil), do: nil
-    defp wrap({:branch, _} = wrapped), do: wrapped
-    defp wrap({:leaf, _} = wrapped), do: wrapped
-
-    defp wrap(zipper) do
-      if zipper |> Zipper.node() |> Zipper.branch?() do
-        {:branch, zipper}
-      else
-        {:leaf, zipper}
-      end
-    end
-  end
 
   @doc """
   Returns the set of instructions to convert `left_code` to `right_code`.

@@ -1,5 +1,8 @@
 # Derived from Sourceror:
 # https://github.com/doorgan/sourceror/blob/main/lib/sourceror/zipper.ex
+#
+# We have to vendor this in in order to teach Zipper about the extended
+# AST defined in Mneme.Diff.AST.
 
 defmodule Mneme.Diff.Zipper do
   @moduledoc false
