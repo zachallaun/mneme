@@ -1,3 +1,6 @@
+# TODO:
+# - track depth_difference
+
 defmodule Mneme.Diff do
   @moduledoc false
 
@@ -78,41 +81,63 @@ defmodule Mneme.Diff do
   end
 
   @doc """
-  Find the shortest weighted path required to turn `left_code` into `right_code`.
+  Returns the set of instructions to convert `left_code` to `right_code`.
   """
-  def shortest_path!(left_code, right_code, summarize? \\ true) do
-    start = System.monotonic_time()
-
+  def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
     left = parse_to_zipper!(left_code)
     right = parse_to_zipper!(right_code)
+
+    {edges, _meta} = shortest_path(left, right)
+
+    diff_instructions(edges)
+  end
+
+  defp diff_instructions(edges) do
+    {left_acc, right_acc} =
+      for %Graph.Edge{label: edge, v1: vertex} <- edges,
+          %Vertex{left: left, right: right} = vertex,
+          reduce: {[], []} do
+        {left_acc, right_acc} ->
+          case edge do
+            %Edge{type: :novel, side: :left, kind: kind} ->
+              {[instruction(:del, kind, left |> elem(1) |> Zipper.node()) | left_acc], right_acc}
+
+            %Edge{type: :novel, side: :right, kind: kind} ->
+              {left_acc, [instruction(:ins, kind, right |> elem(1) |> Zipper.node()) | right_acc]}
+
+            %Edge{type: :unchanged} ->
+              {left_acc, right_acc}
+          end
+      end
+
+    [left: Enum.reverse(left_acc), right: Enum.reverse(right_acc)]
+  end
+
+  defp instruction(op, :leaf, {_, meta, value}) do
+    {op, value, Keyword.take(meta, [:line, :column])}
+  end
+
+  defp instruction(op, :branch, {call, meta, _}) do
+    {op, call, Keyword.take(meta, [:line, :column, :closing])}
+  end
+
+  @doc false
+  def shortest_path(left, right) do
     root = Vertex.new(left, right)
 
     graph =
       Graph.new(vertex_identifier: fn %Vertex{id: id} -> id end)
       |> Graph.add_vertex(root)
 
-    after_graph = System.monotonic_time()
-
+    start = System.monotonic_time()
     {graph, path} = Pathfinding.lazy_dijkstra(graph, root, &add_neighbors/2)
-
-    after_path = System.monotonic_time()
+    finish = System.monotonic_time()
 
     edges = to_edges(path, graph)
 
-    %{
-      result:
-        if summarize? do
-          summarize(edges)
-        else
-          edges
-        end,
-      graph: Graph.info(graph),
-      times: [
-        build_graph: System.convert_time_unit(after_graph - start, :native, :millisecond),
-        find_path: System.convert_time_unit(after_path - after_graph, :native, :millisecond),
-        total: System.convert_time_unit(after_path - start, :native, :millisecond)
-      ]
-    }
+    {edges,
+     graph: Graph.info(graph),
+     time_ms: System.convert_time_unit(finish - start, :native, :millisecond)}
   end
 
   defp to_edges([v1, v2 | rest], graph) do
@@ -121,34 +146,6 @@ defmodule Mneme.Diff do
   end
 
   defp to_edges([_last], _graph), do: []
-
-  defp summarize([edge | rest]) do
-    [summarize(edge) | summarize(rest)]
-  end
-
-  defp summarize([]), do: []
-
-  defp summarize(%Graph.Edge{label: edge, v1: v}) do
-    case {edge, v} do
-      {%{kind: :branch, type: :unchanged}, %{left: {_, left}}} ->
-        {:eq, left |> Zipper.node() |> elem(0)}
-
-      {%{kind: :leaf, type: :unchanged}, %{left: {_, left}}} ->
-        {:eq, left |> Zipper.node() |> elem(2)}
-
-      {%{kind: :branch, type: :novel, side: :left}, %{left: {_, left}}} ->
-        {:del, left |> Zipper.node() |> elem(0)}
-
-      {%{kind: :branch, type: :novel, side: :right}, %{right: {_, right}}} ->
-        {:ins, right |> Zipper.node() |> elem(0)}
-
-      {%{kind: :leaf, type: :novel, side: :left}, %{left: {_, left}}} ->
-        {:del, left |> Zipper.node() |> elem(2)}
-
-      {%{kind: :leaf, type: :novel, side: :right}, %{right: {_, right}}} ->
-        {:ins, right |> Zipper.node() |> elem(2)}
-    end
-  end
 
   defp parse_to_zipper!(code) when is_binary(code) do
     code
