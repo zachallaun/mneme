@@ -77,7 +77,9 @@ defmodule Mneme.Diff do
     end
   end
 
-  @doc false
+  @doc """
+  Find the shortest weighted path required to turn `left_code` into `right_code`.
+  """
   def shortest_path!(left_code, right_code, summarize? \\ true) do
     start = System.monotonic_time()
 
@@ -86,12 +88,7 @@ defmodule Mneme.Diff do
     root = Vertex.new(left, right)
 
     graph =
-      Graph.new(
-        vertex_identifier: fn
-          %Vertex{id: id} -> id
-          v -> :erlang.phash2(v)
-        end
-      )
+      Graph.new(vertex_identifier: fn %Vertex{id: id} -> id end)
       |> Graph.add_vertex(root)
 
     after_graph = System.monotonic_time()
