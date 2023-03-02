@@ -6,12 +6,20 @@ defmodule Mneme.Diff do
 
   alias Mneme.Diff.AST
   alias Mneme.Diff.Edge
-  alias Mneme.Diff.Vertex
+  alias Mneme.Diff.Formatter
   alias Mneme.Diff.Pathfinding
+  alias Mneme.Diff.Vertex
   alias Mneme.Diff.Zipper
 
   @doc """
-  Returns the set of instructions to convert `left_code` to `right_code`.
+  Formats `code` as `t:Owl.Data.t()` using the given instructions.
+  """
+  def format(code, instructions) when is_binary(code) do
+    Formatter.highlight(code, instructions)
+  end
+
+  @doc """
+  Returns a tuple of `{deletions, insertions}`.
   """
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
     left = parse_to_zipper!(left_code)
@@ -40,15 +48,25 @@ defmodule Mneme.Diff do
           end
       end
 
-    [left: Enum.reverse(left_acc), right: Enum.reverse(right_acc)]
+    {Enum.reverse(left_acc), Enum.reverse(right_acc)}
   end
 
-  defp instruction(op, :leaf, {_, meta, value}) do
-    {op, value, Keyword.take(meta, [:line, :column])}
+  defp instruction(op, :leaf, {type, meta, value}) do
+    {op, {type, value}, instruction_meta(meta)}
   end
 
   defp instruction(op, :branch, {call, meta, _}) do
-    {op, call, Keyword.take(meta, [:line, :column, :closing])}
+    {op, call, instruction_meta(meta)}
+  end
+
+  defp instruction_meta(meta) do
+    meta
+    |> Keyword.drop([:__id__, :__hash__])
+    |> Map.new()
+    |> case do
+      %{closing: closing} = map -> Map.put(map, :closing, Map.new(closing))
+      map -> map
+    end
   end
 
   @doc false
