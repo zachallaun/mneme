@@ -15,7 +15,7 @@ defmodule Mneme.Diff do
   Formats `code` as `t:Owl.Data.t()` using the given instructions.
   """
   def format(code, instructions) when is_binary(code) do
-    Formatter.highlight(code, instructions)
+    Formatter.highlight_lines(code, instructions)
   end
 
   @doc """
