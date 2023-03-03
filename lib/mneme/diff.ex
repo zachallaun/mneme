@@ -38,10 +38,10 @@ defmodule Mneme.Diff do
         {left_acc, right_acc} ->
           case edge do
             %Edge{type: :novel, side: :left, kind: kind} ->
-              {[instruction(:del, kind, left |> elem(1) |> Zipper.node()) | left_acc], right_acc}
+              {[instruction(:del, kind, left |> Zipper.node()) | left_acc], right_acc}
 
             %Edge{type: :novel, side: :right, kind: kind} ->
-              {left_acc, [instruction(:ins, kind, right |> elem(1) |> Zipper.node()) | right_acc]}
+              {left_acc, [instruction(:ins, kind, right |> Zipper.node()) | right_acc]}
 
             %Edge{type: :unchanged} ->
               {left_acc, right_acc}
@@ -171,14 +171,17 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp neighbor_maybe_unchanged_subtree(graph, %Vertex{left: {kind, l}, right: {kind, r}} = v) do
+  defp neighbor_maybe_unchanged_subtree(
+         graph,
+         %Vertex{left: l, right: r, left_branch?: branch?, right_branch?: branch?} = v
+       ) do
     if syntax_eq?(l, r) do
       {:ok,
        add_neighbor_edge(
          graph,
          v,
          Vertex.new(Zipper.skip(l), Zipper.skip(r)),
-         Edge.unchanged(kind)
+         Edge.unchanged(branch?)
        )}
     else
       :error
@@ -189,7 +192,7 @@ defmodule Mneme.Diff do
 
   defp neighbor_maybe_unchanged_branch_edge(
          graph,
-         %Vertex{left: {:branch, l}, right: {:branch, r}} = v
+         %Vertex{left: l, right: r, left_branch?: true, right_branch?: true} = v
        ) do
     case {Zipper.node(l), Zipper.node(r)} do
       {{branch, _, _}, {branch, _, _}} ->
@@ -197,7 +200,7 @@ defmodule Mneme.Diff do
           graph,
           v,
           Vertex.new(Zipper.next(l), Zipper.next(r)),
-          Edge.unchanged(:branch)
+          Edge.unchanged(true)
         )
 
       _ ->
@@ -207,19 +210,11 @@ defmodule Mneme.Diff do
 
   defp neighbor_maybe_unchanged_branch_edge(graph, _), do: graph
 
-  defp neighbor_left_edges(graph, %Vertex{left: {:leaf, l}} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(Zipper.next(l), v.right), Edge.novel(:leaf, :left))
+  defp neighbor_left_edges(graph, %Vertex{left: l, left_branch?: branch?} = v) do
+    add_neighbor_edge(graph, v, Vertex.new(Zipper.next(l), v.right), Edge.novel(branch?, :left))
   end
 
-  defp neighbor_left_edges(graph, %Vertex{left: {:branch, l}} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(Zipper.next(l), v.right), Edge.novel(:branch, :left))
-  end
-
-  defp neighbor_right_edges(graph, %Vertex{right: {:leaf, r}} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(v.left, Zipper.next(r)), Edge.novel(:leaf, :right))
-  end
-
-  defp neighbor_right_edges(graph, %Vertex{right: {:branch, r}} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(v.left, Zipper.next(r)), Edge.novel(:branch, :right))
+  defp neighbor_right_edges(graph, %Vertex{right: r, right_branch?: branch?} = v) do
+    add_neighbor_edge(graph, v, Vertex.new(v.left, Zipper.next(r)), Edge.novel(branch?, :right))
   end
 end

@@ -31,7 +31,7 @@ defmodule Mneme.Diff.Formatter do
 
   defp denormalize(instructions) do
     Enum.flat_map(instructions, fn
-      {op, {number, _}, %{token: token, line: l, column: c}} when number in [:int, :float] ->
+      {op, {_, _}, %{token: token, line: l, column: c}} ->
         [{op, {l, c}, String.length(token)}]
 
       {op, {:atom, atom}, %{line: l, column: c}} ->

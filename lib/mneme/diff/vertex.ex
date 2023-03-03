@@ -4,41 +4,37 @@ defmodule Mneme.Diff.Vertex do
   alias __MODULE__
   alias Mneme.Diff.Zipper
 
-  defstruct [:id, :left, :right]
+  defstruct [:id, :left, :left_branch?, :right, :right_branch?]
 
   @type t :: %Vertex{
           id: integer(),
-          left: {:branch | :leaf, Zipper.t()},
-          right: {:branch | :leaf, Zipper.t()}
+          left: Zipper.t(),
+          left_branch?: boolean(),
+          right: Zipper.t(),
+          right_branch?: boolean()
         }
 
   @doc false
   def new(left, right) do
-    left = wrap(left)
-    right = wrap(right)
-
-    %Vertex{id: id(left, right), left: left, right: right}
+    %Vertex{
+      id: id(left, right),
+      left: left,
+      left_branch?: branch?(left),
+      right: right,
+      right_branch?: branch?(right)
+    }
   end
 
   defp id(left, right), do: :erlang.phash2({id(left), id(right)})
   defp id(nil), do: :erlang.phash2(nil)
 
-  defp id({_, zipper}) do
+  defp id(zipper) do
     zipper
     |> Zipper.node()
     |> elem(1)
     |> Keyword.fetch!(:__id__)
   end
 
-  defp wrap(nil), do: nil
-  defp wrap({:branch, _} = wrapped), do: wrapped
-  defp wrap({:leaf, _} = wrapped), do: wrapped
-
-  defp wrap(zipper) do
-    if zipper |> Zipper.node() |> Zipper.branch?() do
-      {:branch, zipper}
-    else
-      {:leaf, zipper}
-    end
-  end
+  defp branch?(nil), do: false
+  defp branch?(zipper), do: zipper |> Zipper.node() |> Zipper.branch?()
 end

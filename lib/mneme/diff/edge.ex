@@ -13,13 +13,13 @@ defmodule Mneme.Diff.Edge do
         }
 
   @doc "Construct an edge representing a novel node."
-  def novel(kind, side, depth_difference \\ 0) do
-    %Edge{type: :novel, kind: kind, side: side, depth_difference: depth_difference}
+  def novel(branch?, side, depth_difference \\ 0) do
+    %Edge{type: :novel, kind: kind(branch?), side: side, depth_difference: depth_difference}
   end
 
   @doc "Construct an edge representing an unchanged node."
-  def unchanged(kind, depth_difference \\ 0) do
-    %Edge{type: :unchanged, kind: kind, depth_difference: depth_difference}
+  def unchanged(branch?, depth_difference \\ 0) do
+    %Edge{type: :unchanged, kind: kind(branch?), depth_difference: depth_difference}
   end
 
   @doc "The cost of taking this edge."
@@ -32,4 +32,8 @@ defmodule Mneme.Diff.Edge do
   end
 
   def cost(%Edge{type: :novel}), do: 300
+
+  defp kind(branch?)
+  defp kind(true), do: :branch
+  defp kind(false), do: :leaf
 end
