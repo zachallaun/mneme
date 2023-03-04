@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.1.6 (2023-03-04)
+
+### Enhancements
+
+  * Improved compile-time error message when `auto_assert` is used outside of a `test` block ([#9](https://github.com/zachallaun/mneme/issues/9)).
+
 ## v0.1.5 (2023-02-25)
 
 ### Enhancements
