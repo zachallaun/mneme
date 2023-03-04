@@ -19,5 +19,20 @@ defmodule MnemeTest do
 
       assert %{left: :foo, right: :bar, message: "match (=) failed"} = error
     end
+
+    test "raises at compile-time if called outside of a test" do
+      code = """
+      defmodule MnemeCompileExceptionTest do
+        use ExUnit.Case
+        use Mneme
+
+        auto_assert :foo
+      end
+      """
+
+      assert_raise Mneme.CompileError, "auto_assert can only be used inside of a test", fn ->
+        Code.eval_string(code)
+      end
+    end
   end
 end

@@ -351,7 +351,18 @@ defmodule Mneme do
           pid # pid is the result of self()
   """
   defmacro auto_assert(body) do
+    ensure_in_test!(:auto_assert, __CALLER__)
+
     code = {:auto_assert, Macro.Env.location(__CALLER__), [body]}
     Mneme.Assertion.build(code, __CALLER__)
+  end
+
+  defp ensure_in_test!(call, caller) do
+    with {fun_name, 1} <- caller.function,
+         "test " <> _ <- to_string(fun_name) do
+      :ok
+    else
+      _ -> raise Mneme.CompileError, message: "#{call} can only be used inside of a test"
+    end
   end
 end

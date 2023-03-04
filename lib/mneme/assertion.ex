@@ -1,7 +1,3 @@
-defmodule Mneme.AssertionError do
-  defexception [:message]
-end
-
 defmodule Mneme.Assertion do
   @moduledoc false
 
