@@ -16,9 +16,9 @@ defmodule Mneme.Diff.AST do
   defguard is_valid_sigil(letter) when letter in ?a..?z or letter in ?A..?Z
 
   @doc """
-  Parse Elixir code into an enriched AST. Like `parse/1`, but raises on error.
+  Parse Elixir code into an enriched AST.
   """
-  def parse!(string) do
+  def parse_string!(string) do
     with {quoted, _comments} <- Sourceror.string_to_quoted!(string, to_quoted_opts()) do
       normalize_nodes(quoted)
     end
@@ -197,8 +197,11 @@ defmodule Mneme.Diff.AST do
     {form, normalize_metadata(metadata), args}
   end
 
-  defp normalize_node({{_, metadata, _} = k, v}) do
-    {:{}, normalize_metadata(metadata), [k, v]}
+  defp normalize_node({left, right}) do
+    {_, left_meta, _} = left
+
+    metadata = [line: left_meta[:line], column: left_meta[:column]]
+    {:{}, normalize_metadata(metadata), [left, right]}
   end
 
   defp normalize_node(quoted), do: quoted

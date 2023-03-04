@@ -76,27 +76,28 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats map key insertion" do
-      auto_assert {nil,
-                   [
-                     [
-                       "%{foo: 1, ",
-                       %Tag{data: "bar:", sequences: [:green]},
-                       " ",
-                       %Tag{data: "2", sequences: [:green]},
-                       "}"
-                     ]
-                   ]} <- format("%{foo: 1}", "%{foo: 1, bar: 2}")
+      auto_assert {nil, [["%{foo: 1, ", %Tag{data: "bar: 2", sequences: [:green]}, "}"]]} <-
+                    format("%{foo: 1}", "%{foo: 1, bar: 2}")
 
       auto_assert {nil,
                    [
                      [
                        "%{:foo => 1, ",
-                       %Tag{data: "2", sequences: [:green]},
-                       " => ",
-                       %Tag{data: ":bar", sequences: [:green]},
-                       "}"
+                       %Tag{data: "2 => :bar", sequences: [:green]},
+                       ", :baz => 3}"
                      ]
-                   ]} <- format("%{foo: 1}", "%{:foo => 1, 2 => :bar}")
+                   ]} <- format("%{foo: 1, baz: 3}", "%{:foo => 1, 2 => :bar, :baz => 3}")
+    end
+
+    test "formats entire collections" do
+      auto_assert {nil, [["[x, ", %Tag{data: "[y, z]", sequences: [:green]}, "]"]]} <-
+                    format("[x]", "[x, [y, z]]")
+
+      auto_assert {nil, [["[x, ", %Tag{data: "%{y: 1}", sequences: [:green]}, "]"]]} <-
+                    format("[x]", "[x, %{y: 1}]")
+
+      auto_assert {nil, [["[x, ", %Tag{data: "%{:y => 1}", sequences: [:green]}, "]"]]} <-
+                    format("[x]", "[x, %{:y => 1}]")
     end
 
     defp format(left, right) do

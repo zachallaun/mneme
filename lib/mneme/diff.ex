@@ -27,10 +27,15 @@ defmodule Mneme.Diff do
 
     {edges, _meta} = shortest_path(left, right)
 
-    diff_instructions(edges)
+    {left_novels, right_novels} = split_novels(edges)
+
+    {
+      left_novels |> coalesce() |> Enum.map(&instruction(:del, &1)),
+      right_novels |> coalesce() |> Enum.map(&instruction(:ins, &1))
+    }
   end
 
-  defp diff_instructions(edges) do
+  defp split_novels(edges) do
     {left_acc, right_acc} =
       for %Graph.Edge{label: edge, v1: vertex} <- edges,
           %Vertex{left: left, right: right} = vertex,
@@ -38,10 +43,10 @@ defmodule Mneme.Diff do
         {left_acc, right_acc} ->
           case edge do
             %Edge{type: :novel, side: :left, kind: kind} ->
-              {[instruction(:del, kind, left |> Zipper.node()) | left_acc], right_acc}
+              {[{kind, left} | left_acc], right_acc}
 
             %Edge{type: :novel, side: :right, kind: kind} ->
-              {left_acc, [instruction(:ins, kind, right |> Zipper.node()) | right_acc]}
+              {left_acc, [{kind, right} | right_acc]}
 
             %Edge{type: :unchanged} ->
               {left_acc, right_acc}
@@ -51,23 +56,87 @@ defmodule Mneme.Diff do
     {Enum.reverse(left_acc), Enum.reverse(right_acc)}
   end
 
-  defp instruction(op, :leaf, {type, meta, value}) do
-    {op, {type, value}, instruction_meta(meta)}
+  defp instruction(op, {node_or_delimiter, zipper}) do
+    {call, meta, args} = Zipper.node(zipper)
+    {op, node_or_delimiter, {call, meta, args}}
   end
 
-  defp instruction(op, :branch, {call, meta, _}) do
-    {op, call, instruction_meta(meta)}
+  defp coalesce(all_novels) do
+    novel_node_ids =
+      for {:leaf, zipper} <- all_novels do
+        get_id(zipper)
+      end
+      |> MapSet.new()
+
+    novel_node_ids =
+      for {:branch, zipper} <- all_novels, reduce: novel_node_ids do
+        ids -> maybe_put_novel(Zipper.node(zipper), ids)
+      end
+
+    Enum.flat_map(all_novels, fn
+      {type, zipper} ->
+        cond do
+          get_parent_id(zipper) in novel_node_ids ->
+            []
+
+          type == :leaf ->
+            [{:node, zipper}]
+
+          all_descendant_ids_in(zipper, novel_node_ids) ->
+            [{:node, zipper}]
+
+          true ->
+            [{:delimiter, zipper}]
+        end
+    end)
   end
 
-  defp instruction_meta(meta) do
-    meta
-    |> Keyword.drop([:__id__, :__hash__])
-    |> Map.new()
-    |> case do
-      %{closing: closing} = map -> Map.put(map, :closing, Map.new(closing))
-      map -> map
+  defp all_descendant_ids_in(zipper, ids) do
+    zipper
+    |> Zipper.node()
+    |> descendant_ids()
+    |> Enum.all?(&(&1 in ids))
+  end
+
+  defp descendant_ids({_, _, args}) do
+    for {_, meta, _} <- args do
+      Keyword.fetch!(meta, :__id__)
     end
   end
+
+  defp get_id({_, _} = zipper) do
+    zipper
+    |> Zipper.node()
+    |> get_id()
+  end
+
+  defp get_id({_, meta, _}) do
+    Keyword.fetch!(meta, :__id__)
+  end
+
+  defp get_id(_), do: nil
+
+  defp get_parent_id(zipper) do
+    zipper
+    |> Zipper.up()
+    |> get_id()
+  end
+
+  defp maybe_put_novel({_, _, args} = node, ids) when is_list(args) do
+    {all_novel?, ids} =
+      Enum.reduce(args, {true, ids}, fn node, {all_novel?, ids} ->
+        ids = maybe_put_novel(node, ids)
+        {all_novel? && get_id(node) in ids, ids}
+      end)
+
+    if all_novel? do
+      MapSet.put(ids, get_id(node))
+    else
+      ids
+    end
+  end
+
+  defp maybe_put_novel(_, ids), do: ids
 
   @doc false
   def shortest_path(left, right) do
@@ -97,7 +166,7 @@ defmodule Mneme.Diff do
 
   defp parse_to_zipper!(code) when is_binary(code) do
     code
-    |> AST.parse!()
+    |> AST.parse_string!()
     |> AST.postwalk(0, fn quoted, i ->
       hash = hash(quoted)
 
