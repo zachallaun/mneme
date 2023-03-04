@@ -269,9 +269,10 @@ defmodule Mneme do
 
   ## Options
 
-    * `:restart` - Restarts Mneme if it has previously been started.
-      This option enables certain IEx-based testing workflows that allow
-      tests to be run without a startup penalty.
+    * `:restart` (boolean) - Restarts Mneme if it has previously been
+      started. This option enables certain IEx-based testing workflows
+      that allow tests to be run without a startup penalty. Defaults to
+      `false`.
   """
   def start(opts \\ []) do
     ExUnit.configure(
