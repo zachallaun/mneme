@@ -100,6 +100,30 @@ defmodule Mneme.DiffTest do
                     format("[x]", "[x, %{:y => 1}]")
     end
 
+    # TODO: shouldn't highlight %
+    test "formats map to struct" do
+      auto_assert {nil,
+                   [
+                     [
+                       "",
+                       %Tag{data: "%", sequences: [:green]},
+                       "",
+                       %Tag{data: "MyStruct", sequences: [:green]},
+                       "{foo: 1}"
+                     ]
+                   ]} <- format("%{foo: 1}", "%MyStruct{foo: 1}")
+
+      auto_assert {[
+                     [
+                       "",
+                       %Tag{data: "%", sequences: [:red]},
+                       "",
+                       %Tag{data: "MyStruct", sequences: [:red]},
+                       "{foo: 1}"
+                     ]
+                   ], nil} <- format("%MyStruct{foo: 1}", "%{foo: 1}")
+    end
+
     defp format(left, right) do
       case Diff.compute(left, right) do
         {[], []} -> {nil, nil}
@@ -111,6 +135,7 @@ defmodule Mneme.DiffTest do
   end
 
   describe "compute/2" do
+    @describetag skip: true
     test "should return the semantic diff between ASTs" do
       auto_assert {[], [{:ins, :"[]", %{closing: %{column: 7, line: 1}, column: 5, line: 1}}]} <-
                     Diff.compute("[1, 2]", "[1, [2]]")

@@ -1,6 +1,8 @@
 defmodule Mneme.Diff.Formatter do
   @moduledoc false
 
+  alias Mneme.Diff.Zipper
+
   @doc """
   Highlights the given code based on the instructions.
   """
@@ -9,7 +11,7 @@ defmodule Mneme.Diff.Formatter do
     [last_line | rest] = lines
 
     instructions
-    |> denormalize()
+    |> denormalize_all()
     |> do_highlight(length(lines), last_line, rest)
   end
 
@@ -29,34 +31,44 @@ defmodule Mneme.Diff.Formatter do
     do_highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc])
   end
 
-  defp denormalize(instructions) do
+  defp denormalize_all(instructions) do
     instructions
-    |> Stream.map(fn {op, type, node} -> {op, type, with_map_meta(node)} end)
-    |> Enum.flat_map(fn
-      {op, :node, {:{}, tuple_meta, [left, right]} = node} ->
-        case tuple_meta do
-          %{closing: _} ->
-            [{op, bounds(node)}]
-
-          _ ->
-            {lc1, _} = bounds(left)
-            {_, lc2} = bounds(right)
-            [{op, {lc1, lc2}}]
-        end
-
-      {op, :node, node} ->
-        [{op, bounds(node)}]
-
-      {op, :delimiter, {:"[]", meta, _}} ->
-        denormalize_delimiter(op, meta, 1, 1)
-
-      {op, :delimiter, {:{}, meta, _}} ->
-        denormalize_delimiter(op, meta, 1, 1)
-
-      {op, :delimiter, {:%{}, meta, _}} ->
-        denormalize_delimiter(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
+    |> Enum.flat_map(fn {op, type, zipper} ->
+      denormalize(type, op, zipper |> Zipper.node() |> with_map_meta(), zipper)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
+  end
+
+  defp denormalize(:node, op, {:{}, tuple_meta, [left, right]} = node, _) do
+    case tuple_meta do
+      %{closing: _} ->
+        [{op, bounds(node)}]
+
+      _ ->
+        {lc1, _} = bounds(left)
+        {_, lc2} = bounds(right)
+        [{op, {lc1, lc2}}]
+    end
+  end
+
+  defp denormalize(:node, op, node, _) do
+    [{op, bounds(node)}]
+  end
+
+  defp denormalize(:delimiter, op, {:%, %{line: l, column: c}, _}, _) do
+    [{op, {{l, c}, {l, c + 1}}}]
+  end
+
+  defp denormalize(:delimiter, op, {:"[]", meta, _}, _) do
+    denormalize_delimiter(op, meta, 1, 1)
+  end
+
+  defp denormalize(:delimiter, op, {:{}, meta, _}, _) do
+    denormalize_delimiter(op, meta, 1, 1)
+  end
+
+  defp denormalize(:delimiter, op, {:%{}, meta, _}, _) do
+    denormalize_delimiter(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
   end
 
   defp denormalize_delimiter(op, meta, start_len, end_len) do
@@ -92,6 +104,12 @@ defmodule Mneme.Diff.Formatter do
     atom_bounds(:literal, atom, l, c)
   end
 
+  defp bounds({:__aliases__, %{line: l, column: c}, atoms}) do
+    unwrapped = for {:atom, _, atom} <- atoms, do: atom
+    len = {:__aliases__, [], unwrapped} |> Macro.to_string() |> String.length()
+    {{l, c}, {l, c + len}}
+  end
+
   defp bounds(unimplemented) do
     raise ArgumentError, "bounds unimplemented for: #{inspect(unimplemented)}"
   end
@@ -105,11 +123,16 @@ defmodule Mneme.Diff.Formatter do
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
 
   defp with_map_meta(node) do
+    # TODO: refactor
     Macro.update_meta(node, fn meta ->
       meta
       |> Map.new()
       |> case do
         %{closing: _} = map -> Map.update!(map, :closing, &Map.new/1)
+        map -> map
+      end
+      |> case do
+        %{last: _} = map -> Map.update!(map, :last, &Map.new/1)
         map -> map
       end
     end)

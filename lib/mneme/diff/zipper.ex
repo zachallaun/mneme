@@ -51,16 +51,12 @@ defmodule Mneme.Diff.Zipper do
   Returns a new branch node, given an existing node and new children.
   """
   @spec make_node(tree, [tree]) :: tree
-
   def make_node({form, meta, _}, args) when is_atom(form), do: {form, meta, args}
   def make_node({{:<<>>, type}, meta, _}, args), do: {{:<<>>, type}, meta, args}
   def make_node({:"[]", meta, _}, args), do: {:"[]", meta, args}
-
   def make_node({_form, meta, args}, [first | rest]) when is_list(args), do: {first, meta, rest}
-
   def make_node({_, _}, [left, right]), do: {left, right}
   def make_node({_, _}, args), do: {:{}, [], args}
-
   def make_node(list, children) when is_list(list), do: children
 
   @doc """
@@ -87,6 +83,7 @@ defmodule Mneme.Diff.Zipper do
   """
   @spec node(zipper) :: tree
   def node({tree, _}), do: tree
+  def node(nil), do: nil
 
   @doc """
   Returns the zipper of the leftmost child of the node at this zipper, or
@@ -108,6 +105,8 @@ defmodule Mneme.Diff.Zipper do
     end
   end
 
+  def down(nil), do: nil
+
   @doc """
   Returns the zipper of the parent of the node at this zipper, or nil if at the
   top.
@@ -120,6 +119,8 @@ defmodule Mneme.Diff.Zipper do
     {parent, parent_meta} = meta.ptree
     {make_node(parent, children), parent_meta}
   end
+
+  def up(nil), do: nil
 
   @doc """
   Returns the zipper of the left sibling of the node at this zipper, or nil.

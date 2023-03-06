@@ -57,8 +57,7 @@ defmodule Mneme.Diff do
   end
 
   defp instruction(op, {node_or_delimiter, zipper}) do
-    {call, meta, args} = Zipper.node(zipper)
-    {op, node_or_delimiter, {call, meta, args}}
+    {op, node_or_delimiter, zipper}
   end
 
   defp coalesce(all_novels) do
