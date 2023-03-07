@@ -75,6 +75,11 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
+  defp denormalize(:delimiter, op, {call, %{line: l, column: c}, _}, _) do
+    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+    [{op, {{l, c}, {l, c + len}}}]
+  end
+
   defp denormalize_delimiter(op, meta, start_len, end_len) do
     case meta do
       %{line: l, column: c, closing: %{line: l2, column: c2}} ->

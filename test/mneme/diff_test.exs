@@ -111,6 +111,19 @@ defmodule Mneme.DiffTest do
                     format("%MyStruct{foo: 1}", "%{foo: 1}")
     end
 
+    test "formats calls" do
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert :foo ",
+                       %Tag{data: "<-", sequences: [:green]},
+                       " ",
+                       %Tag{data: ":foo", sequences: [:green]},
+                       ""
+                     ]
+                   ]} <- format("auto_assert :foo", "auto_assert :foo <- :foo")
+    end
+
     defp format(left, right) do
       case Diff.compute(left, right) do
         {[], []} ->
