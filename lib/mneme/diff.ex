@@ -12,9 +12,21 @@ defmodule Mneme.Diff do
   alias Mneme.Diff.Zipper
 
   @doc """
+  Formats `left` and `right` as `t:Owl.Data.t()`.
+  """
+  def format(left, right) do
+    case compute(left, right) do
+      {[], []} -> {nil, nil}
+      {[], ins} -> {nil, format_lines(right, ins)}
+      {del, []} -> {format_lines(left, del), nil}
+      {del, ins} -> {format_lines(left, del), format_lines(right, ins)}
+    end
+  end
+
+  @doc """
   Formats `code` as `t:Owl.Data.t()` using the given instructions.
   """
-  def format(code, instructions) when is_binary(code) do
+  def format_lines(code, instructions) when is_binary(code) do
     Formatter.highlight_lines(code, instructions)
   end
 

@@ -57,8 +57,13 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp prompt_change(source, assertion, %{action: :prompt, prompter: prompter}, prompt_state) do
-    prompter.prompt!(source, assertion, prompt_state)
+  defp prompt_change(
+         source,
+         assertion,
+         %{action: :prompt, prompter: prompter} = opts,
+         prompt_state
+       ) do
+    prompter.prompt!(source, assertion, opts, prompt_state)
   end
 
   defp prompt_change(_, _, %{action: action}, _), do: {action, nil}

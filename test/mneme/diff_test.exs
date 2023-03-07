@@ -113,10 +113,17 @@ defmodule Mneme.DiffTest do
 
     defp format(left, right) do
       case Diff.compute(left, right) do
-        {[], []} -> {nil, nil}
-        {[], insertions} -> {nil, Diff.format(right, insertions)}
-        {deletions, []} -> {Diff.format(left, deletions), nil}
-        {deletions, insertions} -> {Diff.format(left, deletions), Diff.format(right, insertions)}
+        {[], []} ->
+          {nil, nil}
+
+        {[], insertions} ->
+          {nil, Diff.format_lines(right, insertions)}
+
+        {deletions, []} ->
+          {Diff.format_lines(left, deletions), nil}
+
+        {deletions, insertions} ->
+          {Diff.format_lines(left, deletions), Diff.format_lines(right, insertions)}
       end
     end
   end

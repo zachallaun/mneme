@@ -15,8 +15,8 @@ defmodule Mneme.Prompter.Terminal do
   @arrow_right_car "❯"
 
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion, _prompt_state) do
-    message = message(source, assertion)
+  def prompt!(%Source{} = source, %Assertion{} = assertion, opts, _prompt_state) do
+    message = message(source, assertion, opts)
 
     Owl.IO.puts(["\n\n", message])
     result = input()
@@ -25,7 +25,7 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion) do
+  def message(source, %Assertion{type: type} = assertion, _opts) do
     notes = Assertion.notes(assertion)
     pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
