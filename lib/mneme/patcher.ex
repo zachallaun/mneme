@@ -87,11 +87,27 @@ defmodule Mneme.Patcher do
       |> Map.put(:code, Zipper.node(zipper))
       |> Assertion.regenerate_code(opts.target, opts.default_pattern)
 
-    new_zipper = zipper_update_with_meta(zipper, assertion.code)
+    ast =
+      zipper
+      |> zipper_update_with_meta(assertion.code)
+      |> Zipper.root()
+      |> escape_newlines()
 
-    ast = new_zipper |> Zipper.root() |> escape_newlines()
+    source =
+      source
+      |> Source.update(:mneme, ast: ast)
+      |> Source.put_private(:diff, %{
+        left: zipper |> Zipper.node() |> format_node(),
+        right: assertion.code |> format_node()
+      })
 
     {Source.update(source, :mneme, ast: ast), assertion}
+  end
+
+  defp format_node(node) do
+    node
+    |> Source.from_ast()
+    |> Source.code()
   end
 
   defp zipper_update_with_meta(zipper, {:__block__, _, [{call1, _, args1}, {call2, _, args2}]}) do

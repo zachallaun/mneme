@@ -25,7 +25,7 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion, _opts \\ %{}) do
+  def message(source, %Assertion{type: type} = assertion, opts \\ %{}) do
     notes = Assertion.notes(assertion)
     pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
@@ -33,7 +33,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       header_tag(assertion),
       "\n",
-      diff(source),
+      diff(opts.diff, source),
       notes_tag(notes),
       "\n",
       explanation_tag(type),
@@ -75,7 +75,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp normalize_gets(_), do: nil
 
-  defp diff(source) do
+  defp diff(:text, source) do
     Rewrite.TextDiff.format(
       source |> Source.code(Source.version(source) - 1) |> eof_newline(),
       source |> Source.code() |> eof_newline(),
@@ -92,6 +92,29 @@ defmodule Mneme.Prompter.Terminal do
       ],
       colorizer: &tag/2
     )
+  end
+
+  defp diff(:semantic, source) do
+    with %{left: left, right: right} <- source.private[:diff] do
+      case Mneme.Diff.format(left, right) do
+        {nil, nil} ->
+          diff(:text, source)
+
+        {nil, ins} ->
+          Owl.Data.unlines(ins)
+
+        {del, nil} ->
+          Owl.Data.unlines(del)
+
+        {del, ins} ->
+          [
+            del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red)),
+            ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
+          ]
+      end
+    else
+      _ -> diff(:text, source)
+    end
   end
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"

@@ -29,11 +29,13 @@ defmodule Mneme.Options do
       """
     ],
     diff: [
-      type: {:in, [:myers, :semantic]},
-      default: :myers,
+      type: {:in, [:text, :semantic]},
+      default: :text,
       doc: """
       Controls the diff engine used to display changes when an auto-assertion
-      updates.
+      updates. Text diffs use the Myers Difference algorithm to highlight all
+      changes in text, whereas semantic diffs attempt to highlight only
+      meaningful changes in the value.
       """
     ]
   ]

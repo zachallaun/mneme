@@ -22,6 +22,39 @@ defmodule Mneme.DiffTest do
                     format("[]", "[:foo]")
     end
 
+    test "formats strings" do
+      auto_assert {[["", %Tag{data: "\"foo\"", sequences: [:red]}, ""]],
+                   [["", %Tag{data: "\"bar\"", sequences: [:green]}, ""]]} <-
+                    format(~s("foo"), ~s("bar"))
+
+      auto_assert {[
+                     ["", %Tag{data: "\"\"\"", sequences: [:red]}, ""],
+                     %Tag{data: "foo", sequences: [:red]},
+                     %Tag{data: "bar", sequences: [:red]},
+                     [%Tag{data: "\"\"\"", sequences: [:red]}, ""],
+                     [[]]
+                   ],
+                   [
+                     ["", %Tag{data: "\"\"\"", sequences: [:green]}, ""],
+                     %Tag{data: "baz", sequences: [:green]},
+                     [%Tag{data: "\"\"\"", sequences: [:green]}, ""],
+                     [[]]
+                   ]} <-
+                    format(
+                      """
+                      \"""
+                      foo
+                      bar
+                      \"""
+                      """,
+                      """
+                      \"""
+                      baz
+                      \"""
+                      """
+                    )
+    end
+
     test "formats integer insertions" do
       auto_assert {nil, [["[1, ", %Tag{data: "2_000", sequences: [:green]}, "]"]]} <-
                     format("[1]", "[1, 2_000]")
@@ -101,6 +134,35 @@ defmodule Mneme.DiffTest do
 
       auto_assert {nil, [["[x, ", %Tag{data: "%MyStruct{foo: 1}", sequences: [:green]}, "]"]]} <-
                     format("[x]", "[x, %MyStruct{foo: 1}]")
+
+      auto_assert {[
+                     ["", %Tag{data: "[", sequences: [:red]}],
+                     %Tag{data: "  foo: 1,", sequences: [:red]},
+                     %Tag{data: "  bar: 2", sequences: [:red]},
+                     [%Tag{data: "]", sequences: [:red]}, ""],
+                     [[]]
+                   ],
+                   [
+                     ["", %Tag{data: "%{", sequences: [:green]}],
+                     %Tag{data: "  baz: 3,", sequences: [:green]},
+                     %Tag{data: "  buzz: 4", sequences: [:green]},
+                     [%Tag{data: "}", sequences: [:green]}, ""],
+                     [[]]
+                   ]} <-
+                    format(
+                      """
+                      [
+                        foo: 1,
+                        bar: 2
+                      ]
+                      """,
+                      """
+                      %{
+                        baz: 3,
+                        buzz: 4
+                      }
+                      """
+                    )
     end
 
     test "formats map to struct" do
@@ -109,9 +171,38 @@ defmodule Mneme.DiffTest do
 
       auto_assert {[["%", %Tag{data: "MyStruct", sequences: [:red]}, "{foo: 1}"]], nil} <-
                     format("%MyStruct{foo: 1}", "%{foo: 1}")
+
+      auto_assert {[
+                     "%{",
+                     "  foo: 1,",
+                     ["  ", %Tag{data: "bar:", sequences: [:red]}, " 2"],
+                     ["}"],
+                     [[]]
+                   ],
+                   [
+                     ["%", %Tag{data: "MyStruct", sequences: [:green]}, "{"],
+                     ["  foo: 1,"],
+                     ["  ", %Tag{data: "baz:", sequences: [:green]}, " 2"],
+                     ["}"],
+                     [[]]
+                   ]} <-
+                    format(
+                      """
+                      %{
+                        foo: 1,
+                        bar: 2
+                      }
+                      """,
+                      """
+                      %MyStruct{
+                        foo: 1,
+                        baz: 2
+                      }
+                      """
+                    )
     end
 
-    test "formats calls" do
+    test "formats calls without parens" do
       auto_assert {nil,
                    [
                      [
@@ -141,6 +232,19 @@ defmodule Mneme.DiffTest do
                       "auto_assert Function.identity(false)",
                       "auto_refute Function.identity(false)"
                     )
+    end
+
+    test "formats calls with parens" do
+      auto_assert {nil,
+                   [
+                     [
+                       "",
+                       %Tag{data: "foo(", sequences: [:green]},
+                       "x",
+                       %Tag{data: ")", sequences: [:green]},
+                       ""
+                     ]
+                   ]} <- format("x", "foo(x)")
     end
 
     test "formats pins" do

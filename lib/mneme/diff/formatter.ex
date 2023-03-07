@@ -3,6 +3,8 @@ defmodule Mneme.Diff.Formatter do
 
   alias Mneme.Diff.Zipper
 
+  @re_newline ~r/\n|\r\n/
+
   @doc """
   Highlights the given code based on the instructions.
   """
@@ -21,10 +23,35 @@ defmodule Mneme.Diff.Formatter do
     Enum.reverse(earlier_lines) ++ [[current_line | line_acc] | acc]
   end
 
+  # single-line highlight
   defp do_highlight([{op, {{l, c}, {l, c2}}} | rest], l, line, earlier, line_acc, acc) do
     {start_line, rest_line} = String.split_at(line, c2 - 1)
     {start_line, token} = String.split_at(start_line, c - 1)
     do_highlight(rest, l, start_line, earlier, [tag(token, op), rest_line | line_acc], acc)
+  end
+
+  # bottom of a multi-line highlight
+  defp do_highlight(
+         [{op, {{l, _}, {l2, c2}}} | _] = hl,
+         l2,
+         line,
+         earlier,
+         line_acc,
+         acc
+       )
+       when l2 > l do
+    {token, rest_line} = String.split_at(line, c2 - 1)
+    lines = earlier |> Enum.take(l2 - l - 1) |> Enum.reverse() |> Enum.map(&tag(&1, op))
+    [next | rest_earlier] = earlier |> Enum.drop(l2 - l - 1)
+    acc = lines ++ [[tag(token, op), rest_line | line_acc] | acc]
+
+    do_highlight(hl, l, next, rest_earlier, [], acc)
+  end
+
+  # top of a multi-line highlight
+  defp do_highlight([{op, {{l, c}, _}} | rest], l, line, earlier, [], acc) do
+    {start_line, token} = String.split_at(line, c - 1)
+    do_highlight(rest, l, start_line, earlier, [tag(token, op)], acc)
   end
 
   defp do_highlight(instructions, l, line, [next | rest_earlier], line_acc, acc) do
@@ -75,6 +102,16 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
+  defp denormalize(
+         :delimiter,
+         op,
+         {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _},
+         _
+       ) do
+    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+    [{op, {{l, c}, {l, c + len + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+  end
+
   defp denormalize(:delimiter, op, {call, %{line: l, column: c}, _}, _) do
     len = Macro.inspect_atom(:remote_call, call) |> String.length()
     [{op, {{l, c}, {l, c + len}}}]
@@ -108,6 +145,16 @@ defmodule Mneme.Diff.Formatter do
 
   defp bounds({_, %{token: token, line: l, column: c}, _}) do
     {{l, c}, {l, c + String.length(token)}}
+  end
+
+  defp bounds({:string, %{line: l, column: c, delimiter: ~s(")}, string}) do
+    len = String.length(string)
+    {{l, c}, {l, c + len + 2}}
+  end
+
+  defp bounds({:string, %{line: l, column: c, delimiter: ~s("""), indentation: indent}, string}) do
+    n_lines = string |> String.replace_suffix("\n", "") |> String.split(@re_newline) |> length()
+    {{l, c}, {l + n_lines + 1, indent + 4}}
   end
 
   defp bounds({:atom, %{format: :keyword, line: l, column: c}, atom}) do
