@@ -123,8 +123,18 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats entire collections" do
-      auto_assert {nil, [["[x, ", %Tag{data: "[y, z]", sequences: [:green]}, "]"]]} <-
-                    format("[x]", "[x, [y, z]]")
+      auto_assert {nil,
+                   [
+                     [
+                       "[a, ",
+                       %Tag{data: "[y, z]", sequences: [:green]},
+                       ", ",
+                       %Tag{data: "[:foo, :bar]", sequences: [:green]},
+                       ", ",
+                       %Tag{data: "[:baz]", sequences: [:green]},
+                       "]"
+                     ]
+                   ]} <- format("[a]", "[a, [y, z], [:foo, :bar], [:baz]]")
 
       auto_assert {nil, [["[x, ", %Tag{data: "%{y: 1}", sequences: [:green]}, "]"]]} <-
                     format("[x]", "[x, %{y: 1}]")
@@ -167,7 +177,7 @@ defmodule Mneme.DiffTest do
 
     test "formats map to struct" do
       auto_assert {nil, [["%", %Tag{data: "MyStruct", sequences: [:green]}, "{foo: 1}"]]} <-
-                    format("%{foo: 1}", "%MyStruct{foo: 1}")
+                    format("%{bar: 1}", "%MyStruct{bar: 1}")
 
       auto_assert {[["%", %Tag{data: "MyStruct", sequences: [:red]}, "{foo: 1}"]], nil} <-
                     format("%MyStruct{foo: 1}", "%{foo: 1}")

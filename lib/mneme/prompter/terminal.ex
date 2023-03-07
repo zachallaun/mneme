@@ -101,15 +101,17 @@ defmodule Mneme.Prompter.Terminal do
           diff(:text, source)
 
         {nil, ins} ->
-          Owl.Data.unlines(ins)
+          [Owl.Data.unlines(ins), "\n"]
 
         {del, nil} ->
-          Owl.Data.unlines(del)
+          [Owl.Data.unlines(del), "\n"]
 
         {del, ins} ->
           [
-            del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red)),
-            ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
+            del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("-  ", :red)),
+            "\n\n",
+            ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("+  ", :green)),
+            "\n"
           ]
       end
     else
