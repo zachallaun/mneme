@@ -98,30 +98,17 @@ defmodule Mneme.DiffTest do
 
       auto_assert {nil, [["[x, ", %Tag{data: "%{:y => 1}", sequences: [:green]}, "]"]]} <-
                     format("[x]", "[x, %{:y => 1}]")
+
+      auto_assert {nil, [["[x, ", %Tag{data: "%MyStruct{foo: 1}", sequences: [:green]}, "]"]]} <-
+                    format("[x]", "[x, %MyStruct{foo: 1}]")
     end
 
-    # TODO: shouldn't highlight %
     test "formats map to struct" do
-      auto_assert {nil,
-                   [
-                     [
-                       "",
-                       %Tag{data: "%", sequences: [:green]},
-                       "",
-                       %Tag{data: "MyStruct", sequences: [:green]},
-                       "{foo: 1}"
-                     ]
-                   ]} <- format("%{foo: 1}", "%MyStruct{foo: 1}")
+      auto_assert {nil, [["%", %Tag{data: "MyStruct", sequences: [:green]}, "{foo: 1}"]]} <-
+                    format("%{foo: 1}", "%MyStruct{foo: 1}")
 
-      auto_assert {[
-                     [
-                       "",
-                       %Tag{data: "%", sequences: [:red]},
-                       "",
-                       %Tag{data: "MyStruct", sequences: [:red]},
-                       "{foo: 1}"
-                     ]
-                   ], nil} <- format("%MyStruct{foo: 1}", "%{foo: 1}")
+      auto_assert {[["%", %Tag{data: "MyStruct", sequences: [:red]}, "{foo: 1}"]], nil} <-
+                    format("%MyStruct{foo: 1}", "%{foo: 1}")
     end
 
     defp format(left, right) do

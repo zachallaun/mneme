@@ -51,13 +51,11 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp denormalize(:node, op, node, _) do
+  defp denormalize(:node, op, node, _zipper) do
     [{op, bounds(node)}]
   end
 
-  defp denormalize(:delimiter, op, {:%, %{line: l, column: c}, _}, _) do
-    [{op, {{l, c}, {l, c + 1}}}]
-  end
+  defp denormalize(:delimiter, _op, {:%, _, _}, _), do: []
 
   defp denormalize(:delimiter, op, {:"[]", meta, _}, _) do
     denormalize_delimiter(op, meta, 1, 1)
@@ -67,8 +65,14 @@ defmodule Mneme.Diff.Formatter do
     denormalize_delimiter(op, meta, 1, 1)
   end
 
-  defp denormalize(:delimiter, op, {:%{}, meta, _}, _) do
-    denormalize_delimiter(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
+  defp denormalize(:delimiter, op, {:%{}, meta, _}, zipper) do
+    case zipper |> Zipper.up() |> Zipper.node() |> with_map_meta() do
+      {:%, %{line: l, column: c}, _} ->
+        [{op, {{l, c}, {l, c + 1}}} | denormalize_delimiter(op, meta, 1, 1)]
+
+      _ ->
+        denormalize_delimiter(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
+    end
   end
 
   defp denormalize_delimiter(op, meta, start_len, end_len) do
@@ -83,6 +87,11 @@ defmodule Mneme.Diff.Formatter do
 
   # HACK: meta in args haven't been converted to maps, so we do it here
   defp bounds({_, list, _} = node) when is_list(list), do: node |> with_map_meta() |> bounds()
+
+  defp bounds({:%, %{line: l, column: c}, [_, map_node]}) do
+    {_, closing_bound} = map_node |> with_map_meta() |> bounds()
+    {{l, c}, closing_bound}
+  end
 
   defp bounds({:%{}, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
     {{l, c - 1}, {l2, c2 + 1}}
@@ -122,7 +131,7 @@ defmodule Mneme.Diff.Formatter do
   defp tag(data, :ins), do: Owl.Data.tag(data, :green)
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
 
-  defp with_map_meta(node) do
+  defp with_map_meta({_, _, _} = node) do
     # TODO: refactor
     Macro.update_meta(node, fn meta ->
       meta
@@ -137,4 +146,6 @@ defmodule Mneme.Diff.Formatter do
       end
     end)
   end
+
+  defp with_map_meta(nil), do: nil
 end
