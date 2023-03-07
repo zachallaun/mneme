@@ -118,6 +118,10 @@ defmodule Mneme.Diff.Formatter do
     atom_bounds(:literal, atom, l, c)
   end
 
+  defp bounds({:var, %{line: l, column: c}, atom}) do
+    atom_bounds(:remote_call, atom, l, c)
+  end
+
   defp bounds({:__aliases__, %{line: l, column: c}, atoms}) do
     unwrapped = for {:atom, _, atom} <- atoms, do: atom
     len = {:__aliases__, [], unwrapped} |> Macro.to_string() |> String.length()
@@ -128,7 +132,7 @@ defmodule Mneme.Diff.Formatter do
     raise ArgumentError, "bounds unimplemented for: #{inspect(unimplemented)}"
   end
 
-  defp atom_bounds(type, atom, l, c) when type in [:literal, :key] do
+  defp atom_bounds(type, atom, l, c) when type in [:literal, :key, :remote_call] do
     len = Macro.inspect_atom(type, atom) |> String.length()
     {{l, c}, {l, c + len}}
   end

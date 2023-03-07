@@ -34,10 +34,7 @@ defmodule Mneme.Diff do
   Returns a tuple of `{deletions, insertions}`.
   """
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
-    left = parse_to_zipper!(left_code)
-    right = parse_to_zipper!(right_code)
-
-    {edges, _meta} = shortest_path(left, right)
+    {edges, _meta} = compute_shortest_path!(left_code, right_code)
 
     {left_novels, right_novels} = split_novels(edges)
 
@@ -45,6 +42,13 @@ defmodule Mneme.Diff do
       left_novels |> coalesce() |> Enum.map(&instruction(:del, &1)),
       right_novels |> coalesce() |> Enum.map(&instruction(:ins, &1))
     }
+  end
+
+  @doc false
+  def compute_shortest_path!(left_code, right_code) do
+    left = parse_to_zipper!(left_code)
+    right = parse_to_zipper!(right_code)
+    shortest_path(left, right)
   end
 
   defp split_novels(edges) do
@@ -261,7 +265,7 @@ defmodule Mneme.Diff do
          graph,
          v,
          Vertex.new(Zipper.skip(l), Zipper.skip(r)),
-         Edge.unchanged(branch?)
+         Edge.unchanged(branch?, abs(get_depth(l) - get_depth(r)))
        )}
     else
       :error
@@ -297,4 +301,8 @@ defmodule Mneme.Diff do
   defp neighbor_right_edges(graph, %Vertex{right: r, right_branch?: branch?} = v) do
     add_neighbor_edge(graph, v, Vertex.new(v.left, Zipper.next(r)), Edge.novel(branch?, :right))
   end
+
+  defp get_depth(zipper, acc \\ 0)
+  defp get_depth(nil, acc), do: acc
+  defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
 end

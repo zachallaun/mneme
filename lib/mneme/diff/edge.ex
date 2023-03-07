@@ -13,8 +13,8 @@ defmodule Mneme.Diff.Edge do
         }
 
   @doc "Construct an edge representing a novel node."
-  def novel(branch?, side, depth_difference \\ 0) do
-    %Edge{type: :novel, kind: kind(branch?), side: side, depth_difference: depth_difference}
+  def novel(branch?, side) do
+    %Edge{type: :novel, kind: kind(branch?), side: side, depth_difference: 0}
   end
 
   @doc "Construct an edge representing an unchanged node."

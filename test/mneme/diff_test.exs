@@ -122,6 +122,444 @@ defmodule Mneme.DiffTest do
                        ""
                      ]
                    ]} <- format("auto_assert :foo", "auto_assert :foo <- :foo")
+
+      auto_assert {[
+                     [
+                       "",
+                       %Tag{data: "auto_assert", sequences: [:red]},
+                       " Function.identity(false)"
+                     ]
+                   ],
+                   [
+                     [
+                       "",
+                       %Tag{data: "auto_refute", sequences: [:green]},
+                       " Function.identity(false)"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert Function.identity(false)",
+                      "auto_refute Function.identity(false)"
+                    )
+    end
+
+    test "formats pins" do
+      auto_assert format("me", "^me <- me")
+    end
+
+    test "hmm" do
+      auto_assert {[
+                     %Graph.Edge{
+                       label: %Mneme.Diff.Edge{
+                         depth_difference: 0,
+                         kind: :branch,
+                         side: :right,
+                         type: :novel
+                       },
+                       v1: %Mneme.Diff.Vertex{
+                         id: 38_144_310,
+                         left:
+                           {{:var, [line: 1, column: 1, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me}, nil},
+                         left_branch?: false,
+                         right:
+                           {{:<-, [line: 1, column: 5, __hash__: 114_825_407, __id__: 31_662_927],
+                             [
+                               {:^,
+                                [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                                [
+                                  {:var,
+                                   [line: 1, column: 2, __hash__: 69_345_172, __id__: 59_972_372],
+                                   :me}
+                                ]},
+                               {:var,
+                                [line: 1, column: 8, __hash__: 69_345_172, __id__: 33_030_443],
+                                :me}
+                             ]}, nil},
+                         right_branch?: true
+                       },
+                       v2: %Mneme.Diff.Vertex{
+                         id: 123_829_293,
+                         left:
+                           {{:var, [line: 1, column: 1, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me}, nil},
+                         left_branch?: false,
+                         right:
+                           {{:^, [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                             [
+                               {:var,
+                                [line: 1, column: 2, __hash__: 69_345_172, __id__: 59_972_372],
+                                :me}
+                             ]},
+                            %{
+                              l: nil,
+                              ptree:
+                                {{:<-,
+                                  [line: 1, column: 5, __hash__: 114_825_407, __id__: 31_662_927],
+                                  [
+                                    {:^,
+                                     [
+                                       line: 1,
+                                       column: 1,
+                                       __hash__: 97_995_621,
+                                       __id__: 35_560_687
+                                     ],
+                                     [
+                                       {:var,
+                                        [
+                                          line: 1,
+                                          column: 2,
+                                          __hash__: 69_345_172,
+                                          __id__: 59_972_372
+                                        ], :me}
+                                     ]},
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 8,
+                                       __hash__: 69_345_172,
+                                       __id__: 33_030_443
+                                     ], :me}
+                                  ]}, nil},
+                              r: [
+                                {:var,
+                                 [line: 1, column: 8, __hash__: 69_345_172, __id__: 33_030_443],
+                                 :me}
+                              ]
+                            }},
+                         right_branch?: true
+                       },
+                       weight: 300
+                     },
+                     %Graph.Edge{
+                       label: %Mneme.Diff.Edge{
+                         depth_difference: 0,
+                         kind: :branch,
+                         side: :right,
+                         type: :novel
+                       },
+                       v1: %Mneme.Diff.Vertex{
+                         id: 123_829_293,
+                         left:
+                           {{:var, [line: 1, column: 1, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me}, nil},
+                         left_branch?: false,
+                         right:
+                           {{:^, [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                             [
+                               {:var,
+                                [line: 1, column: 2, __hash__: 69_345_172, __id__: 59_972_372],
+                                :me}
+                             ]},
+                            %{
+                              l: nil,
+                              ptree:
+                                {{:<-,
+                                  [line: 1, column: 5, __hash__: 114_825_407, __id__: 31_662_927],
+                                  [
+                                    {:^,
+                                     [
+                                       line: 1,
+                                       column: 1,
+                                       __hash__: 97_995_621,
+                                       __id__: 35_560_687
+                                     ],
+                                     [
+                                       {:var,
+                                        [
+                                          line: 1,
+                                          column: 2,
+                                          __hash__: 69_345_172,
+                                          __id__: 59_972_372
+                                        ], :me}
+                                     ]},
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 8,
+                                       __hash__: 69_345_172,
+                                       __id__: 33_030_443
+                                     ], :me}
+                                  ]}, nil},
+                              r: [
+                                {:var,
+                                 [line: 1, column: 8, __hash__: 69_345_172, __id__: 33_030_443],
+                                 :me}
+                              ]
+                            }},
+                         right_branch?: true
+                       },
+                       v2: %Mneme.Diff.Vertex{
+                         id: 71_470_566,
+                         left:
+                           {{:var, [line: 1, column: 1, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me}, nil},
+                         left_branch?: false,
+                         right:
+                           {{:var, [line: 1, column: 2, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me},
+                            %{
+                              l: nil,
+                              ptree:
+                                {{:^,
+                                  [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                                  [
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 2,
+                                       __hash__: 69_345_172,
+                                       __id__: 59_972_372
+                                     ], :me}
+                                  ]},
+                                 %{
+                                   l: nil,
+                                   ptree:
+                                     {{:<-,
+                                       [
+                                         line: 1,
+                                         column: 5,
+                                         __hash__: 114_825_407,
+                                         __id__: 31_662_927
+                                       ],
+                                       [
+                                         {:^,
+                                          [
+                                            line: 1,
+                                            column: 1,
+                                            __hash__: 97_995_621,
+                                            __id__: 35_560_687
+                                          ],
+                                          [
+                                            {:var,
+                                             [
+                                               line: 1,
+                                               column: 2,
+                                               __hash__: 69_345_172,
+                                               __id__: 59_972_372
+                                             ], :me}
+                                          ]},
+                                         {:var,
+                                          [
+                                            line: 1,
+                                            column: 8,
+                                            __hash__: 69_345_172,
+                                            __id__: 33_030_443
+                                          ], :me}
+                                       ]}, nil},
+                                   r: [
+                                     {:var,
+                                      [
+                                        line: 1,
+                                        column: 8,
+                                        __hash__: 69_345_172,
+                                        __id__: 33_030_443
+                                      ], :me}
+                                   ]
+                                 }},
+                              r: nil
+                            }},
+                         right_branch?: false
+                       },
+                       weight: 300
+                     },
+                     %Graph.Edge{
+                       label: %Mneme.Diff.Edge{depth_difference: 2, kind: :leaf, type: :unchanged},
+                       v1: %Mneme.Diff.Vertex{
+                         id: 71_470_566,
+                         left:
+                           {{:var, [line: 1, column: 1, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me}, nil},
+                         left_branch?: false,
+                         right:
+                           {{:var, [line: 1, column: 2, __hash__: 69_345_172, __id__: 59_972_372],
+                             :me},
+                            %{
+                              l: nil,
+                              ptree:
+                                {{:^,
+                                  [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                                  [
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 2,
+                                       __hash__: 69_345_172,
+                                       __id__: 59_972_372
+                                     ], :me}
+                                  ]},
+                                 %{
+                                   l: nil,
+                                   ptree:
+                                     {{:<-,
+                                       [
+                                         line: 1,
+                                         column: 5,
+                                         __hash__: 114_825_407,
+                                         __id__: 31_662_927
+                                       ],
+                                       [
+                                         {:^,
+                                          [
+                                            line: 1,
+                                            column: 1,
+                                            __hash__: 97_995_621,
+                                            __id__: 35_560_687
+                                          ],
+                                          [
+                                            {:var,
+                                             [
+                                               line: 1,
+                                               column: 2,
+                                               __hash__: 69_345_172,
+                                               __id__: 59_972_372
+                                             ], :me}
+                                          ]},
+                                         {:var,
+                                          [
+                                            line: 1,
+                                            column: 8,
+                                            __hash__: 69_345_172,
+                                            __id__: 33_030_443
+                                          ], :me}
+                                       ]}, nil},
+                                   r: [
+                                     {:var,
+                                      [
+                                        line: 1,
+                                        column: 8,
+                                        __hash__: 69_345_172,
+                                        __id__: 33_030_443
+                                      ], :me}
+                                   ]
+                                 }},
+                              r: nil
+                            }},
+                         right_branch?: false
+                       },
+                       v2: %Mneme.Diff.Vertex{
+                         id: 74_505_484,
+                         left_branch?: false,
+                         right:
+                           {{:var, [line: 1, column: 8, __hash__: 69_345_172, __id__: 33_030_443],
+                             :me},
+                            %{
+                              l: [
+                                {:^,
+                                 [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                                 [
+                                   {:var,
+                                    [
+                                      line: 1,
+                                      column: 2,
+                                      __hash__: 69_345_172,
+                                      __id__: 59_972_372
+                                    ], :me}
+                                 ]}
+                              ],
+                              ptree:
+                                {{:<-,
+                                  [line: 1, column: 5, __hash__: 114_825_407, __id__: 31_662_927],
+                                  [
+                                    {:^,
+                                     [
+                                       line: 1,
+                                       column: 1,
+                                       __hash__: 97_995_621,
+                                       __id__: 35_560_687
+                                     ],
+                                     [
+                                       {:var,
+                                        [
+                                          line: 1,
+                                          column: 2,
+                                          __hash__: 69_345_172,
+                                          __id__: 59_972_372
+                                        ], :me}
+                                     ]},
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 8,
+                                       __hash__: 69_345_172,
+                                       __id__: 33_030_443
+                                     ], :me}
+                                  ]}, nil},
+                              r: []
+                            }},
+                         right_branch?: false
+                       },
+                       weight: 3
+                     },
+                     %Graph.Edge{
+                       label: %Mneme.Diff.Edge{
+                         depth_difference: 0,
+                         kind: :leaf,
+                         side: :right,
+                         type: :novel
+                       },
+                       v1: %Mneme.Diff.Vertex{
+                         id: 74_505_484,
+                         left_branch?: false,
+                         right:
+                           {{:var, [line: 1, column: 8, __hash__: 69_345_172, __id__: 33_030_443],
+                             :me},
+                            %{
+                              l: [
+                                {:^,
+                                 [line: 1, column: 1, __hash__: 97_995_621, __id__: 35_560_687],
+                                 [
+                                   {:var,
+                                    [
+                                      line: 1,
+                                      column: 2,
+                                      __hash__: 69_345_172,
+                                      __id__: 59_972_372
+                                    ], :me}
+                                 ]}
+                              ],
+                              ptree:
+                                {{:<-,
+                                  [line: 1, column: 5, __hash__: 114_825_407, __id__: 31_662_927],
+                                  [
+                                    {:^,
+                                     [
+                                       line: 1,
+                                       column: 1,
+                                       __hash__: 97_995_621,
+                                       __id__: 35_560_687
+                                     ],
+                                     [
+                                       {:var,
+                                        [
+                                          line: 1,
+                                          column: 2,
+                                          __hash__: 69_345_172,
+                                          __id__: 59_972_372
+                                        ], :me}
+                                     ]},
+                                    {:var,
+                                     [
+                                       line: 1,
+                                       column: 8,
+                                       __hash__: 69_345_172,
+                                       __id__: 33_030_443
+                                     ], :me}
+                                  ]}, nil},
+                              r: []
+                            }},
+                         right_branch?: false
+                       },
+                       v2: %Mneme.Diff.Vertex{
+                         id: 5_242_045,
+                         left_branch?: false,
+                         right_branch?: false
+                       },
+                       weight: 300
+                     }
+                   ],
+                   graph: %{num_edges: 9, num_vertices: 8, size_in_bytes: 16208, type: :directed},
+                   time_ms: 3} <- Diff.compute_shortest_path!("me", "^me <- me")
     end
 
     defp format(left, right) do
