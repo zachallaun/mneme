@@ -25,7 +25,7 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion, _opts) do
+  def message(source, %Assertion{type: type} = assertion, _opts \\ %{}) do
     notes = Assertion.notes(assertion)
     pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
