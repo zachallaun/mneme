@@ -128,6 +128,11 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
+  defp bounds({:^, %{line: l, column: c}, [var]}) do
+    {_, closing_bound} = var |> with_map_meta() |> bounds()
+    {{l, c}, closing_bound}
+  end
+
   defp bounds(unimplemented) do
     raise ArgumentError, "bounds unimplemented for: #{inspect(unimplemented)}"
   end

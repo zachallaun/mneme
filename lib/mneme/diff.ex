@@ -78,7 +78,7 @@ defmodule Mneme.Diff do
 
   defp coalesce(all_novels) do
     novel_node_ids =
-      for {:leaf, zipper} <- all_novels do
+      for {:node, zipper} <- all_novels do
         get_id(zipper)
       end
       |> MapSet.new()
@@ -94,7 +94,7 @@ defmodule Mneme.Diff do
           get_parent_id(zipper) in novel_node_ids ->
             []
 
-          type == :leaf ->
+          type == :node ->
             [{:node, zipper}]
 
           all_descendant_ids_in(zipper, novel_node_ids) ->
@@ -243,16 +243,11 @@ defmodule Mneme.Diff do
   end
 
   defp do_add_neighbors(graph, %Vertex{} = v) do
-    case neighbor_maybe_unchanged_subtree(graph, v) do
-      {:ok, graph} ->
-        graph
-
-      :error ->
-        graph
-        |> neighbor_maybe_unchanged_branch_edge(v)
-        |> neighbor_left_edges(v)
-        |> neighbor_right_edges(v)
-    end
+    graph
+    |> neighbor_maybe_unchanged_subtree(v)
+    |> neighbor_maybe_unchanged_branch_edge(v)
+    |> neighbor_left_edges(v)
+    |> neighbor_right_edges(v)
   end
 
   defp neighbor_maybe_unchanged_subtree(
@@ -260,19 +255,18 @@ defmodule Mneme.Diff do
          %Vertex{left: l, right: r, left_branch?: branch?, right_branch?: branch?} = v
        ) do
     if syntax_eq?(l, r) do
-      {:ok,
-       add_neighbor_edge(
-         graph,
-         v,
-         Vertex.new(Zipper.skip(l), Zipper.skip(r)),
-         Edge.unchanged(branch?, abs(get_depth(l) - get_depth(r)))
-       )}
+      add_neighbor_edge(
+        graph,
+        v,
+        Vertex.new(Zipper.skip(l), Zipper.skip(r)),
+        Edge.unchanged(false, abs(get_depth(l) - get_depth(r)))
+      )
     else
-      :error
+      graph
     end
   end
 
-  defp neighbor_maybe_unchanged_subtree(_graph, _vertex), do: :error
+  defp neighbor_maybe_unchanged_subtree(graph, _vertex), do: graph
 
   defp neighbor_maybe_unchanged_branch_edge(
          graph,

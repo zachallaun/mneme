@@ -7,7 +7,7 @@ defmodule Mneme.Diff.Edge do
 
   @type t :: %Edge{
           type: :novel | :unchanged,
-          kind: :branch | :leaf,
+          kind: :branch | :node,
           side: :left | :right,
           depth_difference: non_neg_integer()
         }
@@ -25,7 +25,7 @@ defmodule Mneme.Diff.Edge do
   @doc "The cost of taking this edge."
   def cost(edge)
 
-  def cost(%Edge{type: :unchanged, kind: :leaf, depth_difference: dd}), do: min(40, dd + 1)
+  def cost(%Edge{type: :unchanged, kind: :node, depth_difference: dd}), do: min(40, dd + 1)
 
   def cost(%Edge{type: :unchanged, kind: :branch, depth_difference: dd}) do
     100 + min(40, dd + 1)
@@ -35,5 +35,5 @@ defmodule Mneme.Diff.Edge do
 
   defp kind(branch?)
   defp kind(true), do: :branch
-  defp kind(false), do: :leaf
+  defp kind(false), do: :node
 end
