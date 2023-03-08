@@ -25,7 +25,7 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion, opts \\ %{}) do
+  def message(source, %Assertion{type: type} = assertion, opts) do
     notes = Assertion.notes(assertion)
     pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
@@ -33,7 +33,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       header_tag(assertion),
       "\n",
-      diff(opts.diff, source),
+      diff(opts[:diff], source),
       notes_tag(notes),
       "\n",
       explanation_tag(type),
@@ -95,27 +95,39 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   defp diff(:semantic, source) do
+    case semantic_diff(source) do
+      {nil, nil} ->
+        diff(:text, source)
+
+      {nil, ins} ->
+        [Owl.Data.unlines(ins), "\n"]
+
+      {del, nil} ->
+        [Owl.Data.unlines(del), "\n"]
+
+      {del, ins} ->
+        [
+          del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("-  ", :red)),
+          "\n\n",
+          ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("+  ", :green)),
+          "\n"
+        ]
+
+      nil ->
+        diff(:text, source)
+    end
+  end
+
+  defp semantic_diff(source) do
     with %{left: left, right: right} <- source.private[:diff] do
-      case Mneme.Diff.format(left, right) do
-        {nil, nil} ->
-          diff(:text, source)
+      task = Task.async(Mneme.Diff, :format, [left, right])
 
-        {nil, ins} ->
-          [Owl.Data.unlines(ins), "\n"]
-
-        {del, nil} ->
-          [Owl.Data.unlines(del), "\n"]
-
-        {del, ins} ->
-          [
-            del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("-  ", :red)),
-            "\n\n",
-            ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("+  ", :green)),
-            "\n"
-          ]
+      case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
+        {:ok, diff} -> diff
+        _ -> nil
       end
     else
-      _ -> diff(:text, source)
+      _ -> nil
     end
   end
 

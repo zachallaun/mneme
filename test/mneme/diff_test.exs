@@ -23,22 +23,21 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats strings" do
-      auto_assert {[["", %Tag{data: "\"foo\"", sequences: [:red]}, ""]],
-                   [["", %Tag{data: "\"bar\"", sequences: [:green]}, ""]]} <-
-                    format(~s("foo"), ~s("bar"))
+      auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]],
+                   [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <- format(~s("foo"), ~s("bar"))
 
       auto_assert {[
-                     ["", %Tag{data: "\"\"\"", sequences: [:red]}, ""],
+                     [%Tag{data: "\"\"\"", sequences: [:red]}],
                      %Tag{data: "foo", sequences: [:red]},
                      %Tag{data: "bar", sequences: [:red]},
-                     [%Tag{data: "\"\"\"", sequences: [:red]}, ""],
-                     [[]]
+                     [%Tag{data: "\"\"\"", sequences: [:red]}],
+                     []
                    ],
                    [
-                     ["", %Tag{data: "\"\"\"", sequences: [:green]}, ""],
+                     [%Tag{data: "\"\"\"", sequences: [:green]}],
                      %Tag{data: "baz", sequences: [:green]},
-                     [%Tag{data: "\"\"\"", sequences: [:green]}, ""],
-                     [[]]
+                     [%Tag{data: "\"\"\"", sequences: [:green]}],
+                     []
                    ]} <-
                     format(
                       """
@@ -61,28 +60,23 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats over multiple lines" do
-      auto_assert {nil,
-                   ["[", "  1,", ["  ", %Tag{data: "2_000", sequences: [:green]}, ""], ["]"]]} <-
+      auto_assert {nil, ["[", "  1,", ["  ", %Tag{data: "2_000", sequences: [:green]}], ["]"]]} <-
                     format("[\n  1\n]", "[\n  1,\n  2_000\n]")
     end
 
     test "formats tuple to list" do
       auto_assert {[
                      [
-                       "",
                        %Tag{data: "{", sequences: [:red]},
                        "1, 2",
-                       %Tag{data: "}", sequences: [:red]},
-                       ""
+                       %Tag{data: "}", sequences: [:red]}
                      ]
                    ],
                    [
                      [
-                       "",
                        %Tag{data: "[", sequences: [:green]},
                        "1, 2",
-                       %Tag{data: "]", sequences: [:green]},
-                       ""
+                       %Tag{data: "]", sequences: [:green]}
                      ]
                    ]} <- format("{1, 2}", "[1, 2]")
     end
@@ -90,20 +84,16 @@ defmodule Mneme.DiffTest do
     test "formats map to kw" do
       auto_assert {[
                      [
-                       "",
                        %Tag{data: "%{", sequences: [:red]},
                        "foo: 1",
-                       %Tag{data: "}", sequences: [:red]},
-                       ""
+                       %Tag{data: "}", sequences: [:red]}
                      ]
                    ],
                    [
                      [
-                       "",
                        %Tag{data: "[", sequences: [:green]},
                        "foo: 1",
-                       %Tag{data: "]", sequences: [:green]},
-                       ""
+                       %Tag{data: "]", sequences: [:green]}
                      ]
                    ]} <- format("%{foo: 1}", "[foo: 1]")
     end
@@ -146,18 +136,18 @@ defmodule Mneme.DiffTest do
                     format("[x]", "[x, %MyStruct{foo: 1}]")
 
       auto_assert {[
-                     ["", %Tag{data: "[", sequences: [:red]}],
+                     [%Tag{data: "[", sequences: [:red]}],
                      %Tag{data: "  foo: 1,", sequences: [:red]},
                      %Tag{data: "  bar: 2", sequences: [:red]},
-                     [%Tag{data: "]", sequences: [:red]}, ""],
-                     [[]]
+                     [%Tag{data: "]", sequences: [:red]}],
+                     []
                    ],
                    [
-                     ["", %Tag{data: "%{", sequences: [:green]}],
+                     [%Tag{data: "%{", sequences: [:green]}],
                      %Tag{data: "  baz: 3,", sequences: [:green]},
                      %Tag{data: "  buzz: 4", sequences: [:green]},
-                     [%Tag{data: "}", sequences: [:green]}, ""],
-                     [[]]
+                     [%Tag{data: "}", sequences: [:green]}],
+                     []
                    ]} <-
                     format(
                       """
@@ -176,7 +166,7 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats map to struct" do
-      auto_assert {nil, [["%", %Tag{data: "MyStruct", sequences: [:green]}, "{foo: 1}"]]} <-
+      auto_assert {nil, [["%", %Tag{data: "MyStruct", sequences: [:green]}, "{bar: 1}"]]} <-
                     format("%{bar: 1}", "%MyStruct{bar: 1}")
 
       auto_assert {[["%", %Tag{data: "MyStruct", sequences: [:red]}, "{foo: 1}"]], nil} <-
@@ -187,14 +177,14 @@ defmodule Mneme.DiffTest do
                      "  foo: 1,",
                      ["  ", %Tag{data: "bar:", sequences: [:red]}, " 2"],
                      ["}"],
-                     [[]]
+                     []
                    ],
                    [
                      ["%", %Tag{data: "MyStruct", sequences: [:green]}, "{"],
                      ["  foo: 1,"],
                      ["  ", %Tag{data: "baz:", sequences: [:green]}, " 2"],
                      ["}"],
-                     [[]]
+                     []
                    ]} <-
                     format(
                       """
@@ -212,6 +202,18 @@ defmodule Mneme.DiffTest do
                     )
     end
 
+    test "formats aliases" do
+      auto_assert {[["Foo.", %Tag{data: "Bar.", sequences: [:red]}, "Baz"]],
+                   [["Foo.", %Tag{data: "Buzz.", sequences: [:green]}, "Baz"]]} <-
+                    format("Foo.Bar.Baz", "Foo.Buzz.Baz")
+
+      auto_assert {nil, [["Foo.Bar", %Tag{data: ".Baz", sequences: [:green]}]]} <-
+                    format("Foo.Bar", "Foo.Bar.Baz")
+
+      auto_assert {nil, [[%Tag{data: "Foo.", sequences: [:green]}, "Bar.Baz"]]} <-
+                    format("Bar.Baz", "Foo.Bar.Baz")
+    end
+
     test "formats calls without parens" do
       auto_assert {nil,
                    [
@@ -219,25 +221,12 @@ defmodule Mneme.DiffTest do
                        "auto_assert :foo ",
                        %Tag{data: "<-", sequences: [:green]},
                        " ",
-                       %Tag{data: ":foo", sequences: [:green]},
-                       ""
+                       %Tag{data: ":foo", sequences: [:green]}
                      ]
                    ]} <- format("auto_assert :foo", "auto_assert :foo <- :foo")
 
-      auto_assert {[
-                     [
-                       "",
-                       %Tag{data: "auto_assert", sequences: [:red]},
-                       " Function.identity(false)"
-                     ]
-                   ],
-                   [
-                     [
-                       "",
-                       %Tag{data: "auto_refute", sequences: [:green]},
-                       " Function.identity(false)"
-                     ]
-                   ]} <-
+      auto_assert {[[%Tag{data: "auto_assert", sequences: [:red]}, " Function.identity(false)"]],
+                   [[%Tag{data: "auto_refute", sequences: [:green]}, " Function.identity(false)"]]} <-
                     format(
                       "auto_assert Function.identity(false)",
                       "auto_refute Function.identity(false)"
@@ -248,13 +237,70 @@ defmodule Mneme.DiffTest do
       auto_assert {nil,
                    [
                      [
-                       "",
                        %Tag{data: "foo(", sequences: [:green]},
                        "x",
-                       %Tag{data: ")", sequences: [:green]},
-                       ""
+                       %Tag{data: ")", sequences: [:green]}
                      ]
                    ]} <- format("x", "foo(x)")
+    end
+
+    test "formats qualified calls" do
+      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, "(1, 2, 3)"]],
+                   [["foo.", %Tag{data: "baz", sequences: [:green]}, "(1, 2, 3)"]]} <-
+                    format("foo.bar(1, 2, 3)", "foo.baz(1, 2, 3)")
+
+      auto_assert {nil,
+                   [
+                     [
+                       "foo.bar",
+                       %Tag{data: ".", sequences: [:green]},
+                       %Tag{data: "baz", sequences: [:green]},
+                       "(1, 2, 3)"
+                     ]
+                   ]} <- format("foo.bar(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
+
+      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, ".baz(1, 2, 3)"]],
+                   [["foo.", %Tag{data: "buzz", sequences: [:green]}, ".baz(1, 2, 3)"]]} <-
+                    format("foo.bar.baz(1, 2, 3)", "foo.buzz.baz(1, 2, 3)")
+
+      auto_assert {nil,
+                   [
+                     [
+                       "foo",
+                       %Tag{data: ".", sequences: [:green]},
+                       %Tag{data: "bar", sequences: [:green]},
+                       ".baz(1, 2, 3)"
+                     ]
+                   ]} <- format("foo.baz(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
+
+      auto_assert {nil,
+                   [
+                     [
+                       "foo.bar",
+                       %Tag{data: ".", sequences: [:green]},
+                       %Tag{data: "baz", sequences: [:green]},
+                       " 1, 2, 3"
+                     ]
+                   ]} <- format("foo.bar 1, 2, 3", "foo.bar.baz 1, 2, 3")
+
+      auto_assert {nil, nil} <- format("foo.bar(1, 2, 3)", "foo.bar 1, 2, 3")
+
+      auto_assert {nil, [["foo", %Tag{data: ".()", sequences: [:green]}, ".bar()"]]} <-
+                    format("foo.bar()", "foo.().bar()")
+
+      auto_assert {[["Foo", %Tag{data: ".Bar", sequences: [:red]}, ".baz()"]],
+                   [["Foo", %Tag{data: ".Buzz", sequences: [:green]}, ".baz()"]]} <-
+                    format("Foo.Bar.baz()", "Foo.Buzz.baz()")
+    end
+
+    test "formats unary operators" do
+      auto_assert {nil, [[%Tag{data: "-", sequences: [:green]}, "x"]]} <- format("x", "-x")
+    end
+
+    test "formats binary operators" do
+      auto_assert {[["x ", %Tag{data: "+", sequences: [:red]}, " y"]],
+                   [["x ", %Tag{data: "-", sequences: [:green]}, " y"]]} <-
+                    format("x + y", "x - y")
     end
 
     test "formats pins" do
@@ -272,13 +318,46 @@ defmodule Mneme.DiffTest do
       auto_assert {nil,
                    [
                      [
-                       "",
                        %Tag{data: "^foo(me)", sequences: [:green]},
                        " ",
                        %Tag{data: "<-", sequences: [:green]},
                        " me"
                      ]
                    ]} <- format("me", "^foo(me) <- me")
+    end
+
+    test "formats structs" do
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert ",
+                       %Tag{
+                         data: "{:ok, %User{email: \"user@example.org\"}}",
+                         sequences: [:green]
+                       },
+                       " ",
+                       %Tag{data: "<-", sequences: [:green]},
+                       " create(User, email: \"user@example.org\")"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert create(User, email: \"user@example.org\")",
+                      "auto_assert {:ok, %User{email: \"user@example.org\"}} <- create(User, email: \"user@example.org\")"
+                    )
+    end
+
+    test "formats guards" do
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert ",
+                       %Tag{data: "pid when is_pid(pid)", sequences: [:green]},
+                       " ",
+                       %Tag{data: "<-", sequences: [:green]},
+                       " self()"
+                     ]
+                   ]} <-
+                    format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
     defp format(left, right) do

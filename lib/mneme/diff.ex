@@ -137,7 +137,21 @@ defmodule Mneme.Diff do
     |> get_id()
   end
 
+  defp maybe_put_novel({{_, _, _} = call, _, args} = node, ids) when is_list(args) do
+    node
+    |> get_id()
+    |> maybe_put_novel(ids, [call | args])
+  end
+
   defp maybe_put_novel({_, _, args} = node, ids) when is_list(args) do
+    node
+    |> get_id()
+    |> maybe_put_novel(ids, args)
+  end
+
+  defp maybe_put_novel(_, ids), do: ids
+
+  defp maybe_put_novel(id, ids, args) do
     {all_novel?, ids} =
       Enum.reduce(args, {true, ids}, fn node, {all_novel?, ids} ->
         ids = maybe_put_novel(node, ids)
@@ -145,13 +159,11 @@ defmodule Mneme.Diff do
       end)
 
     if all_novel? do
-      MapSet.put(ids, get_id(node))
+      MapSet.put(ids, id)
     else
       ids
     end
   end
-
-  defp maybe_put_novel(_, ids), do: ids
 
   @doc false
   def shortest_path(left, right) do
@@ -173,7 +185,7 @@ defmodule Mneme.Diff do
   end
 
   defp to_edges([v1, v2 | rest], graph) do
-    [edge] = Graph.edges(graph, v1, v2)
+    [edge | _] = Graph.edges(graph, v1, v2)
     [edge | to_edges([v2 | rest], graph)]
   end
 
@@ -198,17 +210,20 @@ defmodule Mneme.Diff do
   end
 
   defp hash({call, _, args}) when is_list(args) do
-    inner =
-      Enum.map(args, fn
-        {a, b} -> {hash(a), hash(b)}
-        arg -> hash(arg)
-      end)
-
-    :erlang.phash2({call, inner})
+    inner = Enum.map(args, &hash/1)
+    :erlang.phash2({hash(call), inner})
   end
 
-  defp hash({type, _, value}) do
-    :erlang.phash2({type, value})
+  defp hash({type, meta, value}) do
+    if hash = meta[:__hash__] do
+      hash
+    else
+      :erlang.phash2({type, value})
+    end
+  end
+
+  defp hash(atom) when is_atom(atom) do
+    :erlang.phash2(atom)
   end
 
   defp fetch_hash!(nil), do: 0
@@ -272,17 +287,23 @@ defmodule Mneme.Diff do
          graph,
          %Vertex{left: l, right: r, left_branch?: true, right_branch?: true} = v
        ) do
-    case {Zipper.node(l), Zipper.node(r)} do
-      {{branch, _, _}, {branch, _, _}} ->
-        add_neighbor_edge(
-          graph,
-          v,
-          Vertex.new(Zipper.next(l), Zipper.next(r)),
-          Edge.unchanged(true)
-        )
+    unchanged_branch? =
+      case {Zipper.node(l), Zipper.node(r)} do
+        {{{:., _, _}, _, _}, {{:., _, _}, _, _}} -> true
+        {{{:var, _, var}, _, _}, {{:var, _, var}, _, _}} -> true
+        {{branch, _, _}, {branch, _, _}} -> true
+        _ -> false
+      end
 
-      _ ->
-        graph
+    if unchanged_branch? do
+      add_neighbor_edge(
+        graph,
+        v,
+        Vertex.new(Zipper.next(l), Zipper.next(r)),
+        Edge.unchanged(true)
+      )
+    else
+      graph
     end
   end
 

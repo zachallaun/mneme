@@ -8,7 +8,7 @@ defmodule Mneme.Diff.AST do
   # See "The Sourceror AST" guide from the experimental branch for more:
   # https://github.com/doorgan/sourceror/blob/9cdebddd3b8894772528e4411235e57cad35014c/guides/sourceror_ast.md
   #
-  # Limitations:
+  # Limitations/Differences:
   # - Ignores comments
 
   require Sourceror
@@ -19,8 +19,9 @@ defmodule Mneme.Diff.AST do
   Parse Elixir code into an enriched AST.
   """
   def parse_string!(string) do
-    with {quoted, _comments} <- Sourceror.string_to_quoted!(string, to_quoted_opts()) do
-      normalize_nodes(quoted)
+    case Sourceror.string_to_quoted!(string, to_quoted_opts()) do
+      {quoted, _comments} -> normalize_nodes(quoted)
+      _ -> raise "unable to parse"
     end
   end
 
@@ -36,11 +37,13 @@ defmodule Mneme.Diff.AST do
     ]
   end
 
-  defp encode_atom(atom, metadata),
-    do: {:ok, {:atom, metadata ++ [__literal__: true], String.to_atom(atom)}}
+  defp encode_atom(atom, metadata) do
+    {:ok, {:atom, metadata, String.to_atom(atom)}}
+  end
 
-  defp handle_literal(atom, metadata) when is_atom(atom),
-    do: {:ok, {:atom, metadata ++ [__literal__: true], atom}}
+  defp handle_literal(atom, metadata) when is_atom(atom) do
+    {:ok, {:atom, metadata ++ [__literal__: true], atom}}
+  end
 
   defp handle_literal(string, metadata) when is_binary(string) do
     {:ok, {:string, normalize_metadata(metadata), string}}
@@ -66,8 +69,9 @@ defmodule Mneme.Diff.AST do
     {:ok, {:float, normalize_metadata(metadata), float}}
   end
 
-  defp handle_literal({:atom, _, atom}, meta),
-    do: {:ok, {:atom, meta ++ [__literal__: true], atom}}
+  defp handle_literal({:atom, _, atom}, meta) do
+    {:ok, {:atom, meta ++ [__literal__: true], atom}}
+  end
 
   @doc """
   Converts regular AST nodes into Sourceror AST nodes.
@@ -76,7 +80,7 @@ defmodule Mneme.Diff.AST do
     postwalk(ast, &normalize_node/1)
   end
 
-  defp normalize_node({:atom, metadata, atom}) when is_atom(atom) do
+  defp normalize_node({:atom, metadata, atom}) do
     if metadata[:__literal__] do
       {:atom, normalize_metadata(metadata), atom}
     else
@@ -89,11 +93,13 @@ defmodule Mneme.Diff.AST do
     {:var, normalize_metadata(metadata), name}
   end
 
-  defp normalize_node({{:atom, _, form}, metadata, args}) when is_list(args),
-    do: {form, normalize_metadata(metadata), args}
+  defp normalize_node({{:atom, _, form}, metadata, args}) when is_list(args) do
+    {form, normalize_metadata(metadata), args}
+  end
 
-  defp normalize_node({{:atom, _, form}, metadata, context}) when is_atom(context),
-    do: {:var, normalize_metadata(metadata), form}
+  defp normalize_node({{:atom, _, form}, metadata, context}) when is_atom(context) do
+    {:var, normalize_metadata(metadata), form}
+  end
 
   defp normalize_node({:<<>>, metadata, segments}) do
     metadata = normalize_metadata(metadata)
@@ -156,15 +162,15 @@ defmodule Mneme.Diff.AST do
     {{:<<>>, :atom}, metadata, normalize_interpolation(segments, start_pos)}
   end
 
-  defp normalize_node({sigil, metadata, [args, modifiers]})
-       when is_atom(sigil) and is_list(modifiers) do
+  defp normalize_node({sigil, metadata, [args, {:"[]", _, _} = modifiers]})
+       when is_atom(sigil) do
+    metadata = normalize_metadata(metadata)
+
     case Atom.to_string(sigil) do
       <<"sigil_", sigil>> when is_valid_sigil(sigil) ->
         {:<<>>, args_meta, args} = args
 
         start_pos = Keyword.take(args_meta, [:line, :column])
-
-        metadata = normalize_metadata(metadata)
 
         metadata =
           if metadata[:delimiter] in ~w[""" '''] do
@@ -186,10 +192,13 @@ defmodule Mneme.Diff.AST do
             ]
           end
 
-        {:"~", metadata, [<<sigil>>, normalize_interpolation(args, start_pos), modifiers]}
+        sigil_string =
+          {:string, [line: metadata[:line], column: metadata[:column] + 1], [<<sigil>>]}
+
+        {:"~", metadata, [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
 
       _ ->
-        {sigil, normalize_metadata(metadata), [args, modifiers]}
+        {sigil, metadata, [args, modifiers]}
     end
   end
 
@@ -204,12 +213,20 @@ defmodule Mneme.Diff.AST do
     {:{}, normalize_metadata(metadata), [left, right]}
   end
 
+  defp normalize_node(list) when is_list(list) do
+    {:"[]", [], list}
+  end
+
+  defp normalize_node(string) when is_binary(string) do
+    {:string, [], string}
+  end
+
   defp normalize_node(quoted), do: quoted
 
   defp normalize_interpolation(segments, start_pos) do
     {segments, _} =
       Enum.reduce(segments, {[], start_pos}, fn
-        string, {segments, pos} when is_binary(string) ->
+        {:string, _, string}, {segments, pos} ->
           lines = split_on_newline(string)
           length = String.length(List.last(lines) || "")
 
@@ -244,85 +261,6 @@ defmodule Mneme.Diff.AST do
   defp split_on_newline(string) do
     String.split(string, ~r/\n|\r\n|\r/)
   end
-
-  @doc """
-  Converts Sourceror AST back to regular Elixir AST for use with the formatter.
-  """
-  def to_formatter_ast(quoted) do
-    prewalk(quoted, fn
-      {:atom, meta, atom} when is_atom(atom) ->
-        block(meta, atom)
-
-      {:string, meta, string} when is_binary(string) ->
-        block(meta, string)
-
-      {:charlist, meta, string} when is_binary(string) ->
-        block(meta, String.to_charlist(string))
-
-      {:int, meta, int} when is_integer(int) ->
-        block(meta, int)
-
-      {:float, meta, float} when is_float(float) ->
-        block(meta, float)
-
-      {:"[]", meta, list} ->
-        block(meta, list)
-
-      {:"~", meta, [name, args, modifiers]} ->
-        args_meta = Keyword.take(meta, [:line, :column, :indentation])
-        meta = Keyword.drop(meta, [:indentation])
-
-        args =
-          Enum.map(args, fn
-            {:string, _, string} -> string
-            quoted -> quoted
-          end)
-
-        {:"sigil_#{name}", meta, [{:<<>>, args_meta, args}, modifiers]}
-
-      {{:<<>>, :atom}, meta, segments} ->
-        dot_meta = Keyword.take(meta, [:line, :column])
-        args_meta = Keyword.take(meta, [:line, :column, :indentation])
-        meta = Keyword.drop(meta, [:indentation])
-
-        args =
-          Enum.map(segments, fn
-            {:string, _, string} -> string
-            quoted -> quoted
-          end)
-
-        {{:., dot_meta, [:erlang, :binary_to_atom]}, meta, [{:<<>>, args_meta, args}]}
-
-      {{:<<>>, :string}, meta, args} ->
-        args =
-          Enum.map(args, fn
-            {:string, _, string} -> string
-            quoted -> quoted
-          end)
-
-        {:<<>>, meta, args}
-
-      {:var, meta, name} ->
-        {name, meta, nil}
-
-      {:{}, meta, [left, right]} ->
-        block(meta, {left, right})
-
-      {:__aliases__, meta, segments} ->
-        {:__aliases__, meta, Enum.map(segments, &elem(&1, 2))}
-
-      {:., meta, [left, {:atom, _, right}]} ->
-        {:., meta, [left, right]}
-
-      {form, meta, args} ->
-        {form, meta, args}
-
-      quoted ->
-        quoted
-    end)
-  end
-
-  defp block(metadata, value), do: {:__block__, metadata, [value]}
 
   defp normalize_metadata(metadata), do: Keyword.drop(metadata, [:__literal__, :file])
 

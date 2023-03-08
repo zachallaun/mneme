@@ -15,12 +15,24 @@ defmodule Mneme.Diff.Formatter do
     instructions
     |> denormalize_all()
     |> do_highlight(length(lines), last_line, rest)
+    |> Enum.map(fn
+      list when is_list(list) ->
+        Enum.filter(list, &(Owl.Data.length(&1) > 0))
+
+      line ->
+        line
+    end)
   end
 
   defp do_highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
 
   defp do_highlight([], _, current_line, earlier_lines, line_acc, acc) do
     Enum.reverse(earlier_lines) ++ [[current_line | line_acc] | acc]
+  end
+
+  # no-content highlight
+  defp do_highlight([{_, {{l, c}, {l, c}}} | rest], l, line, earlier, line_acc, acc) do
+    do_highlight(rest, l, line, earlier, line_acc, acc)
   end
 
   # single-line highlight
@@ -78,6 +90,29 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
+  defp denormalize(:node, op, {:var, meta, var}, zipper) do
+    var_bounds = bounds({:var, meta, var})
+    {{l, c}, {l2, c2}} = var_bounds
+
+    case zipper |> Zipper.up() |> Zipper.node() do
+      {:__aliases__, _, _} ->
+        case Zipper.right(zipper) do
+          nil ->
+            [{op, {{l, c - 1}, {l2, c2}}}]
+
+          _ ->
+            [{op, {{l, c}, {l2, c2 + 1}}}]
+        end
+
+      _ ->
+        [{op, var_bounds}]
+    end
+  end
+
+  defp denormalize(:node, _op, {{:., _, _}, _, []}, _zipper) do
+    []
+  end
+
   defp denormalize(:node, op, node, _zipper) do
     [{op, bounds(node)}]
   end
@@ -105,15 +140,31 @@ defmodule Mneme.Diff.Formatter do
   defp denormalize(
          :delimiter,
          op,
-         {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _},
+         {{:var, _, var}, %{line: l, column: c, closing: %{line: l2, column: c2}}, _},
          _
        ) do
-    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+    len = Macro.inspect_atom(:remote_call, var) |> String.length()
     [{op, {{l, c}, {l, c + len + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
   end
 
-  defp denormalize(:delimiter, op, {call, %{line: l, column: c}, _}, _) do
-    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+  defp denormalize(:delimiter, op, {{:var, _, _} = call, _, _}, _) do
+    [{op, call |> with_map_meta() |> bounds()}]
+  end
+
+  defp denormalize(
+         :delimiter,
+         op,
+         {{:., _, [left, right]}, %{closing: %{line: l2, column: c2}}, _},
+         _
+       ) do
+    {start_bound, _} = bounds(left)
+    {_, end_bound} = bounds(right)
+
+    [{op, {start_bound, end_bound}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+  end
+
+  defp denormalize(:delimiter, op, {atom, %{line: l, column: c}, _}, _) when is_atom(atom) do
+    len = Macro.inspect_atom(:remote_call, atom) |> String.length()
     [{op, {{l, c}, {l, c + len}}}]
   end
 
@@ -166,18 +217,42 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:var, %{line: l, column: c}, atom}) do
-    atom_bounds(:remote_call, atom, l, c)
+    {{l, c}, {l, c + String.length(to_string(atom))}}
   end
 
-  defp bounds({:__aliases__, %{line: l, column: c}, atoms}) do
-    unwrapped = for {:atom, _, atom} <- atoms, do: atom
-    len = {:__aliases__, [], unwrapped} |> Macro.to_string() |> String.length()
-    {{l, c}, {l, c + len}}
+  defp bounds({:__aliases__, %{line: l, column: c, last: %{line: l2, column: c2}}, vars}) do
+    {:var, _, last_var} = List.last(vars)
+    len = last_var |> to_string() |> String.length()
+    {{l, c}, {l2, c2 + len}}
   end
 
   defp bounds({:^, %{line: l, column: c}, [var]}) do
-    {_, closing_bound} = var |> with_map_meta() |> bounds()
-    {{l, c}, closing_bound}
+    {_, end_bound} = var |> with_map_meta() |> bounds()
+    {{l, c}, end_bound}
+  end
+
+  defp bounds({:., %{line: l, column: c}, args}) do
+    {_, end_bound} =
+      case args do
+        [inner] -> bounds(inner)
+        [_, inner] -> bounds(inner)
+      end
+
+    {{l, c}, end_bound}
+  end
+
+  defp bounds({{:., _, _} = call, %{no_parens: true}, []}) do
+    call |> with_map_meta() |> bounds()
+  end
+
+  defp bounds({call, _, args}) when is_atom(call) and is_list(args) do
+    [first | _] = args
+    last = List.last(args)
+
+    {start_bound, _} = bounds(first)
+    {_, end_bound} = bounds(last)
+
+    {start_bound, end_bound}
   end
 
   defp bounds(unimplemented) do
