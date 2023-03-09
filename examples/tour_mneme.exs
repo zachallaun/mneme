@@ -2,7 +2,7 @@
 # Download and run in your terminal with: elixir tour_mneme.exs
 
 Mix.install([
-  {:mneme, "~> 0.0.5"}
+  {:mneme, ">= 0.0.0"}
 ])
 
 ExUnit.start(seed: 0)
