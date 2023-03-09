@@ -208,6 +208,10 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l + n_lines + 1, indent + 4}}
   end
 
+  defp bounds({:charlist, %{line: l, column: c, delimiter: "'"}, string}) do
+    {{l, c}, {l, c + String.length(string) + 2}}
+  end
+
   defp bounds({:atom, %{format: :keyword, line: l, column: c}, atom}) do
     atom_bounds(:key, atom, l, c)
   end

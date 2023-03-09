@@ -193,9 +193,10 @@ defmodule Mneme.Diff.AST do
           end
 
         sigil_string =
-          {:string, [line: metadata[:line], column: metadata[:column] + 1], [<<sigil>>]}
+          {:string, [line: metadata[:line], column: metadata[:column] + 1], <<sigil>>}
 
-        {:"~", metadata, [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
+        {:"~", metadata,
+         [sigil_string, {:"[]", [], normalize_interpolation(args, start_pos)}, modifiers]}
 
       _ ->
         {sigil, metadata, [args, modifiers]}
