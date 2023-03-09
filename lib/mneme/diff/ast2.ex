@@ -260,8 +260,7 @@ defmodule Mneme.Diff.AST2 do
   defp normalize_metadata(metadata), do: Keyword.drop(metadata, [:__literal__, :file])
 
   @doc """
-  Performs a depth-first traversal of quoted expressions
-  using an accumulator.
+  Depth-first traversal of ASTs with an accumulator.
   """
   def traverse(ast, acc, pre, post) when is_function(pre, 2) and is_function(post, 2) do
     {ast, acc} = pre.(ast, acc)
@@ -312,7 +311,8 @@ defmodule Mneme.Diff.AST2 do
   Performs a depth-first, pre-order traversal of quoted expressions.
   """
   def prewalk(ast, fun) when is_function(fun, 1) do
-    elem(prewalk(ast, nil, fn x, nil -> {fun.(x), nil} end), 0)
+    prewalk(ast, nil, fn x, nil -> {fun.(x), nil} end)
+    |> elem(0)
   end
 
   @doc """
@@ -327,7 +327,8 @@ defmodule Mneme.Diff.AST2 do
   Performs a depth-first, post-order traversal of quoted expressions.
   """
   def postwalk(ast, fun) when is_function(fun, 1) do
-    elem(postwalk(ast, nil, fn x, nil -> {fun.(x), nil} end), 0)
+    postwalk(ast, nil, fn x, nil -> {fun.(x), nil} end)
+    |> elem(0)
   end
 
   @doc """

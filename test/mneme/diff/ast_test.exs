@@ -14,9 +14,7 @@ defmodule Mneme.Diff.ASTTest do
   #
   # * Lists that are "invisible" in the syntax appear as `[]` literals
   #   instead of `{:"[]", _meta, _args}` nodes. Examples include last-
-  #   element kw-args in calls and collections or in sigil nodes. These
-  #   lists should still be walked when traversing but should not be
-  #   considered for matching. (I think...?)
+  #   element kw-args in calls and collections or in sigil nodes.
 
   describe "parse_string!/1 enriched ASTs" do
     test "numbers" do
@@ -426,6 +424,45 @@ defmodule Mneme.Diff.ASTTest do
                       ]},
                      {:baz, [closing: [line: 1, column: 21], line: 1, column: 17], []}
                    ]} <- parse_string!("foo |> bar() |> baz()")
+    end
+  end
+
+  describe "traversal" do
+    test "presents nodes in the expected order" do
+      ast = parse_string!("%{foo: 1, bar: 2}")
+
+      auto_assert {[
+                     ^ast,
+                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 8], 1}},
+                     {:atom, [format: :keyword, line: 1, column: 3], :foo},
+                     {:int, [token: "1", line: 1, column: 8], 1},
+                     {{:atom, [format: :keyword, line: 1, column: 11], :bar},
+                      {:int, [token: "2", line: 1, column: 16], 2}},
+                     {:atom, [format: :keyword, line: 1, column: 11], :bar},
+                     {:int, [token: "2", line: 1, column: 16], 2}
+                   ],
+                   [
+                     {:atom, [format: :keyword, line: 1, column: 3], :foo},
+                     {:int, [token: "1", line: 1, column: 8], 1},
+                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 8], 1}},
+                     {:atom, [format: :keyword, line: 1, column: 11], :bar},
+                     {:int, [token: "2", line: 1, column: 16], 2},
+                     {{:atom, [format: :keyword, line: 1, column: 11], :bar},
+                      {:int, [token: "2", line: 1, column: 16], 2}},
+                     ^ast
+                   ]} <- prewalk_postwalk(ast)
+    end
+
+    defp prewalk_postwalk(ast) do
+      collect = fn quoted, acc -> {quoted, [quoted | acc]} end
+      collected = fn {_, acc} -> Enum.reverse(acc) end
+
+      {
+        ast |> prewalk([], collect) |> collected.(),
+        ast |> postwalk([], collect) |> collected.()
+      }
     end
   end
 end
