@@ -22,6 +22,7 @@ defmodule Mneme.Diff.ASTTest do
     test "numbers" do
       auto_assert {:int, [token: "1", line: 1, column: 1], 1} <- parse_string!("1")
       auto_assert {:int, [token: "1_000", line: 1, column: 1], 1000} <- parse_string!("1_000")
+      auto_assert {:int, [token: "?a", line: 1, column: 1], 97} <- parse_string!("?a")
       auto_assert {:float, [token: "1.0", line: 1, column: 1], 1.0} <- parse_string!("1.0")
 
       auto_assert {:float, [token: "1_000.0", line: 1, column: 1], 1000.0} <-
@@ -54,6 +55,48 @@ defmodule Mneme.Diff.ASTTest do
                    foo
                    bar
                    """} <- parse_string!(~s("""\nfoo\nbar\n"""))
+
+      auto_assert {:string, [delimiter: "\"\"\"", indentation: 2, line: 1, column: 1],
+                   """
+                   foo
+                   bar
+                   """} <- parse_string!(~s("""\n  foo\n  bar\n  """))
+    end
+
+    test "binary literals" do
+      auto_assert {:<<>>, [closing: [line: 1, column: 13], line: 1, column: 1],
+                   [
+                     {:int, [token: "?a", line: 1, column: 3], 97},
+                     {:int, [token: "?b", line: 1, column: 7], 98},
+                     {:int, [token: "?c", line: 1, column: 11], 99}
+                   ]} <- parse_string!("<<?a, ?b, ?c>>")
+
+      auto_assert {:<<>>, [closing: [line: 1, column: 10], line: 1, column: 1],
+                   [
+                     {:int, [token: "0", line: 1, column: 3], 0},
+                     {:int, [token: "1", line: 1, column: 6], 1},
+                     {:var, [line: 1, column: 9], :x}
+                   ]} <- parse_string!("<<0, 1, x>>")
+
+      auto_assert {:<<>>, [closing: [line: 1, column: 40], line: 1, column: 1],
+                   [
+                     {:int, [token: "0", line: 1, column: 3], 0},
+                     {:"::", [line: 1, column: 10],
+                      [
+                        {:var, [line: 1, column: 6], :head},
+                        {:-, [line: 1, column: 18],
+                         [
+                           {:var, [line: 1, column: 12], :binary},
+                           {:size, [closing: [line: 1, column: 25], line: 1, column: 19],
+                            [{:int, [token: "4", line: 1, column: 24], 4}]}
+                         ]}
+                      ]},
+                     {:"::", [line: 1, column: 32],
+                      [
+                        {:var, [line: 1, column: 28], :rest},
+                        {:var, [line: 1, column: 34], :binary}
+                      ]}
+                   ]} <- parse_string!("<<0, head::binary-size(4), rest::binary>>")
     end
 
     test "charlist literals" do
@@ -165,6 +208,19 @@ defmodule Mneme.Diff.ASTTest do
                      [{:string, [line: 1, column: 4], "foo"}],
                      []
                    ]} <- parse_string!("~s(foo)")
+
+      auto_assert {:"~", [indentation: 0, delimiter: "\"\"\"", line: 1, column: 1],
+                   [
+                     {:string, [line: 1, column: 2], "s"},
+                     [
+                       {:string, [line: 2, column: 1],
+                        """
+                        foo
+                        bar
+                        """}
+                     ],
+                     []
+                   ]} <- parse_string!(~s(~s"""\nfoo\nbar\n"""))
     end
 
     test "vars" do

@@ -88,6 +88,10 @@ defmodule Mneme.Diff.AST2 do
     end
   end
 
+  defp normalize_node({{:var, _, var}, metadata, args}) do
+    normalize_node({var, metadata, args})
+  end
+
   defp normalize_node({name, metadata, context})
        when is_atom(name) and is_atom(context) do
     {:var, normalize_metadata(metadata), name}
@@ -162,60 +166,14 @@ defmodule Mneme.Diff.AST2 do
     {{:<<>>, :atom}, metadata, normalize_interpolation(segments, start_pos)}
   end
 
-  defp normalize_node({sigil, metadata, [args, {:"[]", _, _} = modifiers]})
-       when is_atom(sigil) do
-    metadata = normalize_metadata(metadata)
-
-    case Atom.to_string(sigil) do
-      <<"sigil_", sigil>> when is_valid_sigil(sigil) ->
-        {:<<>>, args_meta, args} = args
-
-        start_pos = Keyword.take(args_meta, [:line, :column])
-
-        metadata =
-          if metadata[:delimiter] in ~w[""" '''] do
-            Keyword.put(metadata, :indentation, args_meta[:indentation])
-          else
-            metadata
-          end
-
-        start_pos =
-          if metadata[:delimiter] in ~w[""" '''] do
-            [
-              line: start_pos[:line] + 1,
-              column: args_meta[:indentation] + 1
-            ]
-          else
-            [
-              line: start_pos[:line],
-              column: start_pos[:column] + 2 + String.length(metadata[:delimiter])
-            ]
-          end
-
-        sigil_string =
-          {:string, [line: metadata[:line], column: metadata[:column] + 1], <<sigil>>}
-
-        {:"~", metadata,
-         [sigil_string, {:"[]", [], normalize_interpolation(args, start_pos)}, modifiers]}
+  defp normalize_node({form, metadata, args}) when is_atom(form) do
+    case {Atom.to_string(form), args} do
+      {<<"sigil_", sigil>>, [args, modifiers]} when is_valid_sigil(sigil) ->
+        normalize_sigil(sigil, metadata, args, modifiers)
 
       _ ->
-        {sigil, metadata, [args, modifiers]}
+        {form, normalize_metadata(metadata), args}
     end
-  end
-
-  defp normalize_node({form, metadata, args}) do
-    {form, normalize_metadata(metadata), args}
-  end
-
-  defp normalize_node({left, right}) do
-    {_, left_meta, _} = left
-
-    metadata = [line: left_meta[:line], column: left_meta[:column]]
-    {:{}, normalize_metadata(metadata), [left, right]}
-  end
-
-  defp normalize_node(list) when is_list(list) do
-    {:"[]", [], list}
   end
 
   defp normalize_node(string) when is_binary(string) do
@@ -223,6 +181,37 @@ defmodule Mneme.Diff.AST2 do
   end
 
   defp normalize_node(quoted), do: quoted
+
+  defp normalize_sigil(sigil, metadata, args, modifiers) do
+    {:<<>>, args_meta, args} = args
+
+    start_pos = Keyword.take(args_meta, [:line, :column])
+
+    metadata =
+      if metadata[:delimiter] in ~w[""" '''] do
+        Keyword.put(metadata, :indentation, args_meta[:indentation])
+      else
+        metadata
+      end
+
+    start_pos =
+      if metadata[:delimiter] in ~w[""" '''] do
+        [
+          line: start_pos[:line] + 1,
+          column: args_meta[:indentation] + 1
+        ]
+      else
+        [
+          line: start_pos[:line],
+          column: start_pos[:column] + 2 + String.length(metadata[:delimiter])
+        ]
+      end
+
+    sigil_string = {:string, [line: metadata[:line], column: metadata[:column] + 1], <<sigil>>}
+
+    {:"~", normalize_metadata(metadata),
+     [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
+  end
 
   defp normalize_interpolation(segments, start_pos) do
     {segments, _} =

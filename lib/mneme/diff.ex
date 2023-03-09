@@ -188,7 +188,7 @@ defmodule Mneme.Diff do
     # TODO: I _think_ there should always only be a single edge here,
     # but in one case that caused a match error. Need to look into this
     # more carefully.
-    [edge] = Graph.edges(graph, v1, v2)
+    [edge | _] = Graph.edges(graph, v1, v2)
     [edge | to_edges([v2 | rest], graph)]
   end
 
