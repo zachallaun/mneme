@@ -2,7 +2,7 @@ defmodule Mneme.Diff.ASTTest do
   use ExUnit.Case
   use Mneme
 
-  import Mneme.Diff.AST
+  import Mneme.Diff.AST2
 
   # Notes:
   #
@@ -29,6 +29,10 @@ defmodule Mneme.Diff.ASTTest do
 
       auto_assert {:float, [token: "1_000.4e4", line: 1, column: 1], 10_004_000.0} <-
                     parse_string!("1_000.4e4")
+
+      # note that negative numbers parse as a call using the unary `-`
+      auto_assert {:-, [line: 1, column: 1], [{:int, [token: "1", line: 1, column: 2], 1}]} <-
+                    parse_string!("-1")
     end
 
     test "atoms literals" do
@@ -186,8 +190,8 @@ defmodule Mneme.Diff.ASTTest do
                      {:var, [line: 1, column: 9], :Baz}
                    ]} <- parse_string!("Foo.Bar.Baz")
 
-      auto_assert {:__aliases__, [last: [line: 2, column: 1], line: 1, column: 1],
-                   [{:var, [line: 1, column: 1], :Foo}, {:var, [line: 2, column: 1], :Bar}]} <-
+      auto_assert {:__aliases__, [last: [line: 2, column: 3], line: 1, column: 1],
+                   [{:var, [line: 1, column: 1], :Foo}, {:var, [line: 2, column: 3], :Bar}]} <-
                     parse_string!("Foo.\n  Bar")
     end
 
@@ -195,44 +199,153 @@ defmodule Mneme.Diff.ASTTest do
       auto_assert {:is_pid, [closing: [line: 1, column: 8], line: 1, column: 1], []} <-
                     parse_string!("is_pid()")
 
+      # Calls with parens have a `:closing` meta
       auto_assert {:is_pid, [closing: [line: 1, column: 9], line: 1, column: 1],
                    [{:int, [token: "1", line: 1, column: 8], 1}]} <- parse_string!("is_pid(1)")
 
+      # Calls without parens do not have a `:closing` meta
       auto_assert {:is_pid, [line: 1, column: 1], [{:int, [token: "1", line: 1, column: 8], 1}]} <-
                     parse_string!("is_pid 1")
 
       auto_assert {:is_pid, [closing: [line: 1, column: 19], line: 1, column: 1],
                    [
                      {:int, [token: "1", line: 1, column: 8], 1},
-                     {:"[]", [],
-                      [
-                        {:{}, [line: 1, column: 11],
-                         [
-                           {:atom, [format: :keyword, line: 1, column: 11], :foo},
-                           {:var, [line: 1, column: 16], :bar}
-                         ]}
-                      ]}
+                     [
+                       {{:atom, [format: :keyword, line: 1, column: 11], :foo},
+                        {:var, [line: 1, column: 16], :bar}}
+                     ]
                    ]} <- parse_string!("is_pid(1, foo: bar)")
 
-      auto_assert {{:var, [line: 1, column: 1], :is_pid}, [line: 1, column: 1],
+      auto_assert {:is_pid, [closing: [line: 1, column: 24], line: 1, column: 1],
                    [
                      {:int, [token: "1", line: 1, column: 8], 1},
-                     {:"[]", [],
+                     {:"[]", [closing: [line: 1, column: 23], line: 1, column: 11],
                       [
-                        {:{}, [line: 1, column: 11],
+                        {:{}, [closing: [line: 1, column: 22], line: 1, column: 12],
                          [
-                           {:atom, [format: :keyword, line: 1, column: 11], :foo},
-                           {:var, [line: 1, column: 16], :bar}
+                           {:atom, [line: 1, column: 13], :foo},
+                           {:var, [line: 1, column: 19], :bar}
                          ]}
                       ]}
+                   ]} <- parse_string!("is_pid(1, [{:foo, bar}])")
+
+      auto_assert {:is_pid, [line: 1, column: 1],
+                   [
+                     {:int, [token: "1", line: 1, column: 8], 1},
+                     [
+                       {{:atom, [format: :keyword, line: 1, column: 11], :foo},
+                        {:var, [line: 1, column: 16], :bar}}
+                     ]
                    ]} <- parse_string!("is_pid 1, foo: bar")
     end
 
-    test "qualified calls"
+    test "qualified calls" do
+      # anonymous fn syntax has a single arg
+      auto_assert {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
+                   [closing: [line: 1, column: 6], line: 1, column: 4],
+                   []} <- parse_string!("foo.()")
 
-    test "unary operators"
+      # usual chaining has 2 args
+      auto_assert {{:., [line: 1, column: 4],
+                    [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
+                   [closing: [line: 1, column: 9], line: 1, column: 5],
+                   []} <- parse_string!("foo.bar()")
+
+      auto_assert {{:., [line: 1, column: 4],
+                    [
+                      {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
+                       [{:var, [line: 1, column: 1], :Foo}]},
+                      {:var, [line: 1, column: 5], :bar}
+                    ]}, [closing: [line: 1, column: 9], line: 1, column: 5],
+                   []} <- parse_string!("Foo.bar()")
+
+      # rightmost . is on the outside and has meta about parens, e.g. `:closing`
+      # note that `{:., [], []}` is always at the head of a call, e.g. `{{:., [], []}, [], []}`
+      auto_assert {{:., [line: 1, column: 8],
+                    [
+                      {{:., [line: 1, column: 4],
+                        [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
+                       [no_parens: true, line: 1, column: 5], []},
+                      {:var, [line: 1, column: 9], :baz}
+                    ]}, [closing: [line: 1, column: 13], line: 1, column: 9],
+                   []} <- parse_string!("foo.bar.baz()")
+
+      # example without parens, no `:closing` meta
+      auto_assert {{:., [line: 1, column: 8],
+                    [
+                      {{:., [line: 1, column: 4],
+                        [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
+                       [no_parens: true, line: 1, column: 5], []},
+                      {:var, [line: 1, column: 9], :baz}
+                    ]}, [line: 1, column: 9],
+                   [{:int, [token: "1", line: 1, column: 13], 1}]} <-
+                    parse_string!("foo.bar.baz 1")
+
+      # inner calls have `:closing` meta
+      auto_assert {{:., [line: 1, column: 10],
+                    [
+                      {{:., [line: 1, column: 4],
+                        [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
+                       [closing: [line: 1, column: 9], line: 1, column: 5], []},
+                      {:var, [line: 1, column: 11], :baz}
+                    ]}, [closing: [line: 1, column: 15], line: 1, column: 11],
+                   []} <- parse_string!("foo.bar().baz()")
+
+      # the inner `:.` tuple has a single arg and its call has closing meta, indicating
+      # a `foo.()`
+      auto_assert {{:., [line: 1, column: 7],
+                    [
+                      {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
+                       [closing: [line: 1, column: 6], line: 1, column: 4], []},
+                      {:var, [line: 1, column: 8], :bar}
+                    ]}, [closing: [line: 1, column: 12], line: 1, column: 8],
+                   []} <- parse_string!("foo.().bar()")
+    end
+
+    test "unary operators" do
+      auto_assert {:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]} <-
+                    parse_string!("-x")
+
+      auto_assert {:-, [line: 1, column: 1], [{:int, [token: "1", line: 1, column: 2], 1}]} <-
+                    parse_string!("-1")
+
+      auto_assert {:^, [line: 1, column: 1], [{:var, [line: 1, column: 2], :foo}]} <-
+                    parse_string!("^foo")
+    end
 
     # note: includes `|>`
-    test "binary operators"
+    test "binary operators" do
+      auto_assert {:+, [line: 1, column: 3],
+                   [{:var, [line: 1, column: 1], :x}, {:var, [line: 1, column: 5], :y}]} <-
+                    parse_string!("x + y")
+
+      auto_assert {:when, [line: 1, column: 5],
+                   [
+                     {:var, [line: 1, column: 1], :pid},
+                     {:is_pid, [closing: [line: 1, column: 20], line: 1, column: 10],
+                      [{:var, [line: 1, column: 17], :pid}]}
+                   ]} <- parse_string!("pid when is_pid(pid)")
+
+      auto_assert {:<-, [line: 1, column: 22],
+                   [
+                     {:when, [line: 1, column: 5],
+                      [
+                        {:var, [line: 1, column: 1], :pid},
+                        {:is_pid, [closing: [line: 1, column: 20], line: 1, column: 10],
+                         [{:var, [line: 1, column: 17], :pid}]}
+                      ]},
+                     {:self, [closing: [line: 1, column: 30], line: 1, column: 25], []}
+                   ]} <- parse_string!("pid when is_pid(pid) <- self()")
+
+      auto_assert {:|>, [line: 1, column: 14],
+                   [
+                     {:|>, [line: 1, column: 5],
+                      [
+                        {:var, [line: 1, column: 1], :foo},
+                        {:bar, [closing: [line: 1, column: 12], line: 1, column: 8], []}
+                      ]},
+                     {:baz, [closing: [line: 1, column: 21], line: 1, column: 17], []}
+                   ]} <- parse_string!("foo |> bar() |> baz()")
+    end
   end
 end
