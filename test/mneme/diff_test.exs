@@ -58,7 +58,8 @@ defmodule Mneme.DiffTest do
       auto_assert {nil, [["[", %Tag{data: "'foo'", sequences: [:green]}, "]"]]} <-
                     format("[]", "['foo']")
 
-      auto_assert format("[]", "[~c(foo)]")
+      auto_assert {nil, [["[", %Tag{data: "~c(foo)", sequences: [:green]}, "]"]]} <-
+                    format("[]", "[~c(foo)]")
     end
 
     test "formats integer insertions" do

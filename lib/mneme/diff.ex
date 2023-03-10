@@ -4,7 +4,7 @@
 defmodule Mneme.Diff do
   @moduledoc false
 
-  alias Mneme.Diff.AST
+  alias Mneme.Diff.AST2, as: AST
   alias Mneme.Diff.Edge
   alias Mneme.Diff.Formatter
   alias Mneme.Diff.Pathfinding
@@ -133,7 +133,7 @@ defmodule Mneme.Diff do
 
   defp get_parent_id(zipper) do
     zipper
-    |> Zipper.up()
+    |> parent_node()
     |> get_id()
   end
 
@@ -197,46 +197,46 @@ defmodule Mneme.Diff do
   defp parse_to_zipper!(code) when is_binary(code) do
     code
     |> AST.parse_string!()
-    |> AST.postwalk(0, fn quoted, i ->
-      hash = hash(quoted)
+    |> AST.postwalk(0, fn
+      {_, _, _} = quoted, i ->
+        hash = hash(quoted)
 
-      quoted =
-        Macro.update_meta(
-          quoted,
-          &Keyword.merge(&1, __hash__: hash, __id__: :erlang.phash2({hash, i}))
-        )
+        quoted =
+          Macro.update_meta(
+            quoted,
+            &Keyword.merge(&1, __hash__: hash, __id__: :erlang.phash2({hash, i}))
+          )
 
-      {quoted, i + 1}
+        {quoted, i + 1}
+
+      quoted, i ->
+        {quoted, i}
     end)
     |> elem(0)
     |> Zipper.zip()
   end
 
-  defp hash({call, _, args}) when is_list(args) do
-    inner = Enum.map(args, &hash/1)
-    :erlang.phash2({hash(call), inner})
-  end
-
-  defp hash({type, meta, value}) do
+  defp hash({call, meta, args}) do
     if hash = meta[:__hash__] do
       hash
     else
-      :erlang.phash2({type, value})
+      :erlang.phash2({hash(call), hash(args)})
     end
   end
 
-  defp hash(atom) when is_atom(atom) do
-    :erlang.phash2(atom)
+  defp hash(list) when is_list(list) do
+    list
+    |> Enum.map(&hash/1)
+    |> :erlang.phash2()
   end
 
-  defp fetch_hash!(nil), do: 0
-  defp fetch_hash!(zipper), do: zipper |> Zipper.node() |> elem(1) |> Keyword.fetch!(:__hash__)
+  defp hash(term), do: :erlang.phash2(term)
 
   defp syntax_eq?(left, right) do
-    left_h = left |> fetch_hash!()
-    left_parent_h = left |> Zipper.up() |> fetch_hash!()
-    right_h = right |> fetch_hash!()
-    right_parent_h = right |> Zipper.up() |> fetch_hash!()
+    left_h = left |> Zipper.node() |> hash()
+    left_parent_h = left |> parent_node() |> Zipper.node() |> hash()
+    right_h = right |> Zipper.node() |> hash()
+    right_parent_h = right |> parent_node() |> Zipper.node() |> hash()
 
     left_h == right_h && left_parent_h && right_parent_h
   end
@@ -276,7 +276,7 @@ defmodule Mneme.Diff do
       add_neighbor_edge(
         graph,
         v,
-        Vertex.new(Zipper.skip(l), Zipper.skip(r)),
+        Vertex.new(skip_node(l), skip_node(r)),
         Edge.unchanged(false, abs(get_depth(l) - get_depth(r)))
       )
     else
@@ -293,7 +293,6 @@ defmodule Mneme.Diff do
     unchanged_branch? =
       case {Zipper.node(l), Zipper.node(r)} do
         {{{:., _, _}, _, _}, {{:., _, _}, _, _}} -> true
-        {{{:var, _, var}, _, _}, {{:var, _, var}, _, _}} -> true
         {{branch, _, _}, {branch, _, _}} -> true
         _ -> false
       end
@@ -302,7 +301,7 @@ defmodule Mneme.Diff do
       add_neighbor_edge(
         graph,
         v,
-        Vertex.new(Zipper.next(l), Zipper.next(r)),
+        Vertex.new(next_node(l), next_node(r)),
         Edge.unchanged(true)
       )
     else
@@ -313,14 +312,40 @@ defmodule Mneme.Diff do
   defp neighbor_maybe_unchanged_branch_edge(graph, _), do: graph
 
   defp neighbor_left_edges(graph, %Vertex{left: l, left_branch?: branch?} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(Zipper.next(l), v.right), Edge.novel(branch?, :left))
+    add_neighbor_edge(graph, v, Vertex.new(next_node(l), v.right), Edge.novel(branch?, :left))
   end
 
   defp neighbor_right_edges(graph, %Vertex{right: r, right_branch?: branch?} = v) do
-    add_neighbor_edge(graph, v, Vertex.new(v.left, Zipper.next(r)), Edge.novel(branch?, :right))
+    add_neighbor_edge(graph, v, Vertex.new(v.left, next_node(r)), Edge.novel(branch?, :right))
   end
 
   defp get_depth(zipper, acc \\ 0)
   defp get_depth(nil, acc), do: acc
-  defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
+  defp get_depth(zipper, acc), do: get_depth(parent_node(zipper), acc + 1)
+
+  defp next_node(zipper) do
+    zipper
+    |> Zipper.next()
+    |> skip_structural_nodes(&next_node/1)
+  end
+
+  defp parent_node(zipper) do
+    zipper
+    |> Zipper.up()
+    |> skip_structural_nodes(&next_node/1)
+  end
+
+  defp skip_node(zipper) do
+    zipper
+    |> Zipper.skip()
+    |> skip_structural_nodes(&skip_node/1)
+  end
+
+  defp skip_structural_nodes(zipper, next_fun) do
+    case Zipper.node(zipper) do
+      {_, _} -> next_fun.(zipper)
+      list when is_list(list) -> next_fun.(zipper)
+      _ -> zipper
+    end
+  end
 end

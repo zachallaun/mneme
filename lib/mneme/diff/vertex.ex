@@ -29,10 +29,13 @@ defmodule Mneme.Diff.Vertex do
   defp id(nil), do: :erlang.phash2(nil)
 
   defp id(zipper) do
-    zipper
-    |> Zipper.node()
-    |> elem(1)
-    |> Keyword.fetch!(:__id__)
+    case Zipper.node(zipper) do
+      {_, meta, _} ->
+        Keyword.fetch!(meta, :__id__)
+
+      atom when is_atom(atom) ->
+        :erlang.phash2({atom, zipper |> Zipper.up() |> id()})
+    end
   end
 
   defp branch?(nil), do: false

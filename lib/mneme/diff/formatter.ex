@@ -208,6 +208,10 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l + n_lines + 1, indent + 4}}
   end
 
+  defp bounds({:string, %{line: l, column: c}, string}) do
+    {{l, c}, {l, c + String.length(string) - 1}}
+  end
+
   defp bounds({:charlist, %{line: l, column: c, delimiter: "'"}, string}) do
     {{l, c}, {l, c + String.length(string) + 2}}
   end
@@ -247,6 +251,17 @@ defmodule Mneme.Diff.Formatter do
 
   defp bounds({{:., _, _} = call, %{no_parens: true}, []}) do
     call |> with_map_meta() |> bounds()
+  end
+
+  # TODO: handle multi-line using """/''' delimiters
+  defp bounds({:"~", %{line: l, column: c, delimiter: del}, [_sigil, [string], modifiers]}) do
+    {_, {l2, c2}} = dbg(bounds(string))
+    del_length = String.length(del) * 2
+    dbg({{l, c}, {l2, c2 + del_length + length(modifiers)}})
+  end
+
+  defp bounds({:"~", _, _} = sigil) do
+    raise ArgumentError, "bounds unimplemented for: #{inspect(sigil)}"
   end
 
   defp bounds({call, _, args}) when is_atom(call) and is_list(args) do
