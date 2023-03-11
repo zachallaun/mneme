@@ -15,22 +15,15 @@ defmodule Mneme.Diff.Zipper do
   # Pattern: _child = {_, _}
   #
   # Type: nil
-  @dialyzer {:nowarn_function, do_prev: 1, prev_after_remove: 1}
+  # @dialyzer {:nowarn_function, do_prev: 1, prev_after_remove: 1}
+
+  @type zipper :: {tree :: any(), meta :: map()}
 
   import Kernel, except: [node: 1]
-
-  @type tree :: Macro.t()
-  @type path :: %{
-          l: [tree],
-          ptree: zipper,
-          r: [tree]
-        }
-  @type zipper :: {tree, path | nil}
 
   @doc """
   Returns true if the node is a branch.
   """
-  @spec branch?(tree) :: boolean
   def branch?({_, _, args}) when is_list(args), do: true
   def branch?({_, _}), do: true
   def branch?(list) when is_list(list), do: true
@@ -39,7 +32,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns a list of children of the node.
   """
-  @spec children(tree) :: [tree]
   def children({form, _, args}) when is_atom(form) and is_list(args), do: args
   def children({{:<<>>, _}, _, args}), do: args
   def children({form, _, args}) when is_list(args), do: [form | args]
@@ -49,7 +41,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns a new branch node, given an existing node and new children.
   """
-  @spec make_node(tree, [tree]) :: tree
   def make_node({form, meta, _}, args) when is_atom(form), do: {form, meta, args}
   def make_node({{:<<>>, type}, meta, _}, args), do: {{:<<>>, type}, meta, args}
   def make_node({_form, meta, args}, [first | rest]) when is_list(args), do: {first, meta, rest}
@@ -60,26 +51,22 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Creates a zipper from a tree node.
   """
-  @spec zip(tree) :: zipper
   def zip(term), do: {term, nil}
 
   @doc """
   Walks the zipper all the way up and returns the top zipper.
   """
-  @spec top(zipper) :: zipper
   def top({_, nil} = zipper), do: zipper
   def top(zipper), do: zipper |> up() |> top()
 
   @doc """
   Walks the zipper all the way up and returns the root node.
   """
-  @spec root(zipper) :: tree
   def root(zipper), do: zipper |> top() |> node()
 
   @doc """
   Returns the node at the zipper.
   """
-  @spec node(zipper) :: tree
   def node({tree, _}), do: tree
   def node(nil), do: nil
 
@@ -87,15 +74,10 @@ defmodule Mneme.Diff.Zipper do
   Returns the zipper of the leftmost child of the node at this zipper, or
   nil if no there's no children.
   """
-  @spec down(zipper) :: zipper | nil
   def down({tree, meta}) do
-    with true <- branch?(tree), [first | rest] <- children(tree) do
-      rest =
-        if rest == [] do
-          nil
-        else
-          rest
-        end
+    with true <- branch?(tree),
+         [first | rest] <- children(tree) do
+      rest = if rest == [], do: nil, else: rest
 
       {first, %{ptree: {tree, meta}, l: nil, r: rest}}
     else
@@ -109,7 +91,6 @@ defmodule Mneme.Diff.Zipper do
   Returns the zipper of the parent of the node at this zipper, or nil if at the
   top.
   """
-  @spec up(zipper) :: zipper | nil
   def up({_, nil}), do: nil
 
   def up({tree, meta}) do
@@ -123,7 +104,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the zipper of the left sibling of the node at this zipper, or nil.
   """
-  @spec left(zipper) :: zipper | nil
   def left({tree, %{l: [ltree | l], r: r} = meta}),
     do: {ltree, %{meta | l: l, r: [tree | r || []]}}
 
@@ -132,7 +112,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the leftmost sibling of the node at this zipper, or itself.
   """
-  @spec leftmost(zipper) :: zipper
   def leftmost({tree, %{l: [_ | _] = l} = meta}) do
     [left | rest] = Enum.reverse(l)
     r = rest ++ [tree] ++ (meta.r || [])
@@ -144,7 +123,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the zipper of the right sibling of the node at this zipper, or nil.
   """
-  @spec right(zipper) :: zipper | nil
   def right({tree, %{r: [rtree | r]} = meta}),
     do: {rtree, %{meta | r: r, l: [tree | meta.l || []]}}
 
@@ -153,7 +131,6 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the rightmost sibling of the node at this zipper, or itself.
   """
-  @spec rightmost(zipper) :: zipper
   def rightmost({tree, %{r: [_ | _] = r} = meta}) do
     [right | rest] = Enum.reverse(r)
     l = rest ++ [tree] ++ (meta.l || [])
@@ -165,21 +142,18 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Replaces the current node in the zipper with a new node.
   """
-  @spec replace(zipper, tree) :: zipper
   def replace({_, meta}, tree), do: {tree, meta}
 
   @doc """
   Replaces the current node in the zipper with the result of applying `fun` to
   the node.
   """
-  @spec update(zipper, (tree -> tree)) :: zipper
   def update({tree, meta}, fun), do: {fun.(tree), meta}
 
   @doc """
   Removes the node at the zipper, returning the zipper that would have preceded
   it in a depth-first walk.
   """
-  @spec remove(zipper) :: zipper
   def remove({_, nil}), do: raise(ArgumentError, message: "Cannot remove the top level node.")
 
   def remove({_, meta}) do
@@ -195,11 +169,10 @@ defmodule Mneme.Diff.Zipper do
   end
 
   defp prev_after_remove(zipper) do
-    with true <- branch?(node(zipper)),
-         {_, _} = child <- down(zipper) do
+    if child = branch?(node(zipper)) && down(zipper) do
       prev_after_remove(rightmost(child))
     else
-      _ -> zipper
+      zipper
     end
   end
 
@@ -208,7 +181,6 @@ defmodule Mneme.Diff.Zipper do
   moving. Raises an `ArgumentError` when attempting to insert a sibling at the
   top level.
   """
-  @spec insert_left(zipper, tree) :: zipper
   def insert_left({_, nil}, _),
     do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
 
@@ -221,7 +193,6 @@ defmodule Mneme.Diff.Zipper do
   moving. Raises an `ArgumentError` when attempting to insert a sibling at the
   top level.
   """
-  @spec insert_right(zipper, tree) :: zipper
   def insert_right({_, nil}, _),
     do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
 
@@ -267,7 +238,6 @@ defmodule Mneme.Diff.Zipper do
   The function `skip/1` behaves like the `:skip` in `traverse_while/2` and
   `traverse_while/3`.
   """
-  @spec skip(zipper, direction :: :next | :prev) :: zipper | nil
   def skip(zipper, direction \\ :next)
   def skip(zipper, :next), do: right(zipper) || next_up(zipper)
   def skip(zipper, :prev), do: left(zipper) || prev_up(zipper)
@@ -288,7 +258,6 @@ defmodule Mneme.Diff.Zipper do
   Returns the previous zipper in depth-first pre-order. If it's already at
   the end, it returns nil.
   """
-  @spec prev(zipper) :: zipper
   def prev(zipper) do
     if left = left(zipper) do
       do_prev(left)
@@ -298,11 +267,10 @@ defmodule Mneme.Diff.Zipper do
   end
 
   defp do_prev(zipper) do
-    with true <- branch?(node(zipper)),
-         {_, _} = child <- down(zipper) do
+    if child = branch?(node(zipper)) && down(zipper) do
       do_prev(rightmost(child))
     else
-      _ -> zipper
+      zipper
     end
   end
 
@@ -314,7 +282,6 @@ defmodule Mneme.Diff.Zipper do
 
   The function must return a zipper.
   """
-  @spec traverse(zipper, (zipper -> zipper)) :: zipper
   def traverse({_tree, nil} = zipper, fun) do
     do_traverse(zipper, fun)
   end
@@ -336,7 +303,6 @@ defmodule Mneme.Diff.Zipper do
 
   If the zipper is not at the top, just the subtree will be traversed.
   """
-  @spec traverse(zipper, term, (zipper, term -> {zipper, term})) :: {zipper, term}
   def traverse({_tree, nil} = zipper, acc, fun) do
     do_traverse(zipper, acc, fun)
   end
@@ -363,12 +329,6 @@ defmodule Mneme.Diff.Zipper do
 
   The function must return a zipper.
   """
-  @spec traverse_while(
-          zipper,
-          (zipper ->
-             {:cont, zipper} | {:halt, zipper} | {:skip, zipper})
-        ) ::
-          zipper
   def traverse_while({_tree, nil} = zipper, fun) do
     do_traverse_while(zipper, fun)
   end
@@ -401,11 +361,6 @@ defmodule Mneme.Diff.Zipper do
 
   If the zipper is not at the top, just the subtree will be traversed.
   """
-  @spec traverse_while(
-          zipper,
-          term,
-          (zipper, term -> {:cont, zipper, term} | {:halt, zipper, term} | {:skip, zipper, term})
-        ) :: {zipper, term}
   def traverse_while({_tree, nil} = zipper, acc, fun) do
     do_traverse_while(zipper, acc, fun)
   end
@@ -435,8 +390,6 @@ defmodule Mneme.Diff.Zipper do
   The optional second parameters specifies the `direction`, defaults to
   `:next`.
   """
-  @spec find(zipper, direction :: :prev | :next, predicate :: (tree -> any)) ::
-          zipper | nil
   def find(zipper, direction \\ :next, predicate)
 
   def find(nil, _direction, _predicate), do: nil

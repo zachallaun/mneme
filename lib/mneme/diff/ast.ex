@@ -19,10 +19,9 @@ defmodule Mneme.Diff.AST do
   Parse Elixir code into an enriched AST.
   """
   def parse_string!(string) do
-    case Sourceror.string_to_quoted!(string, to_quoted_opts()) do
-      {quoted, _comments} -> normalize_nodes(quoted)
-      _ -> raise "unable to parse"
-    end
+    {quoted, _comments} = Sourceror.string_to_quoted!(string, to_quoted_opts())
+
+    normalize_nodes(quoted)
   end
 
   defp to_quoted_opts do

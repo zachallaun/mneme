@@ -11,7 +11,7 @@ defmodule Mneme.Diff.SyntaxNode do
   defstruct [:zipper, :id, :hash, :branch?]
 
   @type t :: %SyntaxNode{
-          zipper: Zipper.t() | nil,
+          zipper: Zipper.zipper() | nil,
           id: any(),
           hash: any(),
           branch?: boolean()
