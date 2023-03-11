@@ -4,7 +4,7 @@
 defmodule Mneme.Diff do
   @moduledoc false
 
-  alias Mneme.Diff.AST2, as: AST
+  alias Mneme.Diff.AST
   alias Mneme.Diff.Edge
   alias Mneme.Diff.Formatter
   alias Mneme.Diff.Pathfinding

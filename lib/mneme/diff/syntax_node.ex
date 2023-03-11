@@ -2,7 +2,7 @@ defmodule Mneme.Diff.SyntaxNode do
   @moduledoc false
 
   alias __MODULE__
-  alias Mneme.Diff.AST2, as: AST
+  alias Mneme.Diff.AST
   alias Mneme.Diff.Zipper
 
   @hash :__hash__

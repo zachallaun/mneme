@@ -1,7 +1,7 @@
 # Derived from an experimental Sourceror branch:
 # https://github.com/doorgan/sourceror/blob/9cdebddd3b8894772528e4411235e57cad35014c/lib/sourceror/parser.ex
 
-defmodule Mneme.Diff.AST2 do
+defmodule Mneme.Diff.AST do
   @moduledoc false
 
   # Generates an AST similar to Elixir's, but enriched and normalized.

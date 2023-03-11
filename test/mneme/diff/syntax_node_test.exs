@@ -4,7 +4,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   import Mneme.Diff.SyntaxNode
 
-  alias Mneme.Diff.AST2, as: AST
+  alias Mneme.Diff.AST
 
   @ast AST.parse_string!("auto_assert :foo <- some_call(1, 2, 3)")
 
@@ -39,7 +39,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                               %{
                                 __hash__: 62_835_811,
                                 __id__: {4, 62_835_811},
-                                closing: [line: 1, column: 38],
+                                closing: %{column: 38, line: 1},
                                 column: 21,
                                 line: 1
                               },
@@ -88,7 +88,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                       %{
                         __hash__: 62_835_811,
                         __id__: {4, 62_835_811},
-                        closing: [line: 1, column: 38],
+                        closing: %{column: 38, line: 1},
                         column: 21,
                         line: 1
                       },
@@ -127,7 +127,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                    %{
                      __hash__: 62_835_811,
                      __id__: {4, 62_835_811},
-                     closing: [line: 1, column: 38],
+                     closing: %{column: 38, line: 1},
                      column: 21,
                      line: 1
                    },
@@ -170,7 +170,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                    %{
                      __hash__: 62_835_811,
                      __id__: {4, 62_835_811},
-                     closing: [line: 1, column: 38],
+                     closing: %{column: 38, line: 1},
                      column: 21,
                      line: 1
                    },

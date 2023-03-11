@@ -2,7 +2,7 @@ defmodule Mneme.Diff.ASTTest do
   use ExUnit.Case
   use Mneme
 
-  import Mneme.Diff.AST2
+  import Mneme.Diff.AST
 
   # Notes:
   #
@@ -192,14 +192,15 @@ defmodule Mneme.Diff.ASTTest do
     test "structs" do
       auto_assert {:%, [line: 1, column: 1],
                    [
-                     {:__aliases__, [last: [line: 1, column: 2], line: 1, column: 2], [:Foo]},
+                     {:__aliases__, [last: [line: 1, column: 2], line: 1, column: 2],
+                      [{:var, [line: 1, column: 2], :Foo}]},
                      {:%{}, [closing: [line: 1, column: 6], line: 1, column: 5], []}
                    ]} <- parse_string!("%Foo{}")
 
       auto_assert {:%, [line: 1, column: 1],
                    [
                      {:__aliases__, [last: [line: 1, column: 6], line: 1, column: 2],
-                      [:Foo, :Bar]},
+                      [{:var, [line: 1, column: 2], :Foo}, {:var, [line: 1, column: 6], :Bar}]},
                      {:%{}, [closing: [line: 1, column: 24], line: 1, column: 9],
                       [
                         {{:atom, [format: :keyword, line: 1, column: 10], :foo},
@@ -261,16 +262,22 @@ defmodule Mneme.Diff.ASTTest do
     end
 
     test "aliases" do
-      auto_assert {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1], [:Foo]} <-
-                    parse_string!("Foo")
+      auto_assert {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
+                   [{:var, [line: 1, column: 1], :Foo}]} <- parse_string!("Foo")
 
-      auto_assert {:__aliases__, [last: [line: 1, column: 5], line: 1, column: 1], [:Foo, :Bar]} <-
+      auto_assert {:__aliases__, [last: [line: 1, column: 5], line: 1, column: 1],
+                   [{:var, [line: 1, column: 1], :Foo}, {:var, [line: 1, column: 5], :Bar}]} <-
                     parse_string!("Foo.Bar")
 
       auto_assert {:__aliases__, [last: [line: 1, column: 9], line: 1, column: 1],
-                   [:Foo, :Bar, :Baz]} <- parse_string!("Foo.Bar.Baz")
+                   [
+                     {:var, [line: 1, column: 1], :Foo},
+                     {:var, [line: 1, column: 5], :Bar},
+                     {:var, [line: 1, column: 9], :Baz}
+                   ]} <- parse_string!("Foo.Bar.Baz")
 
-      auto_assert {:__aliases__, [last: [line: 2, column: 3], line: 1, column: 1], [:Foo, :Bar]} <-
+      auto_assert {:__aliases__, [last: [line: 2, column: 3], line: 1, column: 1],
+                   [{:var, [line: 1, column: 1], :Foo}, {:var, [line: 2, column: 3], :Bar}]} <-
                     parse_string!("Foo.\n  Bar")
     end
 
@@ -332,7 +339,8 @@ defmodule Mneme.Diff.ASTTest do
 
       auto_assert {{:., [line: 1, column: 4],
                     [
-                      {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1], [:Foo]},
+                      {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
+                       [{:var, [line: 1, column: 1], :Foo}]},
                       {:var, [line: 1, column: 5], :bar}
                     ]}, [closing: [line: 1, column: 9], line: 1, column: 5],
                    []} <- parse_string!("Foo.bar()")
