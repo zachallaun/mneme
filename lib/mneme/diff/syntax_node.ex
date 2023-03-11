@@ -28,7 +28,7 @@ defmodule Mneme.Diff.SyntaxNode do
     |> AST.postwalk(0, fn
       {form, meta, args} = quoted, i ->
         hash = hash(quoted)
-        meta = Enum.into(meta, %{@hash => hash, @id => {i, hash}})
+        meta = meta |> Keyword.merge([{@hash, hash}, {@id, {i, hash}}]) |> normalize_metadata()
 
         {{form, meta, args}, i + 1}
 
@@ -38,6 +38,13 @@ defmodule Mneme.Diff.SyntaxNode do
     |> elem(0)
     |> Zipper.zip()
     |> new()
+  end
+
+  defp normalize_metadata(meta) do
+    for {k, v} <- meta do
+      if Keyword.keyword?(v), do: {k, normalize_metadata(v)}, else: {k, v}
+    end
+    |> Map.new()
   end
 
   @doc "Returns the next syntax node."
@@ -98,16 +105,8 @@ defmodule Mneme.Diff.SyntaxNode do
       {_, meta, _} ->
         Map.fetch!(meta, @id)
 
-      {_, _} ->
-        zipper
-        |> get_child_ids()
-
-      list when is_list(list) ->
-        zipper
-        |> get_child_ids()
-
-      term ->
-        {term, zipper |> Zipper.up() |> id()}
+      _structural ->
+        {id(Zipper.up(zipper)), position(zipper)}
     end
   end
 
@@ -141,6 +140,10 @@ defmodule Mneme.Diff.SyntaxNode do
     end)
     |> Enum.to_list()
   end
+
+  defp position(zipper, acc \\ -1)
+  defp position(nil, acc), do: acc
+  defp position(zipper, acc), do: position(Zipper.left(zipper), acc + 1)
 
   defp hash({call, meta, args}) do
     meta[@hash] || :erlang.phash2({hash(call), hash(args)})

@@ -13,12 +13,12 @@ defmodule Mneme.Diff.Formatter do
     [last_line | rest] = lines
 
     instructions
-    |> Enum.filter(fn {_op, _type, zipper} ->
-      case Zipper.node(zipper) do
-        {_, _, _} -> true
-        _ -> false
-      end
-    end)
+    # |> Enum.filter(fn {_op, _type, zipper} ->
+    #   case Zipper.node(zipper) do
+    #     {_, _, _} -> true
+    #     _ -> false
+    #   end
+    # end)
     |> denormalize_all()
     |> do_highlight(length(lines), last_line, rest)
     |> Enum.map(fn
@@ -28,6 +28,7 @@ defmodule Mneme.Diff.Formatter do
       line ->
         line
     end)
+    |> dbg()
   end
 
   defp do_highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
@@ -79,7 +80,7 @@ defmodule Mneme.Diff.Formatter do
   defp denormalize_all(instructions) do
     instructions
     |> Enum.flat_map(fn {op, type, zipper} ->
-      denormalize(type, op, zipper |> Zipper.node() |> with_map_meta(), zipper)
+      denormalize(type, op, zipper |> Zipper.node(), zipper)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
   end
@@ -134,7 +135,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp denormalize(:delimiter, op, {:%{}, meta, _}, zipper) do
-    case zipper |> Zipper.up() |> Zipper.node() |> with_map_meta() do
+    case zipper |> Zipper.up() |> Zipper.node() do
       {:%, %{line: l, column: c}, _} ->
         [{op, {{l, c}, {l, c + 1}}} | denormalize_delimiter(op, meta, 1, 1)]
 
@@ -154,7 +155,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp denormalize(:delimiter, op, {{:var, _, _} = call, _, _}, _) do
-    [{op, call |> with_map_meta() |> bounds()}]
+    [{op, call |> bounds()}]
   end
 
   defp denormalize(
@@ -185,10 +186,10 @@ defmodule Mneme.Diff.Formatter do
   end
 
   # HACK: meta in args haven't been converted to maps, so we do it here
-  defp bounds({_, list, _} = node) when is_list(list), do: node |> with_map_meta() |> bounds()
+  defp bounds({_, list, _} = node) when is_list(list), do: node |> bounds()
 
   defp bounds({:%, %{line: l, column: c}, [_, map_node]}) do
-    {_, closing_bound} = map_node |> with_map_meta() |> bounds()
+    {_, closing_bound} = map_node |> bounds()
     {{l, c}, closing_bound}
   end
 
@@ -241,7 +242,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:^, %{line: l, column: c}, [var]}) do
-    {_, end_bound} = var |> with_map_meta() |> bounds()
+    {_, end_bound} = var |> bounds()
     {{l, c}, end_bound}
   end
 
@@ -256,7 +257,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({{:., _, _} = call, %{no_parens: true}, []}) do
-    call |> with_map_meta() |> bounds()
+    call |> bounds()
   end
 
   # TODO: handle multi-line using """/''' delimiters
@@ -291,22 +292,4 @@ defmodule Mneme.Diff.Formatter do
 
   defp tag(data, :ins), do: Owl.Data.tag(data, :green)
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
-
-  defp with_map_meta({_, _, _} = node) do
-    # TODO: refactor
-    Macro.update_meta(node, fn meta ->
-      meta
-      |> Map.new()
-      |> case do
-        %{closing: _} = map -> Map.update!(map, :closing, &Map.new/1)
-        map -> map
-      end
-      |> case do
-        %{last: _} = map -> Map.update!(map, :last, &Map.new/1)
-        map -> map
-      end
-    end)
-  end
-
-  defp with_map_meta(nil), do: nil
 end
