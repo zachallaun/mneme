@@ -52,6 +52,10 @@ defmodule Mneme.DiffTest do
                       \"""
                       """
                     )
+
+      auto_assert {[["[", %Tag{data: "\"foo\"", sequences: [:red]}, "]"]],
+                   [["[", %Tag{data: "\"bar\"", sequences: [:green]}, "]"]]} <-
+                    format(~s(["foo"]), ~s(["bar"]))
     end
 
     test "formats charlists" do

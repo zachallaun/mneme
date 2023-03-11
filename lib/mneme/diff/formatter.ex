@@ -208,8 +208,8 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:string, %{line: l, column: c, delimiter: ~s(")}, string}) do
-    len = String.length(string)
-    {{l, c}, {l, c + len + 2}}
+    offset = 2 + String.length(string) + occurrences(string, ?")
+    {{l, c}, {l, c + offset}}
   end
 
   defp bounds({:string, %{line: l, column: c, delimiter: ~s("""), indentation: indent}, string}) do
@@ -222,7 +222,8 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:charlist, %{line: l, column: c, delimiter: "'"}, string}) do
-    {{l, c}, {l, c + String.length(string) + 2}}
+    offset = 2 + String.length(string) + occurrences(string, ?')
+    {{l, c}, {l, c + offset}}
   end
 
   defp bounds({:atom, %{format: :keyword, line: l, column: c}, atom}) do
@@ -297,4 +298,9 @@ defmodule Mneme.Diff.Formatter do
 
   defp tag(data, :ins), do: Owl.Data.tag(data, :green)
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
+
+  defp occurrences(string, char, acc \\ 0)
+  defp occurrences(<<char, rest::binary>>, char, acc), do: occurrences(rest, char, acc + 1)
+  defp occurrences(<<_, rest::binary>>, char, acc), do: occurrences(rest, char, acc)
+  defp occurrences(<<>>, _char, acc), do: acc
 end
