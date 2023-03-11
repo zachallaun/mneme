@@ -112,8 +112,8 @@ defmodule Mneme.Diff.SyntaxNode do
 
   defp get_child_ids(zipper) do
     case Zipper.node(zipper) do
-      {{_, _, _} = call, _, args} when is_list(args) ->
-        [id(call) | zipper |> Zipper.down() |> sibling_ids()]
+      {{_, meta, _}, _, args} when is_list(args) ->
+        [Map.fetch!(meta, @id) | zipper |> Zipper.down() |> sibling_ids()]
 
       {_, _, args} when is_list(args) ->
         zipper |> Zipper.down() |> sibling_ids()

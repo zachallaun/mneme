@@ -88,7 +88,7 @@ defmodule Mneme.Diff do
     novel_ids = MapSet.new(for(%SyntaxNode{branch?: false, id: id} <- all_novels, do: id))
 
     novel_ids =
-      for %SyntaxNode{branch?: true, id: id} = branch <- all_novels,
+      for %SyntaxNode{branch?: true, id: id} = branch <- Enum.reverse(all_novels),
           reduce: novel_ids do
         ids ->
           if all_child_ids_in?(branch, ids) do
@@ -97,8 +97,6 @@ defmodule Mneme.Diff do
             ids
           end
       end
-
-    if all_novels != [], do: dbg()
 
     Enum.flat_map(all_novels, fn %SyntaxNode{branch?: branch?} = node ->
       parent = SyntaxNode.parent(node)
