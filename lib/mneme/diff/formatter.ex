@@ -13,6 +13,12 @@ defmodule Mneme.Diff.Formatter do
     [last_line | rest] = lines
 
     instructions
+    |> Enum.filter(fn {_op, _type, zipper} ->
+      case Zipper.node(zipper) do
+        {_, _, _} -> true
+        _ -> false
+      end
+    end)
     |> denormalize_all()
     |> do_highlight(length(lines), last_line, rest)
     |> Enum.map(fn
@@ -255,9 +261,9 @@ defmodule Mneme.Diff.Formatter do
 
   # TODO: handle multi-line using """/''' delimiters
   defp bounds({:"~", %{line: l, column: c, delimiter: del}, [_sigil, [string], modifiers]}) do
-    {_, {l2, c2}} = dbg(bounds(string))
+    {_, {l2, c2}} = bounds(string)
     del_length = String.length(del) * 2
-    dbg({{l, c}, {l2, c2 + del_length + length(modifiers)}})
+    {{l, c}, {l2, c2 + del_length + length(modifiers)}}
   end
 
   defp bounds({:"~", _, _} = sigil) do

@@ -166,11 +166,6 @@ defmodule Mneme.Diff.AST2 do
     {{:<<>>, :atom}, metadata, normalize_interpolation(segments, start_pos)}
   end
 
-  defp normalize_node({:__aliases__, metadata, args}) do
-    unwrapped = Enum.map(args, fn {:var, _, var} -> var end)
-    {:__aliases__, normalize_metadata(metadata), unwrapped}
-  end
-
   defp normalize_node({form, metadata, args}) when is_atom(form) do
     case {Atom.to_string(form), args} do
       {<<"sigil_", sigil>>, [args, modifiers]} when is_valid_sigil(sigil) ->

@@ -160,6 +160,51 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
   end
 
+  describe "skip/1" do
+    test "skips the current node, moving to the next sibling" do
+      root = root(@ast)
+
+      assert root |> skip() |> terminal?()
+
+      auto_assert {:some_call,
+                   %{
+                     __hash__: 62_835_811,
+                     __id__: {4, 62_835_811},
+                     closing: [line: 1, column: 38],
+                     column: 21,
+                     line: 1
+                   },
+                   [
+                     {:int,
+                      %{
+                        __hash__: 90_011_654,
+                        __id__: {1, 90_011_654},
+                        column: 31,
+                        line: 1,
+                        token: "1"
+                      }, 1},
+                     {:int,
+                      %{
+                        __hash__: 36_330_407,
+                        __id__: {2, 36_330_407},
+                        column: 34,
+                        line: 1,
+                        token: "2"
+                      }, 2},
+                     {:int,
+                      %{
+                        __hash__: 57_057_258,
+                        __id__: {3, 57_057_258},
+                        column: 37,
+                        line: 1,
+                        token: "3"
+                      }, 3}
+                   ]} <- root |> next() |> next() |> skip() |> ast()
+
+      assert root |> next() |> next() |> skip() |> skip() |> terminal?()
+    end
+  end
+
   describe "parent/1" do
     test "returns the parent syntax node if not at the root" do
       root = root(@ast)
@@ -173,7 +218,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     test "returns true at the end of the ast" do
       last_node = Enum.reduce(1..6, root(@ast), fn _, node -> next(node) end)
 
-      refute last_node |> terminal?()
+      assert last_node
       assert last_node |> next() |> terminal?()
     end
   end

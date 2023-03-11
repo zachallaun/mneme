@@ -43,6 +43,9 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc "Returns the next syntax node."
   def next(%SyntaxNode{zipper: z}), do: z |> Zipper.next() |> new()
 
+  @doc "Skips the current branch, returning the next sibling."
+  def skip(%SyntaxNode{zipper: z}), do: z |> Zipper.skip() |> new()
+
   @doc "Returns the parent syntax node, or nil if the node is the root."
   def parent(%SyntaxNode{zipper: z}) do
     case Zipper.up(z) do
@@ -54,6 +57,11 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc "Returns the ast for the current node."
   def ast(%SyntaxNode{zipper: z}), do: Zipper.node(z)
 
+  @doc """
+  List the ids of all children of the current syntax node.
+  """
+  def child_ids(%SyntaxNode{zipper: z}), do: get_child_ids(z)
+
   @doc "Returns true when this node represents the end of the ast."
   def terminal?(%SyntaxNode{zipper: nil}), do: true
   def terminal?(%SyntaxNode{}), do: false
@@ -64,6 +72,15 @@ defmodule Mneme.Diff.SyntaxNode do
   """
   def similar?(%SyntaxNode{hash: hash}, %SyntaxNode{hash: hash}), do: true
   def similar?(%SyntaxNode{}, %SyntaxNode{}), do: false
+
+  @doc """
+  Returns the depth of the current syntax node relative to the root.
+  """
+  def depth(%SyntaxNode{zipper: zipper}), do: get_depth(zipper)
+
+  defp get_depth(zipper, acc \\ 0)
+  defp get_depth(nil, acc), do: acc
+  defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
 
   defp new(zipper) do
     %SyntaxNode{
@@ -83,18 +100,18 @@ defmodule Mneme.Diff.SyntaxNode do
 
       {_, _} ->
         zipper
-        |> child_ids()
+        |> get_child_ids()
 
       list when is_list(list) ->
         zipper
-        |> child_ids()
+        |> get_child_ids()
 
       term ->
         {term, zipper |> Zipper.up() |> id()}
     end
   end
 
-  defp child_ids(zipper) do
+  defp get_child_ids(zipper) do
     case Zipper.node(zipper) do
       {{_, _, _} = call, _, args} when is_list(args) ->
         [id(call) | zipper |> Zipper.down() |> sibling_ids()]
