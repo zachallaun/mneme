@@ -144,14 +144,14 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp add_neighbor_edge(graph, existing, new, %Edge{} = edge) do
+  defp add_edge(graph, existing, new, %Edge{} = edge) do
     Graph.add_edge(graph, existing, new, weight: Edge.cost(edge))
   end
 
   defp maybe_add_unchanged_node(graph, {left, right, _} = v) do
     if SyntaxNode.similar?(left, right) do
       edge = Edge.unchanged(false, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-      add_neighbor_edge(graph, v, {SyntaxNode.skip(left), SyntaxNode.skip(right), edge}, edge)
+      add_edge(graph, v, {SyntaxNode.skip(left), SyntaxNode.skip(right), edge}, edge)
     else
       graph
     end
@@ -170,7 +170,7 @@ defmodule Mneme.Diff do
 
     if unchanged_branch? do
       edge = Edge.unchanged(true)
-      add_neighbor_edge(graph, v, {SyntaxNode.next(left), SyntaxNode.next(right), edge}, edge)
+      add_edge(graph, v, {SyntaxNode.next(left), SyntaxNode.next(right), edge}, edge)
     else
       graph
     end
@@ -180,11 +180,11 @@ defmodule Mneme.Diff do
 
   defp add_novel_left(graph, {left, right, _} = v) do
     edge = Edge.novel(left.branch?, :left)
-    add_neighbor_edge(graph, v, {SyntaxNode.next(left), right, edge}, edge)
+    add_edge(graph, v, {SyntaxNode.next(left), right, edge}, edge)
   end
 
   defp add_novel_right(graph, {left, right, _} = v) do
     edge = Edge.novel(right.branch?, :right)
-    add_neighbor_edge(graph, v, {left, SyntaxNode.next(right), edge}, edge)
+    add_edge(graph, v, {left, SyntaxNode.next(right), edge}, edge)
   end
 end

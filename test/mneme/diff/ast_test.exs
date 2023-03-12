@@ -1,5 +1,5 @@
 defmodule Mneme.Diff.ASTTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   import Mneme.Diff.AST
