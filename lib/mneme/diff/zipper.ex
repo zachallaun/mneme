@@ -37,6 +37,7 @@ defmodule Mneme.Diff.Zipper do
   def children({form, _, args}) when is_list(args), do: [form | args]
   def children({left, right}), do: [left, right]
   def children(list) when is_list(list), do: list
+  def children(_), do: []
 
   @doc """
   Returns a new branch node, given an existing node and new children.
@@ -58,6 +59,12 @@ defmodule Mneme.Diff.Zipper do
   """
   def top({_, nil} = zipper), do: zipper
   def top(zipper), do: zipper |> up() |> top()
+
+  @doc """
+  Returns true if the zipper is at the top.
+  """
+  def top?({_, nil}), do: true
+  def top?(_), do: false
 
   @doc """
   Walks the zipper all the way up and returns the root node.
@@ -222,6 +229,8 @@ defmodule Mneme.Diff.Zipper do
   def next({tree, _} = zipper) do
     if branch?(tree) && down(zipper), do: down(zipper), else: skip(zipper)
   end
+
+  def next(nil), do: nil
 
   @doc """
   Returns the zipper of the right sibling of the node at this zipper, or the

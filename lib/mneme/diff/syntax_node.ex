@@ -8,14 +8,31 @@ defmodule Mneme.Diff.SyntaxNode do
   @hash :__hash__
   @id :__id__
 
-  defstruct [:zipper, :id, :hash, :branch?]
+  defstruct [:zipper, :predecessor, :id, :hash, :branch?, :null?, :terminal?]
 
   @type t :: %SyntaxNode{
           zipper: Zipper.zipper() | nil,
+          predecessor: Zipper.zipper() | nil,
           id: any(),
           hash: any(),
-          branch?: boolean()
+          branch?: boolean(),
+          null?: boolean(),
+          terminal?: boolean()
         }
+
+  @doc false
+  def new(zipper, predecessor \\ nil) do
+    %SyntaxNode{
+      zipper: zipper,
+      predecessor: predecessor,
+      # id: {id(zipper), id(predecessor)},
+      id: id(zipper),
+      hash: zipper |> Zipper.node() |> hash(),
+      branch?: zipper |> Zipper.node() |> Zipper.branch?(),
+      null?: !zipper,
+      terminal?: !zipper && !Zipper.skip(predecessor)
+    }
+  end
 
   @doc """
   Creates a root syntax node from the given tree.
@@ -47,19 +64,22 @@ defmodule Mneme.Diff.SyntaxNode do
     |> Map.new()
   end
 
-  @doc "Returns the next syntax node."
-  def next(%SyntaxNode{zipper: z}), do: z |> Zipper.next() |> new()
+  @doc "Returns the next syntax node or the terminal node when traversal is complete."
+  def next(%SyntaxNode{zipper: nil, predecessor: pred}), do: pred |> Zipper.next() |> new(pred)
+  def next(%SyntaxNode{zipper: z}), do: z |> Zipper.next() |> new(z)
+
+  @doc "Returns the first child of the current syntax node."
+  def next_child(%SyntaxNode{zipper: z}), do: z |> Zipper.down() |> new(z)
+
+  @doc "Returns the next sibling syntax node."
+  def next_sibling(%SyntaxNode{zipper: z}), do: z |> Zipper.right() |> new(z)
 
   @doc "Skips the current branch, returning the next sibling."
-  def skip(%SyntaxNode{zipper: z}), do: z |> Zipper.skip() |> new()
+  def skip(%SyntaxNode{zipper: nil, predecessor: pred}), do: pred |> Zipper.skip() |> new(pred)
+  def skip(%SyntaxNode{zipper: z}), do: z |> Zipper.skip() |> new(z)
 
-  @doc "Returns the parent syntax node, or nil if the node is the root."
-  def parent(%SyntaxNode{zipper: z}) do
-    case Zipper.up(z) do
-      nil -> nil
-      parent_z -> new(parent_z)
-    end
-  end
+  @doc "Returns the parent syntax node."
+  def parent(%SyntaxNode{zipper: z}), do: z |> Zipper.up() |> new(z)
 
   @doc "Returns the ast for the current node."
   def ast(%SyntaxNode{zipper: z}), do: Zipper.node(z)
@@ -69,16 +89,14 @@ defmodule Mneme.Diff.SyntaxNode do
   """
   def child_ids(%SyntaxNode{zipper: z}), do: get_child_ids(z)
 
-  @doc "Returns true when this node represents the end of the ast."
-  def terminal?(%SyntaxNode{zipper: nil}), do: true
-  def terminal?(%SyntaxNode{}), do: false
-
   @doc """
   Returns true if both nodes have the same content, despite location in
   the ast.
   """
+  def similar?(%SyntaxNode{zipper: nil}, _), do: false
+  def similar?(_, %SyntaxNode{zipper: nil}), do: false
   def similar?(%SyntaxNode{hash: hash}, %SyntaxNode{hash: hash}), do: true
-  def similar?(%SyntaxNode{}, %SyntaxNode{}), do: false
+  def similar?(_, _), do: false
 
   @doc """
   Returns the depth of the current syntax node relative to the root.
@@ -89,13 +107,15 @@ defmodule Mneme.Diff.SyntaxNode do
   defp get_depth(nil, acc), do: acc
   defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
 
-  defp new(zipper) do
-    %SyntaxNode{
-      zipper: zipper,
-      id: zipper |> id(),
-      hash: zipper |> Zipper.node() |> hash(),
-      branch?: zipper |> Zipper.node() |> Zipper.branch?()
-    }
+  @doc """
+  Returns the number of descendants of the current node.
+  """
+  def n_descendants(%SyntaxNode{zipper: nil}), do: 0
+  def n_descendants(%SyntaxNode{zipper: z}), do: get_n_descendants(z)
+
+  defp get_n_descendants(z) do
+    children = Zipper.children(z)
+    length(children) + Enum.sum(Enum.map(children, &get_n_descendants/1))
   end
 
   defp id(nil), do: :erlang.phash2(nil)

@@ -1,6 +1,3 @@
-# TODO:
-# - track depth_difference
-
 defmodule Mneme.Diff do
   @moduledoc false
 
@@ -44,6 +41,21 @@ defmodule Mneme.Diff do
   end
 
   @doc false
+  def summarize_path(path) do
+    for %Edge{type: type, kind: kind, side: side, node: node} <- path do
+      ast =
+        node
+        |> SyntaxNode.ast()
+        |> AST.prewalk(fn
+          {form, _meta, args} -> {form, [], args}
+          quoted -> quoted
+        end)
+
+      {type, side, kind, ast}
+    end
+  end
+
+  @doc false
   def compute_shortest_path!(left_code, right_code) do
     left = left_code |> AST.parse_string!() |> SyntaxNode.root()
     right = right_code |> AST.parse_string!() |> SyntaxNode.root()
@@ -57,48 +69,46 @@ defmodule Mneme.Diff do
       |> Graph.add_vertex(root)
 
     start = System.monotonic_time()
-    {graph, path} = Pathfinding.lazy_dijkstra(graph, root, &add_neighbors/2)
+    {graph, [_root | path]} = Pathfinding.lazy_dijkstra(graph, root, &add_neighbors/2)
     finish = System.monotonic_time()
 
-    {path,
+    {Enum.map(path, &elem(&1, 2)),
      graph: Graph.info(graph),
      time_ms: System.convert_time_unit(finish - start, :native, :millisecond)}
   end
 
-  defp split_novels(path, left_acc \\ [], right_acc \\ [])
-
-  defp split_novels([{left, right, _}, {_, _, edge} = v | rest], left_acc, right_acc) do
-    case edge do
-      %Edge{type: :novel, side: :left} ->
-        split_novels([v | rest], [left | left_acc], right_acc)
-
-      %Edge{type: :novel, side: :right} ->
-        split_novels([v | rest], left_acc, [right | right_acc])
-
-      %Edge{type: :unchanged} ->
-        split_novels([v | rest], left_acc, right_acc)
+  defp split_novels(path) do
+    path
+    |> Stream.filter(&(&1.type == :novel))
+    |> Enum.group_by(& &1.side)
+    |> case do
+      %{left: left, right: right} -> {left, right}
+      %{left: left} -> {left, []}
+      %{right: right} -> {[], right}
+      _ -> {[], []}
     end
   end
 
-  defp split_novels(_path, left_acc, right_acc) do
-    {Enum.reverse(left_acc), Enum.reverse(right_acc)}
-  end
-
-  defp coalesce(all_novels) do
-    novel_ids = MapSet.new(for(%SyntaxNode{branch?: false, id: id} <- all_novels, do: id))
+  defp coalesce(novel_edges) do
+    novel_node_ids =
+      for %{kind: :node, node: node} <- novel_edges do
+        node.id
+      end
+      |> MapSet.new()
 
     novel_ids =
-      for %SyntaxNode{branch?: true, id: id} = branch <- Enum.reverse(all_novels),
-          reduce: novel_ids do
+      for %{kind: :branch, node: branch} <- Enum.reverse(novel_edges),
+          reduce: novel_node_ids do
         ids ->
           if all_child_ids_in?(branch, ids) do
-            MapSet.put(ids, id)
+            MapSet.put(ids, branch.id)
           else
             ids
           end
       end
 
-    Enum.flat_map(all_novels, fn %SyntaxNode{branch?: branch?} = node ->
+    Enum.flat_map(novel_edges, fn %{kind: kind, node: node} ->
+      branch? = kind == :branch
       parent = SyntaxNode.parent(node)
 
       cond do
@@ -123,35 +133,29 @@ defmodule Mneme.Diff do
     |> Enum.all?(&(&1 in ids))
   end
 
-  defp add_neighbors(graph, {left, right, _} = v) do
-    case {SyntaxNode.terminal?(left), SyntaxNode.terminal?(right)} do
-      {true, true} ->
-        :halt
+  defp add_neighbors(_graph, {%{terminal?: true}, %{terminal?: true}, _}), do: :halt
 
-      {false, true} ->
-        {:cont, graph |> add_novel_left(v)}
-
-      {true, false} ->
-        {:cont, graph |> add_novel_right(v)}
-
-      {false, false} ->
-        {:cont,
-         graph
-         |> maybe_add_unchanged_node(v)
-         |> maybe_add_unchanged_branch(v)
-         |> add_novel_left(v)
-         |> add_novel_right(v)}
-    end
+  defp add_neighbors(graph, {%{null?: false}, %{null?: true}, _} = v) do
+    {:cont, graph |> add_novel_left(v)}
   end
 
-  defp add_edge(graph, existing, new, %Edge{} = edge) do
-    Graph.add_edge(graph, existing, new, weight: Edge.cost(edge))
+  defp add_neighbors(graph, {%{null?: true}, %{null?: false}, _} = v) do
+    {:cont, graph |> add_novel_right(v)}
+  end
+
+  defp add_neighbors(graph, v) do
+    {:cont,
+     graph
+     |> maybe_add_unchanged_node(v)
+     |> maybe_add_unchanged_branch(v)
+     |> add_novel_left(v)
+     |> add_novel_right(v)}
   end
 
   defp maybe_add_unchanged_node(graph, {left, right, _} = v) do
     if SyntaxNode.similar?(left, right) do
-      edge = Edge.unchanged(false, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-      add_edge(graph, v, {SyntaxNode.skip(left), SyntaxNode.skip(right), edge}, edge)
+      edge = Edge.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+      add_edge(graph, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
     else
       graph
     end
@@ -169,8 +173,8 @@ defmodule Mneme.Diff do
       end
 
     if unchanged_branch? do
-      edge = Edge.unchanged(true)
-      add_edge(graph, v, {SyntaxNode.next(left), SyntaxNode.next(right), edge}, edge)
+      edge = Edge.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+      add_edge(graph, v, {SyntaxNode.next_child(left), SyntaxNode.next_child(right), edge})
     else
       graph
     end
@@ -178,13 +182,36 @@ defmodule Mneme.Diff do
 
   defp maybe_add_unchanged_branch(graph, _v), do: graph
 
-  defp add_novel_left(graph, {left, right, _} = v) do
-    edge = Edge.novel(left.branch?, :left)
-    add_edge(graph, v, {SyntaxNode.next(left), right, edge}, edge)
+  defp add_novel_left(graph, {%{branch?: true} = left, right, _} = v) do
+    graph
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_child(left), right, Edge.novel(:branch, :left, left)})
   end
 
-  defp add_novel_right(graph, {left, right, _} = v) do
-    edge = Edge.novel(right.branch?, :right)
-    add_edge(graph, v, {left, SyntaxNode.next(right), edge}, edge)
+  defp add_novel_left(graph, {%{branch?: false} = left, right, _} = v) do
+    graph
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+  end
+
+  defp add_novel_right(graph, {left, %{branch?: true} = right, _} = v) do
+    graph
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_child(right), Edge.novel(:branch, :right, right)})
+  end
+
+  defp add_novel_right(graph, {left, %{branch?: false} = right, _} = v) do
+    graph
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
+  end
+
+  defp add_edge(graph, v1, {left, right, edge}) do
+    {left, right} =
+      if left.null? && right.null? do
+        {SyntaxNode.skip(left), SyntaxNode.skip(right)}
+      else
+        {left, right}
+      end
+
+    Graph.add_edge(graph, v1, {left, right, edge}, weight: Edge.cost(edge))
   end
 end

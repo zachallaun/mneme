@@ -22,6 +22,18 @@ defmodule Mneme.DiffTest do
                     format("[]", "[:foo]")
     end
 
+    test "formats term reordering" do
+      auto_assert {[["[:foo, ", %Tag{data: ":bar", sequences: [:red]}, ", :baz]"]],
+                   [["[", %Tag{data: ":bar", sequences: [:green]}, ", :foo, :baz]"]]} <-
+                    format("[:foo, :bar, :baz]", "[:bar, :foo, :baz]")
+    end
+
+    test "formats term renesting" do
+      auto_assert {[["[[:foo, :bar, ", %Tag{data: ":baz", sequences: [:red]}, "]]"]],
+                   [["[[:foo, :bar], ", %Tag{data: ":baz", sequences: [:green]}, "]"]]} <-
+                    format("[[:foo, :bar, :baz]]", "[[:foo, :bar], :baz]")
+    end
+
     test "formats strings" do
       auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]],
                    [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <- format(~s("foo"), ~s("bar"))
@@ -111,9 +123,6 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats map key insertion" do
-      auto_assert {nil, [["%{foo: 1, ", %Tag{data: "bar: 2", sequences: [:green]}, "}"]]} <-
-                    format("%{foo: 1}", "%{foo: 1, bar: 2}")
-
       auto_assert {nil,
                    [
                      [
@@ -122,6 +131,9 @@ defmodule Mneme.DiffTest do
                        ", :baz => 3}"
                      ]
                    ]} <- format("%{foo: 1, baz: 3}", "%{:foo => 1, 2 => :bar, :baz => 3}")
+
+      auto_assert {nil, [["%{foo: 1, ", %Tag{data: "bar: 2", sequences: [:green]}, "}"]]} <-
+                    format("%{foo: 1}", "%{foo: 1, bar: 2}")
     end
 
     test "formats entire collections" do
@@ -370,6 +382,53 @@ defmodule Mneme.DiffTest do
                      ]
                    ]} <-
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
+    end
+
+    test "regression: matches shouldn't occur across parent boundaries" do
+      auto_assert {[
+                     [
+                       "auto_assert {:-, ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "line: 1, ",
+                       %Tag{data: "column: 1", sequences: [:red]},
+                       %Tag{data: "]", sequences: [:red]},
+                       ", [{:var, ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "line: 1, ",
+                       %Tag{data: "column: 2", sequences: [:red]},
+                       %Tag{data: "]", sequences: [:red]},
+                       ", :x}]} <-"
+                     ],
+                     ["              parse_string!(\"-x\")"],
+                     []
+                   ],
+                   [
+                     [
+                       "auto_assert {:-, ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       %Tag{data: "column: 1", sequences: [:green]},
+                       ", line: 1",
+                       %Tag{data: "}", sequences: [:green]},
+                       ", [{:var, ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       %Tag{data: "column: 2", sequences: [:green]},
+                       ", line: 1",
+                       %Tag{data: "}", sequences: [:green]},
+                       ", :x}]} <-"
+                     ],
+                     ["              parse_string!(\"-x\")"],
+                     []
+                   ]} <-
+                    format(
+                      """
+                      auto_assert {:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]} <-
+                                    parse_string!("-x")
+                      """,
+                      """
+                      auto_assert {:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]} <-
+                                    parse_string!("-x")
+                      """
+                    )
     end
 
     defp format(left, right) do
