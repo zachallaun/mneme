@@ -8,11 +8,11 @@ defmodule Mneme.Diff.SyntaxNode do
   @hash :__hash__
   @id :__id__
 
-  defstruct [:zipper, :predecessor, :id, :hash, :branch?, :null?, :terminal?]
+  defstruct [:zipper, :parent, :id, :hash, :branch?, :null?, :terminal?]
 
   @type t :: %SyntaxNode{
           zipper: Zipper.zipper() | nil,
-          predecessor: Zipper.zipper() | nil,
+          parent: {:pop_either | :pop_both, t()} | nil,
           id: any(),
           hash: any(),
           branch?: boolean(),
@@ -21,16 +21,15 @@ defmodule Mneme.Diff.SyntaxNode do
         }
 
   @doc false
-  def new(zipper, predecessor \\ nil) do
+  def new(zipper, parent \\ nil) do
     %SyntaxNode{
       zipper: zipper,
-      predecessor: predecessor,
-      # id: {id(zipper), id(predecessor)},
+      parent: parent,
       id: id(zipper),
       hash: zipper |> Zipper.node() |> hash(),
       branch?: zipper |> Zipper.node() |> Zipper.branch?(),
       null?: !zipper,
-      terminal?: !zipper && !Zipper.skip(predecessor)
+      terminal?: !zipper && !parent
     }
   end
 
@@ -65,8 +64,13 @@ defmodule Mneme.Diff.SyntaxNode do
   end
 
   @doc "Returns the next syntax node or the terminal node when traversal is complete."
-  def next(%SyntaxNode{zipper: nil, predecessor: pred}), do: pred |> Zipper.next() |> new(pred)
-  def next(%SyntaxNode{zipper: z}), do: z |> Zipper.next() |> new(z)
+  def next(%SyntaxNode{terminal?: true} = node), do: node
+  def next(%SyntaxNode{zipper: nil, parent: {_, node}}), do: next_sibling(node)
+  def next(%SyntaxNode{branch?: false, zipper: z} = node), do: next_sibling(node)
+
+  def next(%SyntaxNode{branch?: true, zipper: z} = node) do
+    z |> Zipper.down() |> new(z, {:pop_either, node})
+  end
 
   @doc "Returns the first child of the current syntax node."
   def next_child(%SyntaxNode{zipper: z}), do: z |> Zipper.down() |> new(z)
