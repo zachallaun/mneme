@@ -5,11 +5,9 @@ defmodule Mneme.Diff.SyntaxNodeTest do
   import Mneme.Diff.SyntaxNode
 
   alias Mneme.Diff.SyntaxNode, warn: false
-  alias Mneme.Diff.AST
 
-  @left "auto_assert some_call(1, 2, 3)" |> AST.parse_string!() |> root()
-
-  # @right "auto_assert :foo <- some_call(1, 2, 3)" |> AST.parse_string!() |> root()
+  @left root!("auto_assert some_call(1, 2, 3)")
+  @right root!("auto_assert :foo <- some_call(1, 2, 3)")
 
   describe "root/1" do
     test "creates a syntax node with a stable id and hash" do
@@ -27,49 +25,87 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
   end
 
-  describe "traversal" do
-    test "null nodes are terminals when their predecessor has no nodes to skip to" do
-      auto_assert %SyntaxNode{null?: true, terminal?: true} <- @left |> next_sibling()
+  describe "coordinated traversal" do
+    test "using next_child/1, next_sibling/1 and pop/2" do
+      left = @left |> next_child(:pop_both)
+      right = @right |> next_child(:pop_both)
+
+      auto_assert %SyntaxNode{
+                    parent: {:pop_both, %SyntaxNode{}},
+                    terminal?: false,
+                    zipper:
+                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                  } <- left
+
+      auto_assert %SyntaxNode{
+                    parent: {:pop_both, %SyntaxNode{}},
+                    terminal?: false,
+                    zipper:
+                      {{:<-, %{},
+                        [
+                          {:atom, %{}, :foo},
+                          {:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}
+                        ]}, %{}}
+                  } <- right
+
+      left = left |> next_child() |> next_sibling() |> next_sibling() |> next_sibling()
+      right = right |> next_child() |> next_sibling()
 
       auto_assert %SyntaxNode{
                     null?: true,
-                    terminal?: true
-                  } <-
-                    @left
-                    |> next_child()
-                    |> next_child()
-                    |> next_sibling()
-                    |> next_sibling()
-                    |> next_sibling()
-    end
+                    parent: {:pop_either, %SyntaxNode{}},
+                    terminal?: false
+                  } <- left
 
-    test "traversing past null nodes" do
-      left = auto_assert %SyntaxNode{null?: false} <- @left |> next_child()
-      left = auto_assert %SyntaxNode{null?: true} <- left |> next_sibling()
-      auto_assert %SyntaxNode{null?: false} <- left |> next()
-    end
+      auto_assert %SyntaxNode{
+                    parent: {:pop_either, %SyntaxNode{}},
+                    terminal?: false,
+                    zipper:
+                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                  } <- right
 
-    test "next/1 returns a terminal node when traversal is complete" do
-      left =
-        auto_assert %SyntaxNode{
-                      null?: false,
-                      terminal?: false,
-                      zipper: {{:int, %{}, 3}, %{}}
-                    } <- @left |> next() |> next() |> next() |> next()
+      right = right |> next_child() |> next_sibling() |> next_sibling() |> next_sibling()
 
       auto_assert %SyntaxNode{
                     null?: true,
-                    terminal?: true
-                  } <- left |> next()
+                    parent: {:pop_either, %SyntaxNode{}},
+                    terminal?: false
+                  } <- right
+
+      auto_assert {%SyntaxNode{
+                     branch?: false,
+                     hash: 29948,
+                     id: 29948,
+                     null?: true,
+                     terminal?: true
+                   },
+                   %SyntaxNode{
+                     branch?: false,
+                     hash: 29948,
+                     id: 29948,
+                     null?: true,
+                     terminal?: true
+                   }} <- pop(left, right)
     end
   end
 
   describe "similar?/2" do
     test "compares syntax nodes based on content, not location in ast" do
-      node1 = "1" |> AST.parse_string!() |> root()
-      node2 = "[1]" |> AST.parse_string!() |> root() |> next()
+      node1 = root!("1")
+      node2 = root!("[1]") |> next_child()
 
       assert similar?(node1, node2)
+    end
+  end
+
+  describe "similar_branch?/1" do
+    test "compares syntax nodes based on branch" do
+      assert similar_branch?(root!("foo.bar"), root!("baz.buzz"))
+      assert similar_branch?(root!("foo(1)"), root!("foo(1, 2, 3)"))
+      assert similar_branch?(root!("[1, 2]"), root!("[3, 4, 5]"))
+
+      refute similar_branch?(root!("foo"), root!("foo"))
+      refute similar_branch?(root!("[1, 2]"), root!("{1, 2}"))
     end
   end
 end

@@ -33,6 +33,11 @@ defmodule Mneme.Diff.SyntaxNode do
     }
   end
 
+  @doc false
+  def root!(string) when is_binary(string) do
+    string |> AST.parse_string!() |> root()
+  end
+
   @doc """
   Creates a root syntax node from the given tree.
 
@@ -63,27 +68,43 @@ defmodule Mneme.Diff.SyntaxNode do
     |> Map.new()
   end
 
-  @doc "Returns the next syntax node or the terminal node when traversal is complete."
-  def next(%SyntaxNode{terminal?: true} = node), do: node
-  def next(%SyntaxNode{zipper: nil, parent: {_, node}}), do: next_sibling(node)
-  def next(%SyntaxNode{branch?: false, zipper: z} = node), do: next_sibling(node)
+  @doc """
+  Continues traversal for two potentially null nodes.
+  """
+  def pop(%SyntaxNode{} = left, %SyntaxNode{} = right) do
+    case {pop_all(left), pop_all(right)} do
+      {%{terminal?: false, null?: true, parent: {:pop_both, p1}} = left,
+       %{terminal?: false, null?: true, parent: {:pop_both, p2}} = right} ->
+        if similar_branch?(p1, p2) do
+          pop(next_sibling(p1), next_sibling(p2))
+        else
+          {left, right}
+        end
 
-  def next(%SyntaxNode{branch?: true, zipper: z} = node) do
-    z |> Zipper.down() |> new(z, {:pop_either, node})
+      {left, right} ->
+        {left, right}
+    end
   end
 
+  defp pop_all(%{terminal?: false, null?: true, parent: {:pop_either, parent}}) do
+    parent |> next_sibling() |> pop_all()
+  end
+
+  defp pop_all(node), do: node
+
   @doc "Returns the first child of the current syntax node."
-  def next_child(%SyntaxNode{zipper: z}), do: z |> Zipper.down() |> new(z)
+  def next_child(%SyntaxNode{zipper: z} = node, entry \\ :pop_either) do
+    z |> Zipper.down() |> new({entry, node})
+  end
 
   @doc "Returns the next sibling syntax node."
-  def next_sibling(%SyntaxNode{zipper: z}), do: z |> Zipper.right() |> new(z)
-
-  @doc "Skips the current branch, returning the next sibling."
-  def skip(%SyntaxNode{zipper: nil, predecessor: pred}), do: pred |> Zipper.skip() |> new(pred)
-  def skip(%SyntaxNode{zipper: z}), do: z |> Zipper.skip() |> new(z)
+  def next_sibling(%SyntaxNode{zipper: z, parent: parent}) do
+    z |> Zipper.right() |> new(parent)
+  end
 
   @doc "Returns the parent syntax node."
-  def parent(%SyntaxNode{zipper: z}), do: z |> Zipper.up() |> new(z)
+  def parent(%SyntaxNode{parent: {_, parent}}), do: parent
+  def parent(%SyntaxNode{}), do: nil
 
   @doc "Returns the ast for the current node."
   def ast(%SyntaxNode{zipper: z}), do: Zipper.node(z)
@@ -97,10 +118,22 @@ defmodule Mneme.Diff.SyntaxNode do
   Returns true if both nodes have the same content, despite location in
   the ast.
   """
-  def similar?(%SyntaxNode{zipper: nil}, _), do: false
-  def similar?(_, %SyntaxNode{zipper: nil}), do: false
-  def similar?(%SyntaxNode{hash: hash}, %SyntaxNode{hash: hash}), do: true
-  def similar?(_, _), do: false
+  def similar?(%SyntaxNode{} = left, %SyntaxNode{} = right) do
+    !left.null? && !right.null? && left.hash == right.hash
+  end
+
+  @doc """
+  Returns true if both branches have similar delimiters.
+  """
+  def similar_branch?(%SyntaxNode{branch?: true} = left, %SyntaxNode{branch?: true} = right) do
+    case {ast(left), ast(right)} do
+      {{{:., _, _}, _, _}, {{:., _, _}, _, _}} -> true
+      {{branch, _, _}, {branch, _, _}} -> true
+      _ -> false
+    end
+  end
+
+  def similar_branch?(_, _), do: false
 
   @doc """
   Returns the depth of the current syntax node relative to the root.

@@ -384,42 +384,9 @@ defmodule Mneme.DiffTest do
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
-    test "regression: matches shouldn't occur across parent boundaries" do
-      auto_assert {[
-                     [
-                       "auto_assert {:-, ",
-                       %Tag{data: "[", sequences: [:red]},
-                       "line: 1, ",
-                       %Tag{data: "column: 1", sequences: [:red]},
-                       %Tag{data: "]", sequences: [:red]},
-                       ", [{:var, ",
-                       %Tag{data: "[", sequences: [:red]},
-                       "line: 1, ",
-                       %Tag{data: "column: 2", sequences: [:red]},
-                       %Tag{data: "]", sequences: [:red]},
-                       ", :x}]} <-"
-                     ],
-                     ["              parse_string!(\"-x\")"],
-                     []
-                   ],
-                   [
-                     [
-                       "auto_assert {:-, ",
-                       %Tag{data: "%{", sequences: [:green]},
-                       %Tag{data: "column: 1", sequences: [:green]},
-                       ", line: 1",
-                       %Tag{data: "}", sequences: [:green]},
-                       ", [{:var, ",
-                       %Tag{data: "%{", sequences: [:green]},
-                       %Tag{data: "column: 2", sequences: [:green]},
-                       ", line: 1",
-                       %Tag{data: "}", sequences: [:green]},
-                       ", :x}]} <-"
-                     ],
-                     ["              parse_string!(\"-x\")"],
-                     []
-                   ]} <-
-                    format(
+    test "regression: weird matches across parent boundaries" do
+      {left, right} =
+        auto_assert format(
                       """
                       auto_assert {:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]} <-
                                     parse_string!("-x")
@@ -429,6 +396,9 @@ defmodule Mneme.DiffTest do
                                     parse_string!("-x")
                       """
                     )
+
+      Owl.IO.puts(left)
+      Owl.IO.puts(right)
     end
 
     defp format(left, right) do
