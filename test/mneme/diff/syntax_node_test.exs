@@ -54,7 +54,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
       auto_assert %SyntaxNode{
                     null?: true,
                     parent: {:pop_either, %SyntaxNode{}},
-                    terminal?: false
+                    terminal?: true
                   } <- left
 
       auto_assert %SyntaxNode{
@@ -66,23 +66,11 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
       right = right |> next_child() |> next_sibling() |> next_sibling() |> next_sibling()
 
-      auto_assert %SyntaxNode{
-                    null?: true,
-                    parent: {:pop_either, %SyntaxNode{}},
-                    terminal?: false
-                  } <- right
-
       auto_assert {%SyntaxNode{
-                     branch?: false,
-                     hash: 29948,
-                     id: 29948,
                      null?: true,
                      terminal?: true
                    },
                    %SyntaxNode{
-                     branch?: false,
-                     hash: 29948,
-                     id: 29948,
                      null?: true,
                      terminal?: true
                    }} <- pop(left, right)

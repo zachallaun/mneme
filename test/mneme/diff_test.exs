@@ -366,6 +366,8 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats structs" do
+      auto_assert dbg_format("%MyStruct{}", "%MyStruct{foo: 1}")
+
       auto_assert {nil,
                    [
                      [
