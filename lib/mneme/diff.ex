@@ -35,6 +35,7 @@ defmodule Mneme.Diff do
     {left_novels, right_novels} = split_novels(path)
 
     if debug?(), do: dbg()
+    # debug_inspect(summarize_path(path), "path")
 
     {
       left_novels |> coalesce() |> Enum.map(fn {type, node} -> {:del, type, node.zipper} end),
@@ -99,8 +100,21 @@ defmodule Mneme.Diff do
      }}
   end
 
-  defp vertex_id({left, right, nil}), do: {left.id, right.id}
-  defp vertex_id({left, right, edge}), do: {left.id, right.id, edge.type, edge.node.id}
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, edge}) do
+    {l_id, r_id, edge && {edge.type, edge.node.id}}
+  end
+
+  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, edge}) do
+    {l_id, entry, r_id, edge && {edge.type, edge.node.id}}
+  end
+
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, edge}) do
+    {l_id, r_id, entry, edge && {edge.type, edge.node.id}}
+  end
+
+  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, edge}) do
+    {l_id, e1, r_id, e2, edge && {edge.type, edge.node.id}}
+  end
 
   defp split_novels(path) do
     path
@@ -200,7 +214,15 @@ defmodule Mneme.Diff do
 
       add_edge(graph, v, v2)
     else
+      e1 = Edge.novel(:branch, :left, left)
+      e2 = Edge.novel(:branch, :right, right)
+
+      v1 = {SyntaxNode.next_child(left, :pop_both), right, e1}
+      v2 = {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), e2}
+
       graph
+      |> add_edge(v, v1)
+      |> add_edge(v1, v2)
     end
   end
 
@@ -228,23 +250,14 @@ defmodule Mneme.Diff do
     |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
   end
 
-  defp add_edge(graph, v1, {l, r, edge}) do
-    {left, right} = SyntaxNode.pop(l, r)
-
-    debug_inspect(summarize_edge(edge), "\nedge")
-    debug_inspect(summarize_node(l), "pop_l")
-    debug_inspect(summarize_node(left), "---->")
-    debug_inspect(summarize_node(r), "pop_r")
-    debug_inspect(summarize_node(right), "---->")
-
+  defp add_edge(graph, v1, {left, right, edge}) do
+    {left, right} = SyntaxNode.pop(left, right)
     Graph.add_edge(graph, v1, {left, right, edge}, weight: Edge.cost(edge))
   end
 
   defp debug?, do: !!System.get_env("DBG_PATH")
 
   defp debug_inspect(term, label) do
-    if debug?() do
-      IO.inspect(term, label: label, pretty: true, syntax_colors: IO.ANSI.syntax_colors())
-    end
+    IO.inspect(term, label: label, pretty: true, syntax_colors: IO.ANSI.syntax_colors())
   end
 end

@@ -385,10 +385,40 @@ defmodule Mneme.DiffTest do
     end
 
     test "regression: unnecessary novel nodes and matches across parent boundaries" do
-      auto_assert dbg_format(
-                    "{:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]}",
-                    "{:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]}"
-                  )
+      auto_assert {[
+                     [
+                       "{:-, ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "line: 1, ",
+                       %Tag{data: "column: 1", sequences: [:red]},
+                       %Tag{data: "]", sequences: [:red]},
+                       ", [{:var, ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "line: 1, ",
+                       %Tag{data: "column: 2", sequences: [:red]},
+                       %Tag{data: "]", sequences: [:red]},
+                       ", :x}]}"
+                     ]
+                   ],
+                   [
+                     [
+                       "{:-, ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       %Tag{data: "column: 1", sequences: [:green]},
+                       ", line: 1",
+                       %Tag{data: "}", sequences: [:green]},
+                       ", [{:var, ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       %Tag{data: "column: 2", sequences: [:green]},
+                       ", line: 1",
+                       %Tag{data: "}", sequences: [:green]},
+                       ", :x}]}"
+                     ]
+                   ]} <-
+                    format(
+                      "{:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]}",
+                      "{:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]}"
+                    )
     end
 
     defp dbg_format(left, right) do
