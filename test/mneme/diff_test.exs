@@ -384,21 +384,17 @@ defmodule Mneme.DiffTest do
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
-    test "regression: weird matches across parent boundaries" do
-      {left, right} =
-        auto_assert format(
-                      """
-                      auto_assert {:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]} <-
-                                    parse_string!("-x")
-                      """,
-                      """
-                      auto_assert {:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]} <-
-                                    parse_string!("-x")
-                      """
-                    )
+    test "regression: unnecessary novel nodes and matches across parent boundaries" do
+      auto_assert dbg_format(
+                    "{:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]}",
+                    "{:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]}"
+                  )
+    end
 
-      Owl.IO.puts(left)
-      Owl.IO.puts(right)
+    defp dbg_format(left, right) do
+      {left, right} = format(left, right)
+      Owl.IO.puts(["\n", left, "\n\n", right, "\n"])
+      {left, right}
     end
 
     defp format(left, right) do
