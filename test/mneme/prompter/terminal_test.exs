@@ -4,14 +4,8 @@ defmodule Mneme.Prompter.TerminalTest do
 
   alias Mneme.Prompter.Terminal
 
-  describe "message/5" do
-    setup do
-      [source: mock_source(), assertion: mock_assertion()]
-    end
-
-    test "new assertion", %{source: source, assertion: assertion} do
-      message = Terminal.message(source, assertion)
-
+  describe "message/3" do
+    test "new assertion" do
       auto_assert """
                   │ [Mneme] New ● example test (ExampleTest)
                   │ example_test.ex:1
@@ -22,12 +16,12 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ Accept new assertion?
                   │ > 
                   │ y yes  n no  ❮ j ● k ❯\
-                  """ <- message |> untag_to_string()
+                  """ <- message() |> untag_to_string()
     end
 
-    test "new assertion with multiple patterns", %{source: source, assertion: assertion} do
-      assertion = %{assertion | patterns: assertion.patterns ++ [nil, nil]}
-      message = Terminal.message(source, assertion)
+    test "new assertion with multiple patterns" do
+      assertion = Map.update!(mock_assertion(), :patterns, &(&1 ++ [nil, nil]))
+      message = message(mock_source(), assertion)
 
       auto_assert """
                   │ [Mneme] New ● example test (ExampleTest)
@@ -42,9 +36,9 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <- message |> untag_to_string()
     end
 
-    test "changed assertion", %{source: source, assertion: assertion} do
-      assertion = %{assertion | type: :update}
-      message = Terminal.message(source, assertion)
+    test "changed assertion" do
+      assertion = Map.put(mock_assertion(), :type, :update)
+      message = message(mock_source(), assertion)
 
       auto_assert """
                   │ [Mneme] Changed ● example test (ExampleTest)
@@ -57,6 +51,10 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ > 
                   │ y yes  n no  ❮ j ● k ❯\
                   """ <- message |> untag_to_string()
+    end
+
+    defp message(source \\ mock_source(), assertion \\ mock_assertion(), opts \\ %{diff: :text}) do
+      Terminal.message(source, assertion, opts)
     end
   end
 

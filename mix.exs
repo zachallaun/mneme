@@ -10,7 +10,7 @@ defmodule Mneme.MixProject do
     [
       app: @app,
       version: version(),
-      elixir: "~> 1.13",
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -41,6 +41,7 @@ defmodule Mneme.MixProject do
       {:nimble_options, "~> 0.5.2"},
       {:sourceror, "~> 0.12"},
       {:rewrite, "~> 0.6.0"},
+      {:libgraph, "~> 0.16.0"},
 
       # Development
       {:excoveralls, "~> 0.15", only: :test},

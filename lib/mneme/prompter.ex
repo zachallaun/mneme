@@ -9,6 +9,7 @@ defmodule Mneme.Prompter do
   @callback prompt!(
               Rewrite.Source.t(),
               assertion :: term(),
+              opts :: map(),
               reprompt :: nil | prompt_state
             ) :: {response, prompt_state}
 end
