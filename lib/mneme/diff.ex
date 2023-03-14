@@ -89,7 +89,7 @@ defmodule Mneme.Diff do
       |> Graph.add_vertex(root)
 
     start = System.monotonic_time()
-    {graph, [_root | path]} = Pathfinding.lazy_dijkstra(graph, root, &add_neighbors/2)
+    {graph, [_root | path]} = Pathfinding.lazy_a_star(graph, root, &add_neighbors/2, &heuristic/1)
     finish = System.monotonic_time()
 
     {Enum.map(path, &elem(&1, 2)),
@@ -99,6 +99,11 @@ defmodule Mneme.Diff do
        time_ms: System.convert_time_unit(finish - start, :native, :millisecond)
      }}
   end
+
+  defp heuristic(_), do: 0
+  # defp heuristic({left, right, _}) do
+  #   400 * (SyntaxNode.n_left(left) + SyntaxNode.n_left(right))
+  # end
 
   defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, edge}) do
     {l_id, r_id, edge && {edge.type, edge.node.id}}

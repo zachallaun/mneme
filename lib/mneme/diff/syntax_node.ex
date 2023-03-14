@@ -163,6 +163,16 @@ defmodule Mneme.Diff.SyntaxNode do
     length(children) + Enum.sum(Enum.map(children, &get_n_descendants/1))
   end
 
+  @doc """
+  Returns the number of nodes left to explore.
+  """
+  def n_left(%SyntaxNode{} = node), do: get_n_left(node)
+
+  defp get_n_left(%{terminal?: true}), do: 0
+  defp get_n_left(%{null?: true, parent: {_, parent}}), do: get_n_left(next_sibling(parent))
+  defp get_n_left(%{branch?: true} = node), do: 1 + get_n_left(next_child(node))
+  defp get_n_left(_), do: 1
+
   defp id(nil), do: :erlang.phash2(nil)
 
   defp id(zipper) do

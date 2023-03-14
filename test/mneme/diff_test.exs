@@ -29,9 +29,24 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats term renesting" do
-      auto_assert {[["[[:foo, :bar, ", %Tag{data: ":baz", sequences: [:red]}, "]]"]],
-                   [["[[:foo, :bar], ", %Tag{data: ":baz", sequences: [:green]}, "]"]]} <-
-                    format("[[:foo, :bar, :baz]]", "[[:foo, :bar], :baz]")
+      auto_assert {[
+                     [
+                       "[",
+                       %Tag{data: "[", sequences: [:red]},
+                       ":foo, :bar",
+                       %Tag{data: "]", sequences: [:red]},
+                       "]"
+                     ]
+                   ],
+                   [
+                     [
+                       "[",
+                       %Tag{data: "[", sequences: [:green]},
+                       ":foo",
+                       %Tag{data: "]", sequences: [:green]},
+                       ", :bar]"
+                     ]
+                   ]} <- format("[[:foo, :bar]]", "[[:foo], :bar]")
     end
 
     test "formats strings" do
