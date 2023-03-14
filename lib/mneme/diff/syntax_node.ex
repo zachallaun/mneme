@@ -29,9 +29,13 @@ defmodule Mneme.Diff.SyntaxNode do
       hash: zipper |> Zipper.node() |> hash(),
       branch?: zipper |> Zipper.node() |> Zipper.branch?(),
       null?: !zipper,
-      terminal?: !zipper && !parent
+      terminal?: !zipper && terminal_parent?(parent)
     }
   end
+
+  @doc false
+  def terminal_parent?(nil), do: true
+  def terminal_parent?({_, p}), do: next_sibling(p).terminal?
 
   @doc false
   def root!(string) when is_binary(string) do
@@ -71,10 +75,14 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc """
   Continues traversal for two potentially null nodes.
   """
-  def pop(%SyntaxNode{} = left, %SyntaxNode{} = right) do
+  def pop(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
+    {l, r}
+  end
+
+  def pop(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{terminal?: false, null?: true, parent: {:pop_both, p1}} = left,
-       %{terminal?: false, null?: true, parent: {:pop_both, p2}} = right} ->
+      {%{null?: true, parent: {:pop_both, p1}} = left,
+       %{null?: true, parent: {:pop_both, p2}} = right} ->
         if similar_branch?(p1, p2) do
           pop(next_sibling(p1), next_sibling(p2))
         else
@@ -86,7 +94,7 @@ defmodule Mneme.Diff.SyntaxNode do
     end
   end
 
-  defp pop_all(%{terminal?: false, null?: true, parent: {:pop_either, parent}}) do
+  defp pop_all(%{null?: true, parent: {:pop_either, parent}}) do
     parent |> next_sibling() |> pop_all()
   end
 

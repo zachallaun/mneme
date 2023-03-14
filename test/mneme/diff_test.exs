@@ -421,7 +421,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    defp dbg_format(left, right) do
+    def dbg_format(left, right) do
       {left, right} = format(left, right)
       Owl.IO.puts(["\n", left, "\n\n", right, "\n"])
       {left, right}

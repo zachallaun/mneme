@@ -105,7 +105,7 @@ defmodule Mneme.Diff do
   end
 
   defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, edge}) do
-    {l_id, entry, r_id, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, entry, edge && {edge.type, edge.node.id}}
   end
 
   defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, edge}) do
@@ -113,7 +113,7 @@ defmodule Mneme.Diff do
   end
 
   defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, edge}) do
-    {l_id, e1, r_id, e2, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, e1, e2, edge && {edge.type, edge.node.id}}
   end
 
   defp split_novels(path) do
@@ -172,17 +172,24 @@ defmodule Mneme.Diff do
     |> Enum.all?(&(&1 in ids))
   end
 
-  defp add_neighbors(graph, v) do
+  defp add_neighbors(graph, {l, r, e} = v) do
+    if debug?() do
+      debug_inspect(summarize_edge(e), "e")
+      debug_inspect(summarize_node(l), "l")
+      debug_inspect(summarize_node(r), "r")
+      IO.puts("")
+    end
+
     do_add_neighbors(graph, v)
   end
 
   defp do_add_neighbors(_graph, {%{terminal?: true}, %{terminal?: true}, _}), do: :halt
 
-  defp do_add_neighbors(graph, {%{null?: false}, %{null?: true}, _} = v) do
+  defp do_add_neighbors(graph, {_, %{null?: true}, _} = v) do
     {:cont, graph |> add_novel_left(v)}
   end
 
-  defp do_add_neighbors(graph, {%{null?: true}, %{null?: false}, _} = v) do
+  defp do_add_neighbors(graph, {%{null?: true}, _, _} = v) do
     {:cont, graph |> add_novel_right(v)}
   end
 
@@ -214,15 +221,7 @@ defmodule Mneme.Diff do
 
       add_edge(graph, v, v2)
     else
-      e1 = Edge.novel(:branch, :left, left)
-      e2 = Edge.novel(:branch, :right, right)
-
-      v1 = {SyntaxNode.next_child(left, :pop_both), right, e1}
-      v2 = {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), e2}
-
       graph
-      |> add_edge(v, v1)
-      |> add_edge(v1, v2)
     end
   end
 
@@ -230,7 +229,7 @@ defmodule Mneme.Diff do
 
   defp add_novel_left(graph, {%{branch?: true} = left, right, _} = v) do
     graph
-    # |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
     |> add_edge(v, {SyntaxNode.next_child(left), right, Edge.novel(:branch, :left, left)})
   end
 
@@ -241,7 +240,7 @@ defmodule Mneme.Diff do
 
   defp add_novel_right(graph, {left, %{branch?: true} = right, _} = v) do
     graph
-    # |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
     |> add_edge(v, {left, SyntaxNode.next_child(right), Edge.novel(:branch, :right, right)})
   end
 

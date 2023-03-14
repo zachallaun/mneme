@@ -30,9 +30,9 @@ defmodule Mneme.Diff.Edge do
   def cost(%Edge{type: :unchanged, kind: :node, depth_difference: dd}), do: dd + 1
   def cost(%Edge{type: :unchanged, kind: :branch, depth_difference: dd}), do: dd + 10
 
-  def cost(%Edge{type: :novel, kind: :branch}), do: 350
+  def cost(%Edge{type: :novel, kind: :branch}), do: 300
 
   def cost(%Edge{type: :novel, kind: :node, node: node}) do
-    300 * (SyntaxNode.n_descendants(node) + 1)
+    160 + 160 * SyntaxNode.n_descendants(node)
   end
 end
