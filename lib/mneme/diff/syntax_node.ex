@@ -7,14 +7,16 @@ defmodule Mneme.Diff.SyntaxNode do
 
   @hash :__hash__
   @id :__id__
+  @n_descendants :__n_descendants__
 
-  defstruct [:zipper, :parent, :id, :hash, :branch?, :null?, :terminal?]
+  defstruct [:zipper, :parent, :id, :hash, :n_descendants, :branch?, :null?, :terminal?]
 
   @type t :: %SyntaxNode{
           zipper: Zipper.zipper() | nil,
           parent: {:pop_either | :pop_both, t()} | nil,
           id: any(),
           hash: any(),
+          n_descendants: integer(),
           branch?: boolean(),
           null?: boolean(),
           terminal?: boolean()
@@ -22,12 +24,15 @@ defmodule Mneme.Diff.SyntaxNode do
 
   @doc false
   def new(zipper, parent \\ nil) do
+    ast = Zipper.node(zipper)
+
     %SyntaxNode{
       zipper: zipper,
       parent: parent,
       id: id(zipper),
-      hash: zipper |> Zipper.node() |> hash(),
-      branch?: zipper |> Zipper.node() |> Zipper.branch?(),
+      hash: hash(ast),
+      n_descendants: n_descendants(ast),
+      branch?: Zipper.branch?(ast),
       null?: !zipper,
       terminal?: !zipper && terminal_parent?(parent)
     }
@@ -53,7 +58,12 @@ defmodule Mneme.Diff.SyntaxNode do
     |> AST.postwalk(0, fn
       {form, meta, args} = quoted, i ->
         hash = hash(quoted)
-        meta = meta |> Keyword.merge([{@hash, hash}, {@id, {i, hash}}]) |> normalize_metadata()
+        n_descendants = get_n_descendants(quoted)
+
+        meta =
+          meta
+          |> Keyword.merge([{@hash, hash}, {@id, {i, hash}}, {@n_descendants, n_descendants}])
+          |> normalize_metadata()
 
         {{form, meta, args}, i + 1}
 
@@ -153,17 +163,6 @@ defmodule Mneme.Diff.SyntaxNode do
   defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
 
   @doc """
-  Returns the number of descendants of the current node.
-  """
-  def n_descendants(%SyntaxNode{zipper: nil}), do: 0
-  def n_descendants(%SyntaxNode{zipper: z}), do: get_n_descendants(z)
-
-  defp get_n_descendants(z) do
-    children = Zipper.children(z)
-    length(children) + Enum.sum(Enum.map(children, &get_n_descendants/1))
-  end
-
-  @doc """
   Returns the number of nodes left to explore.
   """
   def n_left(%SyntaxNode{} = node), do: get_n_left(node)
@@ -235,4 +234,18 @@ defmodule Mneme.Diff.SyntaxNode do
   end
 
   defp hash(term), do: :erlang.phash2(term)
+
+  defp n_descendants({_, meta, _}), do: meta[@n_descendants]
+  defp n_descendants({left, right}), do: 2 + n_descendants(left) + n_descendants(right)
+
+  defp n_descendants(list) when is_list(list) do
+    length(list) + (list |> Enum.map(&n_descendants/1) |> Enum.sum())
+  end
+
+  defp n_descendants(_), do: 0
+
+  defp get_n_descendants(z) do
+    children = Zipper.children(z)
+    length(children) + Enum.sum(Enum.map(children, &get_n_descendants/1))
+  end
 end

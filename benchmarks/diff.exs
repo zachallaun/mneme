@@ -78,12 +78,17 @@ opts =
   end
 
 Benchee.run(
-  %{"Mneme.Diff.format/2" => fn {left, right} -> Mneme.Diff.format(left, right) end},
+  %{
+    "Mneme.Diff.format/2" =>
+      fn ->
+        {left, right} = inputs[:moderate]
+        Mneme.Diff.format(left, right)
+      end
+  },
   opts ++ [
-    # inputs: inputs,
-    inputs: Keyword.drop(inputs, [:complex]),
     warmup: 1,
     time: 5,
-    memory_time: 2
+    memory_time: 2,
+    # profile_after: true
   ]
 )
