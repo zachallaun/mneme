@@ -1,6 +1,41 @@
 defmodule Mneme.Diff do
   @moduledoc false
 
+  # Structural diffing for Elixir expressions.
+  #
+  # This module implements structural diffing for the subset of Elixir
+  # expressions that would be found in Mneme auto-assertions. It may
+  # expand in the future to cover the entire Elixir language, but that
+  # is currently a non-goal.
+  #
+  # The strategy used here draws heavily (read: is shamelessly stolen)
+  # from Difftastic (https://difftastic.wilfred.me.uk/) and Autochrome
+  # (https://fazzone.github.io/autochrome.html).
+  #
+  # It models diffing as a directed graph/tree search, where vertices
+  # are cursors in the source and target ASTs and edges are diff
+  # instructions, i.e. "these nodes are the same" or "the left node is
+  # different". Depending on the vertex, there are many possible edges
+  # with different costs. Finding similar nodes is cheaper than marking
+  # one side as unique, and Dijkstra's is used to find the cheapest path
+  # to the end of both ASTs.
+  #
+  # I've vendored and modified a handful of modules from other libraries
+  # to suit them better to this task:
+  #
+  #   * AST - Adapted from an experimental Sourceror branch that extends
+  #     quoted expressions to make them more explicit, e.g. strings
+  #     become `{:string, _meta, "some string"}`.
+  #
+  #   * Zipper - Sourceror's Zipper implementation modified slightly to
+  #     work with the extended expressions defined in AST.
+  #
+  #   * Pathfinding - Adapted from libgraph's pathfinding module, but
+  #     refactored to create lazy implementations of A* and Dijkstra's.
+  #     This allows the graph to be created lazily during pathfinding
+  #     instead of having to eagerly build it up front.
+  #
+
   alias Mneme.Diff.AST
   alias Mneme.Diff.Edge
   alias Mneme.Diff.Formatter
