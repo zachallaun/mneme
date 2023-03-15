@@ -81,7 +81,12 @@ defmodule Mneme.Diff do
   end
 
   defp to_instructions(novel_edges, ins_kind) when ins_kind in [:ins, :del] do
-    novel_edges |> coalesce() |> Enum.map(fn {type, node} -> {ins_kind, type, node.zipper} end)
+    novel_edges
+    |> coalesce()
+    |> Enum.map(fn
+      {kind, node} -> {ins_kind, kind, node.zipper}
+      {kind, node, edit_script} -> {ins_kind, kind, node.zipper, edit_script}
+    end)
   end
 
   @doc false
@@ -192,13 +197,16 @@ defmodule Mneme.Diff do
           end
       end
 
-    Enum.flat_map(novel_edges, fn %{kind: kind, node: node} ->
+    Enum.flat_map(novel_edges, fn %{kind: kind, node: node, edit_script: edit_script} ->
       branch? = kind == :branch
       parent = SyntaxNode.parent(node)
 
       cond do
         parent && parent.id in novel_ids ->
           []
+
+        !branch? && edit_script != [] ->
+          [{:node, node, edit_script}]
 
         !branch? ->
           [{:node, node}]
@@ -246,8 +254,7 @@ defmodule Mneme.Diff do
       {:cont,
        graph
        |> maybe_add_unchanged_branch(v)
-       |> add_novel_left(v)
-       |> add_novel_right(v)}
+       |> add_novel_edges(v)}
     end
   end
 
@@ -271,6 +278,28 @@ defmodule Mneme.Diff do
   end
 
   defp maybe_add_unchanged_branch(graph, _v), do: graph
+
+  defp add_novel_edges(graph, {left, right, _} = v) do
+    with {:string, _, s1} <- SyntaxNode.ast(left),
+         {:string, _, s2} <- SyntaxNode.ast(right),
+         dist when dist > 0.5 <- String.bag_distance(s1, s2) do
+      {left_edit, right_edit} = myers_edit_scripts(s1, s2)
+      next_left = SyntaxNode.next_sibling(left)
+      next_right = SyntaxNode.next_sibling(right)
+
+      v1 = {next_left, right, Edge.novel(:node, :left, left, left_edit)}
+      v2 = {next_left, next_right, Edge.novel(:node, :right, right, right_edit)}
+
+      graph
+      |> add_edge(v, v1)
+      |> add_edge(v1, v2)
+    else
+      _ ->
+        graph
+        |> add_novel_left(v)
+        |> add_novel_right(v)
+    end
+  end
 
   defp add_novel_left(graph, {%{branch?: true} = left, right, _} = v) do
     graph
@@ -297,6 +326,16 @@ defmodule Mneme.Diff do
   defp add_edge(graph, v1, {left, right, edge}) do
     {left, right} = SyntaxNode.pop(left, right)
     Graph.add_edge(graph, v1, {left, right, edge}, weight: Edge.cost(edge))
+  end
+
+  defp myers_edit_scripts(s1, s2) do
+    String.myers_difference(s1, s2)
+    |> Enum.reduce({[], []}, fn
+      {:eq, s}, {left, right} -> {[{:eq, s} | left], [{:eq, s} | right]}
+      {:del, s}, {left, right} -> {[{:novel, s} | left], right}
+      {:ins, s}, {left, right} -> {left, [{:novel, s} | right]}
+    end)
+    |> then(fn {left, right} -> {Enum.reverse(left), Enum.reverse(right)} end)
   end
 
   defp debug?, do: !!System.get_env("DBG_PATH")

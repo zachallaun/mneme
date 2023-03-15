@@ -85,6 +85,90 @@ defmodule Mneme.DiffTest do
                     format(~s(["foo"]), ~s(["bar"]))
     end
 
+    test "formats strings using myers diff when they are similar" do
+      auto_assert {[["\"fooba", %Tag{data: "r", sequences: [:red]}, "\""]],
+                   [["\"fooba", %Tag{data: "z", sequences: [:green]}, "\""]]} <-
+                    format(~s("foobar"), ~s("foobaz"))
+
+      auto_assert {[
+                     [
+                       "\"fo",
+                       %Tag{data: "o", sequences: [:red]},
+                       "ba",
+                       %Tag{data: "r", sequences: [:red]},
+                       "\""
+                     ]
+                   ],
+                   [
+                     [
+                       "\"fo",
+                       %Tag{data: "a", sequences: [:green]},
+                       "ba",
+                       %Tag{data: "z", sequences: [:green]},
+                       "\""
+                     ]
+                   ]} <- format(~s("foobar"), ~s("foabaz"))
+
+      auto_assert {[["\"f", %Tag{data: "oo", sequences: [:red]}, " bar\""]],
+                   [
+                     [
+                       "\"f",
+                       %Tag{data: "a", sequences: [:green]},
+                       " ",
+                       %Tag{data: "o", sequences: [:green]},
+                       "bar",
+                       %Tag{data: " ", sequences: [:green_background]},
+                       "\""
+                     ]
+                   ]} <- format(~s("foo bar"), ~s("fa obar "))
+
+      auto_assert {[
+                     "\"\"\"",
+                     [
+                       %Tag{data: "f", sequences: [:red]},
+                       "o",
+                       %Tag{data: "o", sequences: [:red]}
+                     ],
+                     ["ba", %Tag{data: "r", sequences: [:red]}],
+                     ["\"\"\""]
+                   ],
+                   [
+                     "\"\"\"",
+                     [
+                       %Tag{data: "s", sequences: [:green]},
+                       "o",
+                       %Tag{data: "a", sequences: [:green]},
+                       %Tag{data: " ", sequences: [:green_background]}
+                     ],
+                     ["ba", %Tag{data: "z", sequences: [:green]}],
+                     ["\"\"\""]
+                   ]} <- format(~s("""\nfoo\nbar\n"""), ~s("""\nsoa \nbaz\n"""))
+
+      auto_assert {[
+                     "\"\"\"",
+                     [
+                       "  ",
+                       %Tag{data: "f", sequences: [:red]},
+                       "o",
+                       %Tag{data: "o", sequences: [:red]}
+                     ],
+                     ["  ba", %Tag{data: "r", sequences: [:red]}],
+                     ["  \"\"\""]
+                   ],
+                   [
+                     "\"\"\"",
+                     [
+                       "  ",
+                       %Tag{data: "s", sequences: [:green]},
+                       "o",
+                       %Tag{data: "a", sequences: [:green]},
+                       %Tag{data: " ", sequences: [:green_background]}
+                     ],
+                     ["  ba", %Tag{data: "z", sequences: [:green]}],
+                     ["  \"\"\""]
+                   ]} <- format(~s("""\n  foo\n  bar\n  """), ~s("""\n  soa \n  baz\n  """))
+    end
+
     test "formats charlists" do
       auto_assert {nil, [["[", %Tag{data: "~c(foo)", sequences: [:green]}, "]"]]} <-
                     format("[]", "[~c(foo)]")
@@ -441,7 +525,15 @@ defmodule Mneme.DiffTest do
 
     def dbg_format(left, right) do
       {left, right} = format(left, right)
-      Owl.IO.puts(["\n", left || [], "\n\n", right || [], "\n"])
+
+      Owl.IO.puts([
+        "\n",
+        Owl.Data.unlines(left || []),
+        "\n\n",
+        Owl.Data.unlines(right || []),
+        "\n"
+      ])
+
       {left, right}
     end
 

@@ -72,8 +72,12 @@ defmodule Mneme.Diff.Formatter do
 
   defp denormalize_all(instructions) do
     instructions
-    |> Enum.flat_map(fn {op, type, zipper} ->
-      denormalize(type, op, zipper |> Zipper.node(), zipper)
+    |> Enum.flat_map(fn
+      {op, kind, zipper} ->
+        denormalize(kind, op, Zipper.node(zipper), zipper)
+
+      {op, :node, zipper, edit_script} ->
+        denormalize_with_edit_script(op, Zipper.node(zipper), edit_script)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
   end
@@ -187,6 +191,61 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
+  defp denormalize_with_edit_script(op, {_, meta, _}, edit_script) do
+    {l, c} =
+      case meta do
+        %{delimiter: ~s("), line: l, column: c} -> {l, c + 1}
+        %{delimiter: ~s("""), line: l, indentation: indent} -> {l + 1, indent + 1}
+      end
+
+    {ops, _} =
+      edit_script
+      |> split_edit_script_on_whitespace(op)
+      |> Enum.flat_map_reduce({l, c, c}, fn
+        {{_, :newline}, _}, {l, _c, c_start} ->
+          {[], {l + 1, c_start, c_start}}
+
+        {:eq, s}, {l, c, c_start} ->
+          {[], {l, c + String.length(s), c_start}}
+
+        {op, s}, {l, c, c_start} ->
+          c2 = c + String.length(s)
+          {[{op, {{l, c}, {l, c2}}}], {l, c2, c_start}}
+      end)
+
+    ops
+  end
+
+  defp split_edit_script_on_whitespace(edit_script, op) do
+    edit_script
+    |> Stream.flat_map(fn {edit, s} ->
+      s
+      |> String.split(~r/\n/, include_captures: true)
+      |> Enum.map(fn
+        "\n" -> {{edit, :newline}, "\n"}
+        s -> {edit, s}
+      end)
+    end)
+    |> Enum.flat_map(fn
+      {:novel, s} ->
+        s
+        |> String.split(~r/\s+/, include_captures: true)
+        |> Enum.map(fn ss ->
+          if String.match?(ss, ~r/\s/) do
+            {{op, :whitespace}, ss}
+          else
+            {op, ss}
+          end
+        end)
+
+      {{:novel, :newline}, s} ->
+        [{{op, :newline}, s}]
+
+      eq ->
+        [eq]
+    end)
+  end
+
   # HACK: meta in args haven't been converted to maps, so we do it here
   defp bounds({_, list, _} = node) when is_list(list), do: node |> bounds()
 
@@ -298,6 +357,9 @@ defmodule Mneme.Diff.Formatter do
 
   defp tag(data, :ins), do: Owl.Data.tag(data, :green)
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
+
+  defp tag(data, {:ins, :whitespace}), do: Owl.Data.tag(data, :green_background)
+  defp tag(data, {:del, :whitespace}), do: Owl.Data.tag(data, :red_background)
 
   defp occurrences(string, char, acc \\ 0)
   defp occurrences(<<char, rest::binary>>, char, acc), do: occurrences(rest, char, acc + 1)

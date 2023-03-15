@@ -4,19 +4,20 @@ defmodule Mneme.Diff.Edge do
   alias __MODULE__
   alias Mneme.Diff.SyntaxNode
 
-  defstruct [:type, :kind, :side, :node, depth_difference: 0]
+  defstruct [:type, :kind, :side, :node, depth_difference: 0, edit_script: []]
 
   @type t :: %Edge{
           type: :novel | :unchanged,
           kind: :branch | :node,
           side: :left | :right,
           depth_difference: non_neg_integer(),
-          node: SyntaxNode.t()
+          node: SyntaxNode.t(),
+          edit_script: [{:eq | :novel, String.t()}]
         }
 
   @doc "Construct an edge representing a novel node."
-  def novel(kind, side, node) do
-    %Edge{type: :novel, kind: kind, side: side, node: node}
+  def novel(kind, side, node, edit_script \\ []) do
+    %Edge{type: :novel, kind: kind, side: side, node: node, edit_script: edit_script}
   end
 
   @doc "Construct an edge representing an unchanged node."
