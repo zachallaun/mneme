@@ -138,12 +138,14 @@ defmodule Mneme.Diff do
     {graph, [_root | path]} = Pathfinding.lazy_a_star(graph, root, &add_neighbors/2, &heuristic/1)
     finish = System.monotonic_time()
 
-    {Enum.map(path, &elem(&1, 2)),
-     %{
-       graph: graph,
-       info: Graph.info(graph),
-       time_ms: System.convert_time_unit(finish - start, :native, :millisecond)
-     }}
+    meta = %{
+      graph: graph,
+      time_ms: System.convert_time_unit(finish - start, :native, :millisecond)
+    }
+
+    meta = if debug?(), do: Map.put(meta, :info, Graph.info(graph)), else: meta
+
+    {Enum.map(path, &elem(&1, 2)), meta}
   end
 
   defp heuristic(_), do: 0

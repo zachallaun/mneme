@@ -4,6 +4,7 @@
 # results will compare to that file.
 #
 # Set env var `BENCHEE_SAVE=true` to overwrite the saved results.
+# Set env var `BENCHEE_PROFILE=true` to run profiler.
 
 save_file = Path.expand("diff.benchee", __DIR__)
 
@@ -70,11 +71,14 @@ inputs = [
   }
 ]
 
+profile? = System.get_env("BENCHEE_PROFILE") == "true"
+save? = !File.exists?(save_file) || System.get_env("BENCHEE_SAVE") == "true"
+
 opts =
-  if !File.exists?(save_file) || System.get_env("BENCHEE_SAVE") == "true" do
-    [save: [path: save_file, tag: "baseline"]]
-  else
-    [load: save_file]
+  cond do
+    profile? -> [profile_after: true]
+    save? -> [save: [path: save_file, tag: "baseline"]]
+    true -> [load: save_file]
   end
 
 Benchee.run(
@@ -88,7 +92,6 @@ Benchee.run(
   opts ++ [
     warmup: 1,
     time: 5,
-    memory_time: 2,
-    # profile_after: true
+    memory_time: 2
   ]
 )
