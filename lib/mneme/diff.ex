@@ -204,22 +204,21 @@ defmodule Mneme.Diff do
     {:cont, graph |> add_novel_right(v)}
   end
 
-  defp do_add_neighbors(graph, v) do
-    {:cont,
-     graph
-     |> maybe_add_unchanged_node(v)
-     |> maybe_add_unchanged_branch(v)
-     |> add_novel_left(v)
-     |> add_novel_right(v)}
+  defp do_add_neighbors(graph, {left, right, _} = v) do
+    if SyntaxNode.similar?(left, right) do
+      {:cont, add_unchanged_node(graph, v)}
+    else
+      {:cont,
+       graph
+       |> maybe_add_unchanged_branch(v)
+       |> add_novel_left(v)
+       |> add_novel_right(v)}
+    end
   end
 
-  defp maybe_add_unchanged_node(graph, {left, right, _} = v) do
-    if SyntaxNode.similar?(left, right) do
-      edge = Edge.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-      add_edge(graph, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
-    else
-      graph
-    end
+  defp add_unchanged_node(graph, {left, right, _} = v) do
+    edge = Edge.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+    add_edge(graph, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
   end
 
   defp maybe_add_unchanged_branch(
