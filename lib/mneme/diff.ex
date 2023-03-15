@@ -34,13 +34,19 @@ defmodule Mneme.Diff do
 
     {left_novels, right_novels} = split_novels(path)
 
-    if debug?(), do: dbg()
-    # debug_inspect(summarize_path(path), "path")
+    {deletions, insertions} =
+      {to_instructions(left_novels, :del), to_instructions(right_novels, :ins)}
 
-    {
-      left_novels |> coalesce() |> Enum.map(fn {type, node} -> {:del, type, node.zipper} end),
-      right_novels |> coalesce() |> Enum.map(fn {type, node} -> {:ins, type, node.zipper} end)
-    }
+    if debug?() do
+      debug_inspect(summarize_path(path), "path")
+      dbg()
+    end
+
+    {deletions, insertions}
+  end
+
+  defp to_instructions(novel_edges, ins_kind) when ins_kind in [:ins, :del] do
+    novel_edges |> coalesce() |> Enum.map(fn {type, node} -> {ins_kind, type, node.zipper} end)
   end
 
   @doc false
