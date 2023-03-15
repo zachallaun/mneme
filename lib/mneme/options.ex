@@ -27,6 +27,16 @@ defmodule Mneme.Options do
       remain an auto-assertion. If `:ex_unit`, the expression will be rewritten
       as an ExUnit assertion.
       """
+    ],
+    diff: [
+      type: {:in, [:text, :semantic]},
+      default: :text,
+      doc: """
+      Controls the diff engine used to display changes when an auto-assertion
+      updates. Text diffs use the Myers Difference algorithm to highlight all
+      changes in text, whereas semantic diffs attempt to highlight only
+      meaningful changes in the value.
+      """
     ]
   ]
 
@@ -82,9 +92,11 @@ defmodule Mneme.Options do
   Fetch all valid Mneme options from the current test tags and environment.
   """
   def options(test_tags) do
-    test_tags
-    |> collect_attributes()
-    |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+    opts_from_config = Application.get_env(:mneme, :defaults, [])
+    opts_from_tags = test_tags |> collect_attributes() |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+
+    opts_from_config
+    |> Keyword.merge(opts_from_tags)
     |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
     |> validate_opts(test_tags)
     |> Map.new()

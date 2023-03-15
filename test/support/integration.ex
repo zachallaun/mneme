@@ -65,7 +65,17 @@ defmodule Mneme.Integration do
       mix test #{file_path} --seed 0 \
     """
 
-    {output, exit_code} = System.shell(test_command)
+    task = Task.async(System, :shell, [test_command])
+
+    {output, exit_code} =
+      case Task.yield(task, 15_000) || Task.shutdown(task, :brutal_kill) do
+        {:ok, result} ->
+          result
+
+        nil ->
+          raise Mneme.Integration.TestError,
+            message: "integration test failed to complete within 15 seconds: #{test.path}"
+      end
 
     code_after_test = File.read!(file_path)
 

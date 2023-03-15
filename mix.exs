@@ -10,7 +10,7 @@ defmodule Mneme.MixProject do
     [
       app: @app,
       version: version(),
-      elixir: "~> 1.13",
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -38,16 +38,18 @@ defmodule Mneme.MixProject do
   defp deps do
     [
       {:owl, "~> 0.6.0"},
-      {:nimble_options, "~> 0.5.2"},
+      {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 0.12"},
       {:rewrite, "~> 0.6.0"},
+      {:libgraph, "~> 0.16.0"},
 
       # Development
       {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9.4", only: :test},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:ex_doc, github: "elixir-lang/ex_doc", only: :dev, runtime: false},
-      {:makeup_json, ">= 0.0.0", only: :dev, runtime: false}
+      {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
+      {:benchee, "~> 1.0", only: :dev}
     ]
   end
 

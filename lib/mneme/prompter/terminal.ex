@@ -15,8 +15,8 @@ defmodule Mneme.Prompter.Terminal do
   @arrow_right_car "❯"
 
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion, _prompt_state) do
-    message = message(source, assertion)
+  def prompt!(%Source{} = source, %Assertion{} = assertion, opts, _prompt_state) do
+    message = message(source, assertion, opts)
 
     Owl.IO.puts(["\n\n", message])
     result = input()
@@ -25,7 +25,7 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion) do
+  def message(source, %Assertion{type: type} = assertion, opts) do
     notes = Assertion.notes(assertion)
     pattern_nav = Assertion.pattern_index(assertion)
     prefix = tag("│ ", :light_black)
@@ -33,7 +33,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       header_tag(assertion),
       "\n",
-      diff(source),
+      diff(opts[:diff], source),
       notes_tag(notes),
       "\n",
       explanation_tag(type),
@@ -75,7 +75,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp normalize_gets(_), do: nil
 
-  defp diff(source) do
+  defp diff(:text, source) do
     Rewrite.TextDiff.format(
       source |> Source.code(Source.version(source) - 1) |> eof_newline(),
       source |> Source.code() |> eof_newline(),
@@ -92,6 +92,43 @@ defmodule Mneme.Prompter.Terminal do
       ],
       colorizer: &tag/2
     )
+  end
+
+  defp diff(:semantic, source) do
+    case semantic_diff(source) do
+      {nil, nil} ->
+        diff(:text, source)
+
+      {nil, ins} ->
+        [Owl.Data.unlines(ins), "\n"]
+
+      {del, nil} ->
+        [Owl.Data.unlines(del), "\n"]
+
+      {del, ins} ->
+        [
+          del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("-  ", :red)),
+          "\n\n",
+          ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("+  ", :green)),
+          "\n"
+        ]
+
+      nil ->
+        diff(:text, source)
+    end
+  end
+
+  defp semantic_diff(source) do
+    with %{left: left, right: right} <- source.private[:diff] do
+      task = Task.async(Mneme.Diff, :format, [left, right])
+
+      case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
+        {:ok, diff} -> diff
+        _ -> nil
+      end
+    else
+      _ -> nil
+    end
   end
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"

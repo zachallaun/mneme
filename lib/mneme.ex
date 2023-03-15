@@ -147,11 +147,20 @@ defmodule Mneme do
 
   ## Configuration
 
-  There are a few controls that can be used to change Mneme's behavior
-  when it runs auto-assertions. These can be set at the module-level by
-  passing options to `use Mneme`, the `describe` level using the
-  `@mneme_describe` attribute, or the `test` level using the `@mneme`
-  attribute. For instance:
+  Certain behavior can be configured globally using application config
+  or locally in test modules either at the module, describe-block, or
+  test level.
+
+  To configure Mneme globally, you can set `:defaults` for the `:mneme`
+  application:
+
+      config :mneme,
+        defaults: [
+          diff: :semantic
+        ]
+
+  These defaults can be overriden in test modules at various levels
+  either as options to `use Mneme` or as module attributes.
 
       defmodule MyTest do
         use ExUnit.Case
@@ -179,6 +188,15 @@ defmodule Mneme do
         end
       end
 
+  Configuration that is "closer to the test" will override more general
+  configuration:
+
+      @mneme > @mneme_describe > opts to use Mneme > :mneme app config
+
+  The exception to this is the `CI` environment variable, which causes
+  all updates to be rejected. See the "Continuous Integration" section
+  for more info.
+
   ### Options
 
   #{Mneme.Options.docs()}
@@ -186,16 +204,17 @@ defmodule Mneme do
   ## Formatting
 
   Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update
-  source source code, formatting that code before saving the file.
-  Currently, the Elixir formatter and `FreedomFormatter` are supported.
-  **If you do not use a formatter, the first auto-assertion will reformat
-  the entire file.**
+  source code, formatting that code before saving the file. Currently,
+  the Elixir formatter and `FreedomFormatter` are supported. **If you do
+  not use a formatter, the first auto-assertion will reformat the entire
+  file.**
 
   ## Continuous Integration
 
   In a CI environment, Mneme will not attempt to prompt and update any
-  assertions. This behavior is enabled by the `CI` environment variable,
-  which is set by convention by many continuous integration providers.
+  assertions, but will instead fail any tests that would update. This
+  behavior is enabled by the `CI` environment variable, which is set by
+  convention by many continuous integration providers.
 
   ```bash
   export CI=true

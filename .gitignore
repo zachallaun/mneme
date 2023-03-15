@@ -29,3 +29,6 @@ mneme-*.tar
 
 # Scratch code
 scratch.exs
+
+# Benchmark results
+/benchmarks/*.benchee
