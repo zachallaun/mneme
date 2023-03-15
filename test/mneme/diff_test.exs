@@ -1,5 +1,5 @@
 defmodule Mneme.DiffTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme, default_pattern: :last
 
   alias Mneme.Diff
