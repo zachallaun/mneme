@@ -130,48 +130,44 @@ defmodule Mneme.Diff do
 
   @doc false
   def shortest_path(root) do
-    graph =
-      Graph.new(vertex_identifier: &vertex_id/1)
-      |> Graph.add_vertex(root)
-
     start = System.monotonic_time()
-    {graph, [_root | path]} = Pathfinding.lazy_a_star(graph, root, &add_neighbors/2, &heuristic/1)
+    [_root | path] = Pathfinding.lazy_dijkstra(root, &vertex_id/1, &neighbors/1)
     finish = System.monotonic_time()
 
     meta = %{
-      graph: graph,
       time_ms: System.convert_time_unit(finish - start, :native, :millisecond)
     }
-
-    meta = if debug?(), do: Map.put(meta, :info, Graph.info(graph)), else: meta
 
     {Enum.map(path, &elem(&1, 2)), meta}
   end
 
-  defp heuristic(_), do: 0
-  # defp heuristic({left, right, _}) do
-  #   400 * (SyntaxNode.n_left(left) + SyntaxNode.n_left(right))
-  # end
-
   defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, edge}) do
-    {l_id, r_id, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, edge_id(edge)}
   end
 
   defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, edge}) do
-    {l_id, r_id, entry, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, entry, edge_id(edge)}
   end
 
   defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, edge}) do
-    {l_id, r_id, entry, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, entry, edge_id(edge)}
   end
 
   defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, edge}) do
-    {l_id, r_id, e1, e2, edge && {edge.type, edge.node.id}}
+    {l_id, r_id, e1, e2, edge_id(edge)}
   end
+
+  defp edge_id(nil), do: nil
+  defp edge_id({e1, e2}), do: {e1.type, e1.node.id, e2.type, e2.node.id}
+  defp edge_id(e), do: {e.type, e.node.id}
 
   defp split_novels(path) do
     path
-    |> Stream.filter(&(&1.type == :novel))
+    |> Stream.flat_map(fn
+      {left, right} -> [left, right]
+      %Edge{type: :novel} = edge -> [edge]
+      _ -> []
+    end)
     |> Enum.group_by(& &1.side)
     |> case do
       %{left: left, right: right} -> {left, right}
@@ -228,7 +224,7 @@ defmodule Mneme.Diff do
     |> Enum.all?(&(&1 in ids))
   end
 
-  defp add_neighbors(graph, {l, r, e} = v) do
+  defp neighbors({l, r, e} = v) do
     if debug?() do
       debug_inspect(summarize_edge(e), "e")
       debug_inspect(summarize_node(l), "l")
@@ -236,99 +232,103 @@ defmodule Mneme.Diff do
       IO.puts("")
     end
 
-    do_add_neighbors(graph, v)
+    get_neighbors(v)
   end
 
-  defp do_add_neighbors(_graph, {%{terminal?: true}, %{terminal?: true}, _}), do: :halt
+  defp get_neighbors({%{terminal?: true}, %{terminal?: true}, _}), do: :halt
 
-  defp do_add_neighbors(graph, {_, %{null?: true}, _} = v) do
-    {:cont, graph |> add_novel_left(v)}
+  defp get_neighbors({_, %{null?: true}, _} = v) do
+    {:cont, add_novel_left([], v)}
   end
 
-  defp do_add_neighbors(graph, {%{null?: true}, _, _} = v) do
-    {:cont, graph |> add_novel_right(v)}
+  defp get_neighbors({%{null?: true}, _, _} = v) do
+    {:cont, add_novel_right([], v)}
   end
 
-  defp do_add_neighbors(graph, {left, right, _} = v) do
+  defp get_neighbors({left, right, _} = v) do
     if SyntaxNode.similar?(left, right) do
-      {:cont, add_unchanged_node(graph, v)}
+      {:cont, add_unchanged_node([], v)}
     else
       {:cont,
-       graph
+       []
        |> maybe_add_unchanged_branch(v)
        |> add_novel_edges(v)}
     end
   end
 
-  defp add_unchanged_node(graph, {left, right, _} = v) do
+  defp add_unchanged_node(neighbors, {left, right, _} = v) do
     edge = Edge.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-    add_edge(graph, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
   end
 
   defp maybe_add_unchanged_branch(
-         graph,
+         neighbors,
          {%{branch?: true} = left, %{branch?: true} = right, _} = v
        ) do
     if SyntaxNode.similar_branch?(left, right) do
       edge = Edge.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
       v2 = {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), edge}
 
-      add_edge(graph, v, v2)
+      add_edge(neighbors, v, v2)
     else
-      graph
+      neighbors
     end
   end
 
-  defp maybe_add_unchanged_branch(graph, _v), do: graph
+  defp maybe_add_unchanged_branch(neighbors, _v), do: neighbors
 
-  defp add_novel_edges(graph, {left, right, _} = v) do
+  defp add_novel_edges(neighbors, {left, right, _} = v) do
     with {:string, _, s1} <- SyntaxNode.ast(left),
          {:string, _, s2} <- SyntaxNode.ast(right),
          dist when dist > 0.5 <- String.bag_distance(s1, s2) do
       {left_edit, right_edit} = myers_edit_scripts(s1, s2)
-      next_left = SyntaxNode.next_sibling(left)
-      next_right = SyntaxNode.next_sibling(right)
+      left_edge = Edge.novel(:node, :left, left, left_edit)
+      right_edge = Edge.novel(:node, :right, right, right_edit)
 
-      v1 = {next_left, right, Edge.novel(:node, :left, left, left_edit)}
-      v2 = {next_left, next_right, Edge.novel(:node, :right, right, right_edit)}
+      v2 = {
+        SyntaxNode.next_sibling(left),
+        SyntaxNode.next_sibling(right),
+        {left_edge, right_edge}
+      }
 
-      graph
-      |> add_edge(v, v1)
-      |> add_edge(v1, v2)
+      add_edge(neighbors, v, v2)
     else
       _ ->
-        graph
+        neighbors
         |> add_novel_left(v)
         |> add_novel_right(v)
     end
   end
 
-  defp add_novel_left(graph, {%{branch?: true} = left, right, _} = v) do
-    graph
+  defp add_novel_left(neighbors, {%{branch?: true} = left, right, _} = v) do
+    neighbors
     |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
     |> add_edge(v, {SyntaxNode.next_child(left), right, Edge.novel(:branch, :left, left)})
   end
 
-  defp add_novel_left(graph, {%{branch?: false} = left, right, _} = v) do
-    graph
+  defp add_novel_left(neighbors, {%{branch?: false} = left, right, _} = v) do
+    neighbors
     |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
   end
 
-  defp add_novel_right(graph, {left, %{branch?: true} = right, _} = v) do
-    graph
+  defp add_novel_right(neighbors, {left, %{branch?: true} = right, _} = v) do
+    neighbors
     |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
     |> add_edge(v, {left, SyntaxNode.next_child(right), Edge.novel(:branch, :right, right)})
   end
 
-  defp add_novel_right(graph, {left, %{branch?: false} = right, _} = v) do
-    graph
+  defp add_novel_right(neighbors, {left, %{branch?: false} = right, _} = v) do
+    neighbors
     |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
   end
 
-  defp add_edge(graph, v1, {left, right, edge}) do
+  defp add_edge(neighbors, _v1, {left, right, edge}) do
     {left, right} = SyntaxNode.pop(left, right)
-    Graph.add_edge(graph, v1, {left, right, edge}, weight: Edge.cost(edge))
+    [{{left, right, edge}, edge_cost(edge)} | neighbors]
   end
+
+  defp edge_cost(%Edge{} = edge), do: Edge.cost(edge)
+  defp edge_cost({left, right}), do: Edge.cost(left) + Edge.cost(right)
 
   defp myers_edit_scripts(s1, s2) do
     String.myers_difference(s1, s2)
