@@ -366,7 +366,8 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats structs" do
-      auto_assert dbg_format("%MyStruct{}", "%MyStruct{foo: 1}")
+      auto_assert {nil, [["%MyStruct{", %Tag{data: "foo: 1", sequences: [:green]}, "}"]]} <-
+                    format("%MyStruct{}", "%MyStruct{foo: 1}")
 
       auto_assert {nil,
                    [
@@ -440,7 +441,7 @@ defmodule Mneme.DiffTest do
 
     def dbg_format(left, right) do
       {left, right} = format(left, right)
-      Owl.IO.puts(["\n", left, "\n\n", right, "\n"])
+      Owl.IO.puts(["\n", left || [], "\n\n", right || [], "\n"])
       {left, right}
     end
 
