@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixes
 
   * Warn and ignore invalid options without crashing tests.
+  * Fix bug causing multiple identical choices to be presented in some cases where empty lists were a part of the value.
 
 ## v0.1.6 (2023-03-04)
 
