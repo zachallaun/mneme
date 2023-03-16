@@ -8,8 +8,8 @@ defmodule Mneme.Diff.AST do
   # See "The Sourceror AST" guide from the experimental branch for more:
   # https://github.com/doorgan/sourceror/blob/9cdebddd3b8894772528e4411235e57cad35014c/guides/sourceror_ast.md
   #
-  # Limitations/Differences:
-  # - Ignores comments
+  # Differences:
+  # * Ignores comments
 
   require Sourceror
 
@@ -136,6 +136,7 @@ defmodule Mneme.Diff.AST do
     end
   end
 
+  # Handles :"atoms#{with_interpolation}"
   defp normalize_node(
          {{:., _, [:erlang, :binary_to_atom]}, metadata, [{:<<>>, _, segments}, :utf8]}
        ) do

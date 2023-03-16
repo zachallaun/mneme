@@ -238,14 +238,6 @@ defmodule Mneme.Diff do
 
   defp get_neighbors({%{terminal?: true}, %{terminal?: true}, _}), do: :halt
 
-  defp get_neighbors({_, %{null?: true}, _} = v) do
-    {:cont, add_novel_left([], v)}
-  end
-
-  defp get_neighbors({%{null?: true}, _, _} = v) do
-    {:cont, add_novel_right([], v)}
-  end
-
   defp get_neighbors({left, right, _} = v) do
     if SyntaxNode.similar?(left, right) do
       {:cont, add_unchanged_node([], v)}
@@ -301,6 +293,11 @@ defmodule Mneme.Diff do
     end
   end
 
+  defp add_novel_left(neighbors, {left, %{null?: true} = right, _} = v) do
+    neighbors
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+  end
+
   defp add_novel_left(neighbors, {%{branch?: true} = left, right, _} = v) do
     neighbors
     |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
@@ -310,6 +307,11 @@ defmodule Mneme.Diff do
   defp add_novel_left(neighbors, {%{branch?: false} = left, right, _} = v) do
     neighbors
     |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+  end
+
+  defp add_novel_right(neighbors, {%{null?: true} = left, right, _} = v) do
+    neighbors
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
   end
 
   defp add_novel_right(neighbors, {left, %{branch?: true} = right, _} = v) do

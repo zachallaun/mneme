@@ -29,24 +29,13 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats term renesting" do
-      auto_assert {[
-                     [
-                       "[",
-                       %Tag{data: "[", sequences: [:red]},
-                       ":foo, :bar",
-                       %Tag{data: "]", sequences: [:red]},
-                       "]"
-                     ]
-                   ],
-                   [
-                     [
-                       "[",
-                       %Tag{data: "[", sequences: [:green]},
-                       ":foo",
-                       %Tag{data: "]", sequences: [:green]},
-                       ", :bar]"
-                     ]
-                   ]} <- format("[[:foo, :bar]]", "[[:foo], :bar]")
+      auto_assert {[["[[", %Tag{data: ":bar", sequences: [:red]}, "]]"]],
+                   [["[[], ", %Tag{data: ":bar", sequences: [:green]}, "]"]]} <-
+                    format("[[:bar]]", "[[], :bar]")
+
+      auto_assert {[["[[:foo, ", %Tag{data: ":bar", sequences: [:red]}, "]]"]],
+                   [["[[:foo], ", %Tag{data: ":bar", sequences: [:green]}, "]"]]} <-
+                    format("[[:foo, :bar]]", "[[:foo], :bar]")
 
       auto_assert {[
                      [
@@ -506,20 +495,51 @@ defmodule Mneme.DiffTest do
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
-    test "regression: unnecessary novel nodes and matches across parent boundaries" do
+    # TODO: This could possibly be improved.
+    test "regression: unnecessary novel nodes" do
+      auto_assert {[
+                     [
+                       "{",
+                       %Tag{data: "[", sequences: [:red]},
+                       %Tag{data: "line: 1", sequences: [:red]},
+                       ", column: 1",
+                       %Tag{data: "]", sequences: [:red]},
+                       ", ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "line: 1, column: 2",
+                       %Tag{data: "]", sequences: [:red]},
+                       "}"
+                     ]
+                   ],
+                   [
+                     [
+                       "{",
+                       %Tag{data: "%{", sequences: [:green]},
+                       "column: 1, line: 1",
+                       %Tag{data: "}", sequences: [:green]},
+                       ", ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       "column: 2, ",
+                       %Tag{data: "line: 1", sequences: [:green]},
+                       %Tag{data: "}", sequences: [:green]},
+                       "}"
+                     ]
+                   ]} <-
+                    format(
+                      "{[line: 1, column: 1], [line: 1, column: 2]}",
+                      "{%{column: 1, line: 1}, %{column: 2, line: 1}}"
+                    )
+
       auto_assert {[
                      [
                        "{:-, ",
                        %Tag{data: "[", sequences: [:red]},
-                       %Tag{data: "line:", sequences: [:red]},
-                       " 1, ",
-                       %Tag{data: "column:", sequences: [:red]},
-                       " 1",
+                       %Tag{data: "line: 1", sequences: [:red]},
+                       ", column: 1",
                        %Tag{data: "]", sequences: [:red]},
                        ", [{:var, ",
                        %Tag{data: "[", sequences: [:red]},
-                       "line: 1, ",
-                       %Tag{data: "column: 2", sequences: [:red]},
+                       "line: 1, column: 2",
                        %Tag{data: "]", sequences: [:red]},
                        ", :x}]}"
                      ]
@@ -528,15 +548,12 @@ defmodule Mneme.DiffTest do
                      [
                        "{:-, ",
                        %Tag{data: "%{", sequences: [:green]},
-                       %Tag{data: "column:", sequences: [:green]},
-                       " 1, ",
-                       %Tag{data: "line:", sequences: [:green]},
-                       " 1",
+                       "column: 1, line: 1",
                        %Tag{data: "}", sequences: [:green]},
                        ", [{:var, ",
                        %Tag{data: "%{", sequences: [:green]},
-                       %Tag{data: "column: 2", sequences: [:green]},
-                       ", line: 1",
+                       "column: 2, ",
+                       %Tag{data: "line: 1", sequences: [:green]},
                        %Tag{data: "}", sequences: [:green]},
                        ", :x}]}"
                      ]

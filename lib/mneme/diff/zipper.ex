@@ -33,7 +33,6 @@ defmodule Mneme.Diff.Zipper do
   Returns a list of children of the node.
   """
   def children({form, _, args}) when is_atom(form) and is_list(args), do: args
-  def children({{:<<>>, _}, _, args}), do: args
   def children({form, _, args}) when is_list(args), do: [form | args]
   def children({left, right}), do: [left, right]
   def children(list) when is_list(list), do: list
@@ -150,6 +149,11 @@ defmodule Mneme.Diff.Zipper do
   Replaces the current node in the zipper with a new node.
   """
   def replace({_, meta}, tree), do: {tree, meta}
+
+  @doc """
+  Replaces the current node's children in the zipper.
+  """
+  def replace_children({node, meta}, args), do: {make_node(node, args), meta}
 
   @doc """
   Replaces the current node in the zipper with the result of applying `fun` to

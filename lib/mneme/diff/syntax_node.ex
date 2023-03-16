@@ -9,7 +9,7 @@ defmodule Mneme.Diff.SyntaxNode do
   @id :__id__
   @n_descendants :__n_descendants__
 
-  defstruct [:zipper, :parent, :id, :hash, :n_descendants, :branch?, :null?, :terminal?]
+  defstruct [:zipper, :parent, :id, :hash, :n_descendants, :form, :branch?, :null?, :terminal?]
 
   @type t :: %SyntaxNode{
           zipper: Zipper.zipper() | nil,
@@ -17,6 +17,7 @@ defmodule Mneme.Diff.SyntaxNode do
           id: any(),
           hash: any(),
           n_descendants: integer(),
+          form: any(),
           branch?: boolean(),
           null?: boolean(),
           terminal?: boolean()
@@ -32,11 +33,18 @@ defmodule Mneme.Diff.SyntaxNode do
       id: id(zipper),
       hash: hash(ast),
       n_descendants: n_descendants(ast),
+      form: form(ast),
       branch?: Zipper.branch?(ast),
       null?: !zipper,
       terminal?: !zipper && terminal_parent?(parent)
     }
   end
+
+  defp form({{:., _, _}, _, _}), do: :.
+  defp form({atom, _, _}) when is_atom(atom), do: atom
+  defp form({_, _}), do: :"{_,_}"
+  defp form(list) when is_list(list), do: :"[]"
+  defp form(literal), do: literal
 
   @doc false
   def terminal_parent?(nil), do: true
@@ -86,10 +94,7 @@ defmodule Mneme.Diff.SyntaxNode do
   Creates the minimized root syntax nodes for the given trees.
   """
   def minimized_roots!(left, right) do
-    case minimize_nodes(root!(left), root!(right)) do
-      [roots] -> roots
-      [] -> nil
-    end
+    minimize_nodes(root!(left), root!(right))
   end
 
   @doc """
@@ -100,34 +105,55 @@ defmodule Mneme.Diff.SyntaxNode do
   """
   def minimize_nodes(left, right)
 
-  def minimize_nodes(%{hash: h}, %{hash: h}), do: []
+  def minimize_nodes(%{hash: h}, %{hash: h}), do: nil
 
-  def minimize_nodes(%{branch?: true} = l, %{branch?: true} = r) do
-    if similar_branch?(l, r) do
-      case minimize_children(l, r) do
-        [{l_child, r_child}] -> [{l_child, r_child}]
-        _ -> [{l, r}]
+  def minimize_nodes(%{form: :"~"} = l, %{form: :"~"} = r), do: {l, r}
+
+  def minimize_nodes(%{form: :"{_,_}"} = l, %{form: :"{_,_}"} = r) do
+    [l_k, l_v] = children(l)
+    [r_k, r_v] = children(r)
+
+    {l_children, r_children} =
+      case {minimize_nodes(l_k, r_k), minimize_nodes(l_v, r_v)} do
+        {nil, {l_v, r_v}} -> {[l_k, l_v], [r_k, r_v]}
+        {{l_k, r_k}, nil} -> {[l_k, l_v], [r_k, r_v]}
+        _ -> {[l_k, l_v], [r_k, r_v]}
       end
-    else
-      [{l, r}]
+
+    {with_children(l, Enum.map(l_children, &ast/1)),
+     with_children(r, Enum.map(r_children, &ast/1))}
+  end
+
+  def minimize_nodes(%{branch?: true, form: f} = l, %{branch?: true, form: f} = r) do
+    case minimize_children(l, r) do
+      {[], []} ->
+        nil
+
+      {[l_child], [r_child]} ->
+        {l_child, r_child}
+
+      {l_children, r_children} ->
+        {with_children(l, Enum.map(l_children, &ast/1)),
+         with_children(r, Enum.map(r_children, &ast/1))}
     end
   end
 
-  def minimize_nodes(left, right), do: [{left, right}]
+  def minimize_nodes(left, right), do: {left, right}
 
   defp minimize_children(left, right) do
     zip_children(left, right)
-    |> Enum.flat_map(fn {l, r} -> minimize_nodes(l, r) end)
-    |> Enum.map(fn
-      {nil, nil} -> {new(nil, {:pop_either, left}), new(nil, {:pop_either, right})}
-      {nil, r} -> {new(nil, {:pop_either, left}), r}
-      {l, nil} -> {l, new(nil, {:pop_either, right})}
-      {l, r} -> {l, r}
-    end)
+    |> Enum.map(fn {l, r} -> minimize_nodes(l, r) end)
+    |> Enum.filter(&Function.identity/1)
+    |> Enum.unzip()
+    |> remove_nil_children()
+  end
+
+  defp remove_nil_children({left, right}) do
+    {Enum.filter(left, &Function.identity/1), Enum.filter(right, &Function.identity/1)}
   end
 
   defp zip_children(left, right) do
-    zip_children(sibling_nodes(next_child(left)), sibling_nodes(next_child(right)), [])
+    zip_children(children(left), children(right), [])
   end
 
   defp zip_children([], [], acc), do: Enum.reverse(acc)
@@ -139,12 +165,18 @@ defmodule Mneme.Diff.SyntaxNode do
     zip_children(rest1, rest2, [{hd1, hd2} | acc])
   end
 
-  defp sibling_nodes(%SyntaxNode{} = node) do
+  defp children(node), do: node |> next_child() |> sibling_nodes()
+
+  defp sibling_nodes(node) do
     Stream.unfold(node, fn
       %{null?: true} -> nil
       node -> {node, next_sibling(node)}
     end)
     |> Enum.to_list()
+  end
+
+  defp with_children(node, children) do
+    %{node | zipper: Zipper.replace_children(node.zipper, children)}
   end
 
   @doc """
@@ -208,16 +240,12 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc """
   Returns true if both branches have similar delimiters.
   """
-  def similar_branch?(%SyntaxNode{branch?: true} = left, %SyntaxNode{branch?: true} = right) do
-    case {ast(left), ast(right)} do
-      {{{:., _, _}, _, _}, {{:., _, _}, _, _}} -> true
-      {{branch, _, _}, {branch, _, _}} -> true
-      {{_, _}, {_, _}} -> true
+  def similar_branch?(%SyntaxNode{} = left, %SyntaxNode{} = right) do
+    case {left, right} do
+      {%{branch?: true, form: f}, %{branch?: true, form: f}} -> true
       _ -> false
     end
   end
-
-  def similar_branch?(_, _), do: false
 
   @doc """
   Returns the depth of the current syntax node relative to the root.

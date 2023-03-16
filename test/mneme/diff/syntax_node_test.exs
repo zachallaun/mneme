@@ -25,32 +25,46 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
   end
 
-  describe "minimize_nodes/2" do
+  describe "minimized_roots!/2" do
     test "discards identical nodes" do
-      auto_assert [] <- minimize!(":foo", ":foo")
-      auto_assert [] <- minimize!("[1, 2, 3]", "[1, 2, 3]")
+      auto_assert minimize!(":foo", ":foo") == nil
+      auto_assert minimize!("[1, 2, 3]", "[1, 2, 3]") == nil
     end
 
     test "discards identical outer branches with a single change" do
-      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("[1]", "[2]")
-      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("[[1]]", "[[2]]")
+      auto_assert {{:int, %{}, 1}, {:int, %{}, 2}} <- minimize!("[1]", "[2]")
+      auto_assert {{:int, %{}, 1}, {:int, %{}, 2}} <- minimize!("[[1]]", "[[2]]")
 
-      auto_assert [{{:atom, %{}, :foo}, {:atom, %{}, :bar}}] <-
+      auto_assert {{:atom, %{}, :foo}, {:atom, %{}, :bar}} <-
                     minimize!("[1, [:foo]]", "[1, [:bar]]")
 
-      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("%{foo: 1}", "%{foo: 2}")
+      auto_assert {{{:atom, %{}, :foo}, {:int, %{}, 1}}, {{:atom, %{}, :foo}, {:int, %{}, 2}}} <-
+                    minimize!("%{foo: 1}", "%{foo: 2}")
     end
 
-    test "keeps identical outer branches with multiple changes" do
-      auto_assert [
-                    {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]},
-                     {:"[]", %{}, [{:atom, %{}, :foo}, {:int, %{}, 2}, {:atom, %{}, :bar}]}}
-                  ] <- minimize!("[1, 2, 3]", "[:foo, 2, :bar]")
+    test "discards identical children" do
+      auto_assert {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 3}]},
+                   {:"[]", %{}, [{:atom, %{}, :foo}, {:atom, %{}, :bar}]}} <-
+                    minimize!("[1, 2, 3]", "[:foo, 2, :bar]")
+
+      auto_assert {{:%{}, %{},
+                    [
+                      {{:atom, %{}, :foo}, {:int, %{}, 1}},
+                      {{:atom, %{}, :bar}, {:{}, %{}, [{:int, %{}, 3}]}}
+                    ]},
+                   {:%{}, %{},
+                    [{{:atom, %{}, :foo}, {:int, %{}, 2}}, {{:atom, %{}, :bar}, {:{}, %{}, []}}]}} <-
+                    minimize!("%{foo: 1, bar: {2, 3}}", "%{foo: 2, bar: {2}}")
+
+      auto_assert {{:"[]", %{}, [{:"[]", %{}, [{:atom, %{}, :bar}]}]},
+                   {:"[]", %{}, [{:"[]", %{}, []}, {:atom, %{}, :bar}]}} <-
+                    minimize!("[[:foo, :bar]]", "[[:foo], :bar]")
     end
 
-    defp minimize!(left, right) do
-      for {left, right} <- minimize_nodes(root!(left), root!(right)) do
-        {ast(left), ast(right)}
+    defp minimize!(l, r) do
+      case minimized_roots!(l, r) do
+        {l, r} -> {ast(l), ast(r)}
+        nil -> nil
       end
     end
   end
