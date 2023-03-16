@@ -300,6 +300,8 @@ defmodule Mneme do
       timeout: :infinity
     )
 
+    Mneme.Options.configure()
+
     if opts[:restart] && Process.whereis(Mneme.Supervisor) do
       _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
       {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)

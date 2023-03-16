@@ -12,6 +12,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   * Introduce semantic diffs, which selectively highlights only meaningful changes when updating an assertion. This can be enabled with the `diff: :semantic` option, though it may become the default in the future. See the "Configuration" section of the `Mneme` module doc for more.
 
+### Fixes
+
+  * Warn and ignore invalid options without crashing tests.
+
 ## v0.1.6 (2023-03-04)
 
 ### Enhancements

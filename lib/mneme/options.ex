@@ -1,6 +1,9 @@
 defmodule Mneme.Options do
   @moduledoc false
 
+  @config_cache {__MODULE__, :config_cache}
+  @options_cache :__mneme_options_cache__
+
   @public_options [
     action: [
       type: {:in, [:prompt, :accept, :reject]},
@@ -89,36 +92,61 @@ defmodule Mneme.Options do
   end
 
   @doc """
-  Fetch all valid Mneme options from the current test tags and environment.
+  Cache application-level options.
   """
-  def options(test_tags) do
-    opts_from_config = Application.get_env(:mneme, :defaults, [])
-    opts_from_tags = test_tags |> collect_attributes() |> Enum.map(fn {k, [v | _]} -> {k, v} end)
-
-    opts_from_config
-    |> Keyword.merge(opts_from_tags)
-    |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
-    |> validate_opts(test_tags)
-    |> Map.new()
+  def configure do
+    opts = Application.get_env(:mneme, :defaults, [])
+    :persistent_term.put(@config_cache, opts)
+    :ets.new(@options_cache, [:named_table, :public])
   end
 
-  defp put_opt_if(opts, true, k, v), do: Keyword.put(opts, k, v)
+  @doc """
+  Fetch all valid Mneme options from the current test tags and environment.
+  """
+  def options(test_tags \\ %{}) do
+    stacktrace_info = [file: test_tags[:file], line: test_tags[:line], module: test_tags[:module]]
+
+    opts =
+      test_tags
+      |> collect_attributes()
+      |> Enum.map(fn {k, [v | _]} -> {k, v} end)
+      |> Map.new()
+
+    case(:ets.lookup(@options_cache, opts)) do
+      [{_opts, validated}] ->
+        validated
+
+      [] ->
+        validated =
+          opts
+          |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
+          |> validate_opts(stacktrace_info)
+          |> Map.new()
+
+        true = :ets.insert(@options_cache, {opts, validated})
+
+        validated
+    end
+  end
+
+  defp put_opt_if(opts, true, k, v), do: Map.put(opts, k, v)
   defp put_opt_if(opts, false, _k, _v), do: opts
 
-  defp validate_opts(opts, test_tags) do
+  defp validate_opts(%{} = opts, stacktrace_info) do
+    validate_opts(Keyword.new(opts), stacktrace_info)
+  end
+
+  defp validate_opts(opts, stacktrace_info) do
     case NimbleOptions.validate(opts, @options_schema) do
       {:ok, opts} ->
         opts
 
       {:error, %{key: key_or_keys} = error} ->
-        %{file: file, line: line, module: module} = test_tags
-        stacktrace_info = [file: file, line: line, module: module]
-
         IO.warn("[Mneme] " <> Exception.message(error), stacktrace_info)
 
         opts
         |> drop_opts(key_or_keys)
-        |> validate_opts(test_tags)
+        |> validate_opts(stacktrace_info)
     end
   end
 
@@ -126,33 +154,10 @@ defmodule Mneme.Options do
 
   @doc """
   Collect all registered Mneme attributes from the given tags, in order of precedence.
-
-  ## Examples
-
-      iex> collect_attributes(%{})
-      %{}
-
-      iex> collect_attributes(%{registered: %{}})
-      %{}
-
-      iex> collect_attributes(%{
-      ...>   registered: %{
-      ...>     mneme: [[bar: 2], [bar: 1]]
-      ...>   }
-      ...> })
-      %{bar: [2, 1]}
-
-      iex> collect_attributes(%{
-      ...>   registered: %{
-      ...>      mneme_module: [[foo: 1]],
-      ...>      mneme_describe: [[bar: 2], [foo: 2, bar: 1]],
-      ...>      mneme: [[bar: 3, baz: 1]]
-      ...>   }
-      ...> })
-      %{foo: [2, 1], bar: [3, 2, 1], baz: [1]}
   """
   def collect_attributes(%{registered: %{} = attrs}) do
     %{}
+    |> collect_attributes([:persistent_term.get(@config_cache)])
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
     |> collect_attributes(Map.get(attrs, @module_attr, []))
