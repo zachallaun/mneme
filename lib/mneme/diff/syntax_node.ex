@@ -83,6 +83,71 @@ defmodule Mneme.Diff.SyntaxNode do
   end
 
   @doc """
+  Creates the minimized root syntax nodes for the given trees.
+  """
+  def minimized_roots!(left, right) do
+    case minimize_nodes(root!(left), root!(right)) do
+      [roots] -> roots
+      [] -> nil
+    end
+  end
+
+  @doc """
+  Breaks down two root nodes into a list of pairs with differences.
+
+  This is an optimization that allows tree search to perform multiple
+  searches on smaller syntax nodes.
+  """
+  def minimize_nodes(left, right)
+
+  def minimize_nodes(%{hash: h}, %{hash: h}), do: []
+
+  def minimize_nodes(%{branch?: true} = l, %{branch?: true} = r) do
+    if similar_branch?(l, r) do
+      case minimize_children(l, r) do
+        [{l_child, r_child}] -> [{l_child, r_child}]
+        _ -> [{l, r}]
+      end
+    else
+      [{l, r}]
+    end
+  end
+
+  def minimize_nodes(left, right), do: [{left, right}]
+
+  defp minimize_children(left, right) do
+    zip_children(left, right)
+    |> Enum.flat_map(fn {l, r} -> minimize_nodes(l, r) end)
+    |> Enum.map(fn
+      {nil, nil} -> {new(nil, {:pop_either, left}), new(nil, {:pop_either, right})}
+      {nil, r} -> {new(nil, {:pop_either, left}), r}
+      {l, nil} -> {l, new(nil, {:pop_either, right})}
+      {l, r} -> {l, r}
+    end)
+  end
+
+  defp zip_children(left, right) do
+    zip_children(sibling_nodes(next_child(left)), sibling_nodes(next_child(right)), [])
+  end
+
+  defp zip_children([], [], acc), do: Enum.reverse(acc)
+
+  defp zip_children([hd | rest], [], acc), do: zip_children(rest, [], [{hd, nil} | acc])
+  defp zip_children([], [hd | rest], acc), do: zip_children([], rest, [{nil, hd} | acc])
+
+  defp zip_children([hd1 | rest1], [hd2 | rest2], acc) do
+    zip_children(rest1, rest2, [{hd1, hd2} | acc])
+  end
+
+  defp sibling_nodes(%SyntaxNode{} = node) do
+    Stream.unfold(node, fn
+      %{null?: true} -> nil
+      node -> {node, next_sibling(node)}
+    end)
+    |> Enum.to_list()
+  end
+
+  @doc """
   Continues traversal for two potentially null nodes.
   """
   def pop(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
@@ -208,10 +273,14 @@ defmodule Mneme.Diff.SyntaxNode do
   end
 
   defp sibling_ids(zipper) do
+    zipper |> siblings() |> Enum.map(&id/1)
+  end
+
+  defp siblings(zipper) do
     zipper
     |> Stream.unfold(fn
       nil -> nil
-      zipper -> {id(zipper), Zipper.right(zipper)}
+      zipper -> {zipper, Zipper.right(zipper)}
     end)
     |> Enum.to_list()
   end

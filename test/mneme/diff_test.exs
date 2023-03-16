@@ -47,6 +47,26 @@ defmodule Mneme.DiffTest do
                        ", :bar]"
                      ]
                    ]} <- format("[[:foo, :bar]]", "[[:foo], :bar]")
+
+      auto_assert {[
+                     [
+                       "{:foo, %",
+                       %Tag{data: "MyStruct", sequences: [:red]},
+                       "{",
+                       %Tag{data: "hmm:", sequences: [:red]},
+                       " ",
+                       %Tag{data: "[", sequences: [:red]},
+                       %Tag{data: ":bar", sequences: [:red]},
+                       ", {:some, :thing}",
+                       %Tag{data: "]", sequences: [:red]},
+                       "}}"
+                     ]
+                   ],
+                   [["{:foo, %{", %Tag{data: "cool:", sequences: [:green]}, " {:some, :thing}}}"]]} <-
+                    format(
+                      "{:foo, %MyStruct{hmm: [:bar, {:some, :thing}]}}",
+                      "{:foo, %{cool: {:some, :thing}}}"
+                    )
     end
 
     test "formats strings" do

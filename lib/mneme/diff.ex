@@ -65,7 +65,7 @@ defmodule Mneme.Diff do
   Returns a tuple of `{deletions, insertions}`.
   """
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
-    {path, meta} = compute_shortest_path!(left_code, right_code)
+    {path, meta} = shortest_path!(left_code, right_code)
 
     {left_novels, right_novels} = split_novels(path)
 
@@ -122,10 +122,11 @@ defmodule Mneme.Diff do
   end
 
   @doc false
-  def compute_shortest_path!(left_code, right_code) do
-    left = left_code |> AST.parse_string!() |> SyntaxNode.root()
-    right = right_code |> AST.parse_string!() |> SyntaxNode.root()
-    shortest_path({left, right, nil})
+  def shortest_path!(left_code, right_code) do
+    case SyntaxNode.minimized_roots!(left_code, right_code) do
+      {left, right} -> shortest_path({left, right, nil})
+      nil -> {[], %{}}
+    end
   end
 
   @doc false

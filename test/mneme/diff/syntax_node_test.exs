@@ -25,6 +25,36 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
   end
 
+  describe "minimize_nodes/2" do
+    test "discards identical nodes" do
+      auto_assert [] <- minimize!(":foo", ":foo")
+      auto_assert [] <- minimize!("[1, 2, 3]", "[1, 2, 3]")
+    end
+
+    test "discards identical outer branches with a single change" do
+      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("[1]", "[2]")
+      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("[[1]]", "[[2]]")
+
+      auto_assert [{{:atom, %{}, :foo}, {:atom, %{}, :bar}}] <-
+                    minimize!("[1, [:foo]]", "[1, [:bar]]")
+
+      auto_assert [{{:int, %{}, 1}, {:int, %{}, 2}}] <- minimize!("%{foo: 1}", "%{foo: 2}")
+    end
+
+    test "keeps identical outer branches with multiple changes" do
+      auto_assert [
+                    {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]},
+                     {:"[]", %{}, [{:atom, %{}, :foo}, {:int, %{}, 2}, {:atom, %{}, :bar}]}}
+                  ] <- minimize!("[1, 2, 3]", "[:foo, 2, :bar]")
+    end
+
+    defp minimize!(left, right) do
+      for {left, right} <- minimize_nodes(root!(left), root!(right)) do
+        {ast(left), ast(right)}
+      end
+    end
+  end
+
   describe "coordinated traversal" do
     test "using next_child/1, next_sibling/1 and pop/2" do
       left = @left |> next_child(:pop_both)
