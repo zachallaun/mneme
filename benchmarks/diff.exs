@@ -82,16 +82,11 @@ opts =
   end
 
 Benchee.run(
-  %{
-    "Mneme.Diff.format/2" =>
-      fn ->
-        {left, right} = inputs[:moderate]
-        Mneme.Diff.format(left, right)
-      end
-  },
+  %{"Mneme.Diff.format/2" => fn {l, r} -> Mneme.Diff.format(l, r) end},
   opts ++ [
+    inputs: inputs,
     warmup: 1,
-    time: 5,
-    memory_time: 2
+    time: 3,
+    memory_time: 1
   ]
 )
