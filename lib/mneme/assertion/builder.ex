@@ -74,6 +74,8 @@ defmodule Mneme.Assertion.Builder do
     [pattern]
   end
 
+  defp do_to_patterns([], _), do: [{[], nil, []}]
+
   defp do_to_patterns(list, context) when is_list(list) do
     patterns = enum_to_patterns(list, context)
 

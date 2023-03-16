@@ -32,6 +32,7 @@ defmodule Mneme.Assertion.BuilderTest do
     end
 
     test "lists" do
+      auto_assert ["[]"] <- to_pattern_strings([])
       auto_assert ["[1, 2, 3]"] <- to_pattern_strings([1, 2, 3])
       auto_assert ["[1, [:nested], 3]"] <- to_pattern_strings([1, [:nested], 3])
     end
