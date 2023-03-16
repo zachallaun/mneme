@@ -147,6 +147,7 @@ defmodule Mneme.Diff.SyntaxNode do
     case {ast(left), ast(right)} do
       {{{:., _, _}, _, _}, {{:., _, _}, _, _}} -> true
       {{branch, _, _}, {branch, _, _}} -> true
+      {{_, _}, {_, _}} -> true
       _ -> false
     end
   end
