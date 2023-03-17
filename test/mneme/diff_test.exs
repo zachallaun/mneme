@@ -95,86 +95,123 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats strings using myers diff when they are similar" do
-      auto_assert {[["\"fooba", %Tag{data: "r", sequences: [:red]}, "\""]],
-                   [["\"fooba", %Tag{data: "z", sequences: [:green]}, "\""]]} <-
-                    format(~s("foobar"), ~s("foobaz"))
-
       auto_assert {[
                      [
-                       "\"fo",
-                       %Tag{data: "o", sequences: [:red]},
-                       "ba",
-                       %Tag{data: "r", sequences: [:red]},
-                       "\""
+                       %Tag{data: "\"", sequences: [:red]},
+                       %Tag{data: "fooba", sequences: [:red]},
+                       %Tag{data: "r", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "\"", sequences: [:red]}
                      ]
                    ],
                    [
                      [
-                       "\"fo",
-                       %Tag{data: "a", sequences: [:green]},
-                       "ba",
-                       %Tag{data: "z", sequences: [:green]},
-                       "\""
+                       %Tag{data: "\"", sequences: [:green]},
+                       %Tag{data: "fooba", sequences: [:green]},
+                       %Tag{data: "z", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "\"", sequences: [:green]}
+                     ]
+                   ]} <- format(~s("foobar"), ~s("foobaz"))
+
+      auto_assert {[
+                     [
+                       %Tag{data: "\"", sequences: [:red]},
+                       %Tag{data: "fo", sequences: [:red]},
+                       %Tag{data: "o", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "ba", sequences: [:red]},
+                       %Tag{data: "r", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "\"", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "\"", sequences: [:green]},
+                       %Tag{data: "fo", sequences: [:green]},
+                       %Tag{data: "a", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "ba", sequences: [:green]},
+                       %Tag{data: "z", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "\"", sequences: [:green]}
                      ]
                    ]} <- format(~s("foobar"), ~s("foabaz"))
 
-      auto_assert {[["\"f", %Tag{data: "oo", sequences: [:red]}, " bar\""]],
+      auto_assert {[
+                     [
+                       %Tag{data: "\"", sequences: [:red]},
+                       %Tag{data: "f", sequences: [:red]},
+                       %Tag{data: "oo", sequences: [:bright, :red, :underline]},
+                       %Tag{data: " ", sequences: [:red]},
+                       %Tag{data: "bar", sequences: [:red]},
+                       %Tag{data: "\"", sequences: [:red]}
+                     ]
+                   ],
                    [
                      [
-                       "\"f",
-                       %Tag{data: "a", sequences: [:green]},
-                       " ",
-                       %Tag{data: "o", sequences: [:green]},
-                       "bar",
-                       %Tag{data: " ", sequences: [:green_background]},
-                       "\""
+                       %Tag{data: "\"", sequences: [:green]},
+                       %Tag{data: "f", sequences: [:green]},
+                       %Tag{data: "a", sequences: [:bright, :green, :underline]},
+                       %Tag{data: " ", sequences: [:green]},
+                       %Tag{data: "o", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "bar", sequences: [:green]},
+                       %Tag{data: " ", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "\"", sequences: [:green]}
                      ]
                    ]} <- format(~s("foo bar"), ~s("fa obar "))
 
       auto_assert {[
-                     "\"\"\"",
+                     [%Tag{data: "\"\"\"", sequences: [:red]}],
                      [
-                       %Tag{data: "f", sequences: [:red]},
-                       "o",
-                       %Tag{data: "o", sequences: [:red]}
+                       %Tag{data: "f", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "o", sequences: [:red]},
+                       %Tag{data: "o", sequences: [:bright, :red, :underline]}
                      ],
-                     ["ba", %Tag{data: "r", sequences: [:red]}],
-                     ["\"\"\""]
+                     [
+                       %Tag{data: "ba", sequences: [:red]},
+                       %Tag{data: "r", sequences: [:bright, :red, :underline]}
+                     ],
+                     [%Tag{data: "\"\"\"", sequences: [:red]}]
                    ],
                    [
-                     "\"\"\"",
+                     [%Tag{data: "\"\"\"", sequences: [:green]}],
                      [
-                       %Tag{data: "s", sequences: [:green]},
-                       "o",
-                       %Tag{data: "a", sequences: [:green]},
-                       %Tag{data: " ", sequences: [:green_background]}
+                       %Tag{data: "s", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "o", sequences: [:green]},
+                       %Tag{data: "a ", sequences: [:bright, :green, :underline]}
                      ],
-                     ["ba", %Tag{data: "z", sequences: [:green]}],
-                     ["\"\"\""]
+                     [
+                       %Tag{data: "ba", sequences: [:green]},
+                       %Tag{data: "z", sequences: [:bright, :green, :underline]}
+                     ],
+                     [%Tag{data: "\"\"\"", sequences: [:green]}]
                    ]} <- format(~s("""\nfoo\nbar\n"""), ~s("""\nsoa \nbaz\n"""))
 
       auto_assert {[
-                     "\"\"\"",
+                     [%Tag{data: "\"\"\"", sequences: [:red]}],
                      [
                        "  ",
-                       %Tag{data: "f", sequences: [:red]},
-                       "o",
-                       %Tag{data: "o", sequences: [:red]}
+                       %Tag{data: "f", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "o", sequences: [:red]},
+                       %Tag{data: "o", sequences: [:bright, :red, :underline]}
                      ],
-                     ["  ba", %Tag{data: "r", sequences: [:red]}],
-                     ["  \"\"\""]
+                     [
+                       "  ",
+                       %Tag{data: "ba", sequences: [:red]},
+                       %Tag{data: "r", sequences: [:bright, :red, :underline]}
+                     ],
+                     ["  ", %Tag{data: "\"\"\"", sequences: [:red]}]
                    ],
                    [
-                     "\"\"\"",
+                     [%Tag{data: "\"\"\"", sequences: [:green]}],
                      [
                        "  ",
-                       %Tag{data: "s", sequences: [:green]},
-                       "o",
-                       %Tag{data: "a", sequences: [:green]},
-                       %Tag{data: " ", sequences: [:green_background]}
+                       %Tag{data: "s", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "o", sequences: [:green]},
+                       %Tag{data: "a ", sequences: [:bright, :green, :underline]}
                      ],
-                     ["  ba", %Tag{data: "z", sequences: [:green]}],
-                     ["  \"\"\""]
+                     [
+                       "  ",
+                       %Tag{data: "ba", sequences: [:green]},
+                       %Tag{data: "z", sequences: [:bright, :green, :underline]}
+                     ],
+                     ["  ", %Tag{data: "\"\"\"", sequences: [:green]}]
                    ]} <- format(~s("""\n  foo\n  bar\n  """), ~s("""\n  soa \n  baz\n  """))
     end
 

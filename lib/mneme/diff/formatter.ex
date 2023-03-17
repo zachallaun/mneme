@@ -14,7 +14,7 @@ defmodule Mneme.Diff.Formatter do
 
     instructions
     |> denormalize_all()
-    |> do_highlight(length(lines), last_line, rest)
+    |> highlight(length(lines), last_line, rest)
     |> Enum.map(fn
       list when is_list(list) ->
         Enum.filter(list, &(Owl.Data.length(&1) > 0))
@@ -24,26 +24,26 @@ defmodule Mneme.Diff.Formatter do
     end)
   end
 
-  defp do_highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
+  defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
 
-  defp do_highlight([], _, current_line, earlier_lines, line_acc, acc) do
+  defp highlight([], _, current_line, earlier_lines, line_acc, acc) do
     Enum.reverse(earlier_lines) ++ [[current_line | line_acc] | acc]
   end
 
   # no-content highlight
-  defp do_highlight([{_, {{l, c}, {l, c}}} | rest], l, line, earlier, line_acc, acc) do
-    do_highlight(rest, l, line, earlier, line_acc, acc)
+  defp highlight([{_, {{l, c}, {l, c}}} | rest], l, line, earlier, line_acc, acc) do
+    highlight(rest, l, line, earlier, line_acc, acc)
   end
 
   # single-line highlight
-  defp do_highlight([{op, {{l, c}, {l, c2}}} | rest], l, line, earlier, line_acc, acc) do
+  defp highlight([{op, {{l, c}, {l, c2}}} | rest], l, line, earlier, line_acc, acc) do
     {start_line, rest_line} = String.split_at(line, c2 - 1)
     {start_line, token} = String.split_at(start_line, c - 1)
-    do_highlight(rest, l, start_line, earlier, [tag(token, op), rest_line | line_acc], acc)
+    highlight(rest, l, start_line, earlier, [tag(token, op), rest_line | line_acc], acc)
   end
 
   # bottom of a multi-line highlight
-  defp do_highlight(
+  defp highlight(
          [{op, {{l, _}, {l2, c2}}} | _] = hl,
          l2,
          line,
@@ -57,17 +57,17 @@ defmodule Mneme.Diff.Formatter do
     [next | rest_earlier] = earlier |> Enum.drop(l2 - l - 1)
     acc = lines ++ [[tag(token, op), rest_line | line_acc] | acc]
 
-    do_highlight(hl, l, next, rest_earlier, [], acc)
+    highlight(hl, l, next, rest_earlier, [], acc)
   end
 
   # top of a multi-line highlight
-  defp do_highlight([{op, {{l, c}, _}} | rest], l, line, earlier, [], acc) do
+  defp highlight([{op, {{l, c}, _}} | rest], l, line, earlier, [], acc) do
     {start_line, token} = String.split_at(line, c - 1)
-    do_highlight(rest, l, start_line, earlier, [tag(token, op)], acc)
+    highlight(rest, l, start_line, earlier, [tag(token, op)], acc)
   end
 
-  defp do_highlight(instructions, l, line, [next | rest_earlier], line_acc, acc) do
-    do_highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc])
+  defp highlight(instructions, l, line, [next | rest_earlier], line_acc, acc) do
+    highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc])
   end
 
   defp denormalize_all(instructions) do
@@ -192,31 +192,33 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp denormalize_with_edit_script(op, {_, meta, _}, edit_script) do
+    %{line: l_start, column: c_start, delimiter: del} = meta
+
     {l, c} =
-      case meta do
-        %{delimiter: ~s("), line: l, column: c} -> {l, c + 1}
-        %{delimiter: ~s("""), line: l, indentation: indent} -> {l + 1, indent + 1}
+      case del do
+        ~s(") -> {l_start, c_start + 1}
+        ~s(""") -> {l_start + 1, meta.indentation + 1}
       end
 
-    {ops, _} =
+    {ops, {l_end, c_end, _}} =
       edit_script
-      |> split_edit_script_on_whitespace(op)
+      |> split_edit_script_on_newlines()
       |> Enum.flat_map_reduce({l, c, c}, fn
         {{_, :newline}, _}, {l, _c, c_start} ->
           {[], {l + 1, c_start, c_start}}
 
-        {:eq, s}, {l, c, c_start} ->
-          {[], {l, c + String.length(s), c_start}}
-
-        {op, s}, {l, c, c_start} ->
+        {edit, s}, {l, c, c_start} ->
           c2 = c + String.length(s)
+          op = if edit == :eq, do: op, else: {op, :highlight}
           {[{op, {{l, c}, {l, c2}}}], {l, c2, c_start}}
       end)
 
-    ops
+    del_start = [{op, {{l_start, c_start}, {l_start, c_start + String.length(del)}}}]
+    del_end = [{op, {{l_end, c_end}, {l_end, c_end + String.length(del)}}}]
+    del_start ++ ops ++ del_end
   end
 
-  defp split_edit_script_on_whitespace(edit_script, op) do
+  defp split_edit_script_on_newlines(edit_script) do
     edit_script
     |> Stream.flat_map(fn {edit, s} ->
       s
@@ -225,24 +227,6 @@ defmodule Mneme.Diff.Formatter do
         "\n" -> {{edit, :newline}, "\n"}
         s -> {edit, s}
       end)
-    end)
-    |> Enum.flat_map(fn
-      {:novel, s} ->
-        s
-        |> String.split(~r/\s+/, include_captures: true)
-        |> Enum.map(fn ss ->
-          if String.match?(ss, ~r/\s/) do
-            {{op, :whitespace}, ss}
-          else
-            {op, ss}
-          end
-        end)
-
-      {{:novel, :newline}, s} ->
-        [{{op, :newline}, s}]
-
-      eq ->
-        [eq]
     end)
   end
 
@@ -358,8 +342,8 @@ defmodule Mneme.Diff.Formatter do
   defp tag(data, :ins), do: Owl.Data.tag(data, :green)
   defp tag(data, :del), do: Owl.Data.tag(data, :red)
 
-  defp tag(data, {:ins, :whitespace}), do: Owl.Data.tag(data, :green_background)
-  defp tag(data, {:del, :whitespace}), do: Owl.Data.tag(data, :red_background)
+  defp tag(data, {:ins, :highlight}), do: Owl.Data.tag(data, [:bright, :green, :underline])
+  defp tag(data, {:del, :highlight}), do: Owl.Data.tag(data, [:bright, :red, :underline])
 
   defp occurrences(string, char, acc \\ 0)
   defp occurrences(<<char, rest::binary>>, char, acc), do: occurrences(rest, char, acc + 1)
