@@ -6,7 +6,7 @@
 # Set env var `BENCHEE_SAVE=true` to overwrite the saved results.
 # Set env var `BENCHEE_PROFILE=true` to run profiler.
 
-save_file = Path.expand("diff.benchee", __DIR__)
+save_file = Path.expand("_diff.benchee", __DIR__)
 
 inputs = [
   simple: {

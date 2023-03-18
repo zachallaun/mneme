@@ -8,8 +8,19 @@ defmodule Mneme.Diff.SyntaxNode do
   @hash :__hash__
   @id :__id__
   @n_descendants :__n_descendants__
+  @depth :__depth__
 
-  defstruct [:zipper, :parent, :id, :hash, :n_descendants, :form, :branch?, :null?, :terminal?]
+  defstruct [
+    :zipper,
+    :parent,
+    :id,
+    :hash,
+    :n_descendants,
+    :form,
+    :branch?,
+    :null?,
+    :terminal?
+  ]
 
   @type t :: %SyntaxNode{
           zipper: Zipper.zipper() | nil,
@@ -80,6 +91,7 @@ defmodule Mneme.Diff.SyntaxNode do
     end)
     |> elem(0)
     |> Zipper.zip()
+    |> with_depth()
     |> new()
   end
 
@@ -250,11 +262,7 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc """
   Returns the depth of the current syntax node relative to the root.
   """
-  def depth(%SyntaxNode{zipper: zipper}), do: get_depth(zipper)
-
-  defp get_depth(zipper, acc \\ 0)
-  defp get_depth(nil, acc), do: acc
-  defp get_depth(zipper, acc), do: get_depth(Zipper.up(zipper), acc + 1)
+  def depth(%SyntaxNode{zipper: z}), do: get_depth(z)
 
   @doc """
   Returns the number of nodes left to explore.
@@ -345,5 +353,26 @@ defmodule Mneme.Diff.SyntaxNode do
   defp get_n_descendants(z) do
     children = Zipper.children(z)
     length(children) + Enum.sum(Enum.map(children, &get_n_descendants/1))
+  end
+
+  defp with_depth(zipper) do
+    Zipper.traverse(zipper, fn z ->
+      case Zipper.node(z) do
+        {_, _, _} -> Zipper.update(z, &with_depth(&1, Zipper.up(z)))
+        _ -> z
+      end
+    end)
+  end
+
+  defp with_depth({form, meta, args}, parent) do
+    {form, Map.put(meta, @depth, get_depth(parent) + 1), args}
+  end
+
+  defp get_depth(z) do
+    case Zipper.node(z) do
+      nil -> 0
+      {_, %{@depth => depth}, _} -> depth
+      _ -> get_depth(Zipper.up(z))
+    end
   end
 end

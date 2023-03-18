@@ -61,6 +61,11 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                     minimize!("[[:foo, :bar]]", "[[:foo], :bar]")
     end
 
+    test "retains the original node depth" do
+      auto_assert {{:int, %{__depth__: 4}, 1}, {:int, %{__depth__: 4}, 2}} <-
+                    minimize!("[[[1]]]", "[[[2]]]")
+    end
+
     defp minimize!(l, r) do
       case minimized_roots!(l, r) do
         {l, r} -> {ast(l), ast(r)}
