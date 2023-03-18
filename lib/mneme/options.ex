@@ -22,6 +22,16 @@ defmodule Mneme.Options do
       Can be one of `:infer`, `:first`, or `:last`.
       """
     ],
+    diff: [
+      type: {:in, [:text, :semantic]},
+      default: :text,
+      doc: """
+      Controls the diff engine used to display changes when an auto-assertion
+      updates. If `:text`, uses the Myers Difference algorithm to highlight all
+      changes in text. If `:semantic`, uses a custom diff engine to highlight
+      only meaningful changes in the value.
+      """
+    ],
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,
@@ -29,16 +39,6 @@ defmodule Mneme.Options do
       The target output for auto-assertions. If `:mneme`, the expression will
       remain an auto-assertion. If `:ex_unit`, the expression will be rewritten
       as an ExUnit assertion.
-      """
-    ],
-    diff: [
-      type: {:in, [:text, :semantic]},
-      default: :text,
-      doc: """
-      Controls the diff engine used to display changes when an auto-assertion
-      updates. Text diffs use the Myers Difference algorithm to highlight all
-      changes in text, whereas semantic diffs attempt to highlight only
-      meaningful changes in the value.
       """
     ]
   ]
