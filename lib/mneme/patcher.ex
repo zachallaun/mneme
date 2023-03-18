@@ -101,7 +101,7 @@ defmodule Mneme.Patcher do
         right: assertion.code |> format_node()
       })
 
-    {Source.update(source, :mneme, ast: ast), assertion}
+    {source, assertion}
   end
 
   defp format_node(node) do

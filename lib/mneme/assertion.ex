@@ -328,7 +328,7 @@ defmodule Mneme.Assertion do
   defp value_expr({_, _, [value_expr]}), do: value_expr
 
   defp normalized_expect_expr(expect_expr) do
-    expect_expr |> normalize_heredoc()
+    expect_expr |> normalize_heredoc() |> unescape_strings()
   end
 
   # Allows us to format multiline strings as heredocs when they don't
@@ -353,4 +353,14 @@ defmodule Mneme.Assertion do
   end
 
   defp normalize_heredoc(expr), do: expr
+
+  defp unescape_strings(expr) do
+    Sourceror.prewalk(expr, fn
+      {:__block__, meta, [string]}, state when is_binary(string) ->
+        {{:__block__, meta, [String.replace(string, "\\\\", "\\")]}, state}
+
+      quoted, state ->
+        {quoted, state}
+    end)
+  end
 end

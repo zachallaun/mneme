@@ -57,21 +57,20 @@ defmodule Mneme.Assertion.Builder do
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
-    pattern =
+    block =
       cond do
         !String.printable?(string) ->
-          nonprintable = {:<<>>, [], String.to_charlist(string)}
-          {nonprintable, nil, []}
+          {:<<>>, [], String.to_charlist(string)}
 
         String.contains?(string, "\n") ->
-          s = {:__block__, with_meta([delimiter: ~S(""")], context), [format_for_heredoc(string)]}
-          {s, nil, []}
+          {:__block__, with_meta([delimiter: ~S(""")], context),
+           [string |> escape() |> format_for_heredoc()]}
 
         true ->
-          {string, nil, []}
+          {:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]}
       end
 
-    [pattern]
+    [{block, nil, []}]
   end
 
   defp do_to_patterns([], _), do: [{[], nil, []}]
@@ -288,5 +287,9 @@ defmodule Mneme.Assertion.Builder do
       |> schema.__schema__()
       |> Enum.flat_map(&elem(&1, 0))
     end
+  end
+
+  defp escape(string) when is_binary(string) do
+    String.replace(string, "\\", "\\\\")
   end
 end
