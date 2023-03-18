@@ -35,4 +35,19 @@ defmodule MnemeTest do
       end
     end
   end
+
+  test "Mneme.Server doesn't blow up if something goes wrong" do
+    error =
+      assert_raise Mneme.InternalError, fn ->
+        auto_assert :__mneme__super_secret_test_value_goes_boom__
+      end
+
+    assert String.contains?(Exception.message(error), """
+           Mneme encountered an internal error. This is likely a bug in Mneme.
+
+           Please consider reporting this error at https://github.com/zachallaun/mneme/issues. Thanks!
+
+           ** (ArgumentError) I told you!
+           """)
+  end
 end

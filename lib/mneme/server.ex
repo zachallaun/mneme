@@ -146,16 +146,10 @@ defmodule Mneme.Server do
     %{module: module, test: test} = assertion
     opts = state.opts[{module, test}]
 
-    state =
-      state
-      |> Map.put(:current_module, module)
-      |> Map.put(:patch_state, Patcher.load_file!(state.patch_state, assertion.file))
-
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
-
     GenServer.reply(from, reply)
 
-    %{state | patch_state: patch_state}
+    %{state | patch_state: patch_state, current_module: module}
   end
 
   defp do_register_assertion(state, {assertion, from}) do

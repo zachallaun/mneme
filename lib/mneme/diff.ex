@@ -46,12 +46,17 @@ defmodule Mneme.Diff do
   Formats `left` and `right` as `t:Owl.Data.t()`.
   """
   def format(left, right) do
-    case compute(left, right) do
-      {[], []} -> {nil, nil}
-      {[], ins} -> {nil, format_lines(right, ins)}
-      {del, []} -> {format_lines(left, del), nil}
-      {del, ins} -> {format_lines(left, del), format_lines(right, ins)}
-    end
+    result =
+      case compute(left, right) do
+        {[], []} -> {nil, nil}
+        {[], ins} -> {nil, format_lines(right, ins)}
+        {del, []} -> {format_lines(left, del), nil}
+        {del, ins} -> {format_lines(left, del), format_lines(right, ins)}
+      end
+
+    {:ok, result}
+  rescue
+    e -> {:error, {:internal, e, __STACKTRACE__}}
   end
 
   @doc """

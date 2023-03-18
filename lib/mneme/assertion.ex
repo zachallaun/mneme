@@ -50,8 +50,11 @@ defmodule Mneme.Assertion do
         {:ok, assertion} ->
           Code.eval_quoted(assertion.eval, eval_binding, env)
 
-        :error ->
+        {:error, :no_pattern} ->
           raise Mneme.AssertionError, message: "No pattern present"
+
+        {:error, {:internal, error, stacktrace}} ->
+          raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
       end
     rescue
       error in [ExUnit.AssertionError] ->
@@ -59,8 +62,11 @@ defmodule Mneme.Assertion do
           {:ok, assertion} ->
             Code.eval_quoted(assertion.eval, eval_binding, env)
 
-          :error ->
+          {:error, :no_pattern} ->
             reraise error, [stacktrace_entry(assertion)]
+
+          {:error, {:internal, error, stacktrace}} ->
+            raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
         end
     end
 

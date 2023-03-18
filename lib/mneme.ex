@@ -130,12 +130,16 @@ defmodule Mneme do
       _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
       {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
     else
+      children = [
+        Mneme.Server
+      ]
+
       opts = [
         name: Mneme.Supervisor,
         strategy: :one_for_one
       ]
 
-      Supervisor.start_link([Mneme.Server], opts)
+      Supervisor.start_link(children, opts)
     end
 
     :ok

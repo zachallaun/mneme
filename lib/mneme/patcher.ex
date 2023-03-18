@@ -40,6 +40,7 @@ defmodule Mneme.Patcher do
   Returns `{result, patch_state}`.
   """
   def patch!(%Project{} = project, assertion, opts, prompt_state \\ nil) do
+    project = load_file!(project, assertion.file)
     {source, assertion} = patch_assertion(project, assertion, opts)
 
     case prompt_change(source, assertion, opts, prompt_state) do
@@ -47,7 +48,7 @@ defmodule Mneme.Patcher do
         {{:ok, assertion}, Project.update(project, source)}
 
       {:reject, _} ->
-        {:error, project}
+        {{:error, :no_pattern}, project}
 
       {:prev, prompt_state} ->
         patch!(project, Assertion.prev(assertion, opts.target), opts, prompt_state)
@@ -55,6 +56,9 @@ defmodule Mneme.Patcher do
       {:next, prompt_state} ->
         patch!(project, Assertion.next(assertion, opts.target), opts, prompt_state)
     end
+  rescue
+    error ->
+      {{:error, {:internal, error, __STACKTRACE__}}, project}
   end
 
   defp prompt_change(
@@ -67,6 +71,10 @@ defmodule Mneme.Patcher do
   end
 
   defp prompt_change(_, _, %{action: action}, _), do: {action, nil}
+
+  defp patch_assertion(_, %{value: :__mneme__super_secret_test_value_goes_boom__}, _) do
+    raise ArgumentError, "I told you!"
+  end
 
   defp patch_assertion(project, assertion, opts) do
     source = Project.source!(project, assertion.file)

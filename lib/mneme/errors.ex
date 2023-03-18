@@ -1,9 +1,22 @@
 defmodule Mneme.AssertionError do
-  @moduledoc "Raised when Mneme fails to generate an assertion."
   defexception [:message]
 end
 
 defmodule Mneme.CompileError do
-  @moduledoc "Raised at compile-time when Mneme is used in an incorrect environment."
   defexception [:message]
+end
+
+defmodule Mneme.InternalError do
+  defexception [:original_error, :original_stacktrace]
+
+  @impl true
+  def message(%{original_error: e, original_stacktrace: st}) do
+    """
+    Mneme encountered an internal error. This is likely a bug in Mneme.
+
+    Please consider reporting this error at https://github.com/zachallaun/mneme/issues. Thanks!
+
+    #{Exception.format(:error, e, st)}
+    """
+  end
 end

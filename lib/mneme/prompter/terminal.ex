@@ -123,7 +123,8 @@ defmodule Mneme.Prompter.Terminal do
       task = Task.async(Mneme.Diff, :format, [left, right])
 
       case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
-        {:ok, diff} -> diff
+        {:ok, {:ok, diff}} -> diff
+        {:ok, {:error, {:internal, e, stacktrace}}} -> reraise e, stacktrace
         _ -> nil
       end
     else
