@@ -52,8 +52,8 @@ ever changes, you'll be prompted again and can choose to update the
 test or reject it and let it fail.
 
 With a few exceptions, `auto_assert/1` acts very similarly to a normal
-`assert`. See the [macro docs](`auto_assert/1`) for a list of
-differences.
+`assert`. See the [macro docs](https://hexdocs.pm/mneme/Mneme.html#auto_assert/1)
+for a list of differences.
 
 ## Quick start
 
@@ -176,7 +176,7 @@ export CI=true
 
 Guides for optional editor integration can be found here:
 
-  * [`VS Code`](vscode_setup.md)
+  * [`VS Code`](https://hexdocs.pm/mneme/vscode_setup.html)
 
 ## Acknowledgements
 
