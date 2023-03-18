@@ -176,7 +176,7 @@ export CI=true
 
 Guides for optional editor integration can be found here:
 
-  * [`VS Code`](https://hexdocs.pm/mneme/vscode_setup.html)
+  * [VS Code](https://hexdocs.pm/mneme/vscode_setup.html)
 
 ## Acknowledgements
 
