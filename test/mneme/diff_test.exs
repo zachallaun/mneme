@@ -136,6 +136,25 @@ defmodule Mneme.DiffTest do
       auto_assert {[
                      [
                        %Tag{data: "\"", sequences: [:red]},
+                       %Tag{data: "\\\"fo", sequences: [:red]},
+                       %Tag{data: "o", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "\\\"", sequences: [:red]},
+                       %Tag{data: "\"", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "\"", sequences: [:green]},
+                       %Tag{data: "\\\"fo", sequences: [:green]},
+                       %Tag{data: "a", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "\\\"", sequences: [:green]},
+                       %Tag{data: "\"", sequences: [:green]}
+                     ]
+                   ]} <- format("\"\\\"foo\\\"\"", "\"\\\"foa\\\"\"")
+
+      auto_assert {[
+                     [
+                       %Tag{data: "\"", sequences: [:red]},
                        %Tag{data: "f", sequences: [:red]},
                        %Tag{data: "oo", sequences: [:bright, :red, :underline]},
                        %Tag{data: " ", sequences: [:red]},

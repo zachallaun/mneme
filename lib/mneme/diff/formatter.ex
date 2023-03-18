@@ -208,7 +208,13 @@ defmodule Mneme.Diff.Formatter do
           {[], {l + 1, c_start, c_start}}
 
         {edit, s}, {l, c, c_start} ->
-          c2 = c + String.length(s)
+          c2 =
+            if del == ~s(") do
+              c + String.length(s) + occurrences(s, ?")
+            else
+              c + String.length(s)
+            end
+
           op = if edit == :eq, do: op, else: {op, :highlight}
           {[{op, {{l, c}, {l, c2}}}], {l, c2, c_start}}
       end)
