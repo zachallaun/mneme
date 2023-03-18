@@ -2,7 +2,7 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v0.2.0 (2023-03-18)
 
 ### Breaking
 
@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Enhancements
 
-  * Introduce semantic diffs, which selectively highlights only meaningful changes when updating an assertion. This can be enabled with the `diff: :semantic` option, though it may become the default in the future. See the "Configuration" section of the `Mneme` module doc for more.
+  * Adds semantic diffs which selectively highlight only meaningful changes when updating an assertion. This can be disabled with the `diff: :text` option; see the "Configuration" section of the `Mneme` module doc for more.
 
 ### Fixes
 
