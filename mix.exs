@@ -47,7 +47,7 @@ defmodule Mneme.MixProject do
       {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9.4", only: :test},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:ex_doc, github: "elixir-lang/ex_doc", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
       {:benchee, "~> 1.0", only: :dev}
     ]

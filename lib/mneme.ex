@@ -1,11 +1,13 @@
 defmodule Mneme do
   @external_resource "mix.exs"
-  @moduledoc """
-  [![Hex.pm](https://img.shields.io/hexpm/v/mneme.svg)](https://hex.pm/packages/mneme)
-  [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
-  [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
+  @external_resource "README.md"
+  @mdoc "README.md"
+        |> File.read!()
+        |> String.split("<!-- MDOC !-->")
+        |> Enum.fetch!(1)
 
-  /ni:mi:/ - Snapshot testing integrated into ExUnit.
+  @moduledoc """
+  /ni:mi:/ - Snapshot testing for Elixir ExUnit
 
   > #### Early days {: .info}
   >
@@ -14,136 +16,7 @@ defmodule Mneme do
   > any feedback, bugs, or suggestions as [issues on Github](https://github.com/zachallaun/mneme).
   > Thanks!
 
-  Snapshot tests assert that some expression matches a reference value.
-  It's like an ExUnit `assert`, except that the reference value is
-  managed for you by Mneme.
-
-  Mneme follows in the footsteps of existing snapshot testing libraries
-  like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect)
-  (OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir)
-  (Elixir). Instead of simple value or string comparison, however, Mneme
-  leans heavily into pattern matching.
-
-  ## Example
-
-  Let's say you've written a test for a function that removes even
-  numbers from a list:
-
-      test "drop_evens/1 should remove all even numbers from an enum" do
-        auto_assert drop_evens(1..10)
-
-        auto_assert drop_evens([])
-
-        auto_assert drop_evens([:a, :b, 2, :c])
-      end
-
-  The first time you run this test, you'll see interactive prompts for
-  each call to `auto_assert` showing a diff and asking if you'd like to
-  accept the generated pattern. After accepting them, your test is
-  updated:
-
-      test "drop_evens/1 should remove all even numbers from an enum" do
-        auto_assert [1, 3, 5, 7, 9] <- drop_evens(1..10)
-
-        auto_assert [] <- drop_evens([])
-
-        auto_assert [:a, :b, :c] <- drop_evens([:a, :b, 2, :c])
-      end
-
-  The next time you run this test, you won't receive a prompt and these
-  will act (almost) like any other assertion. If the result of the call
-  ever changes, you'll be prompted again and can choose to update the
-  test or reject it and let it fail.
-
-  With a few exceptions, `auto_assert/1` acts very similarly to a normal
-  `assert`. See the [macro docs](`auto_assert/1`) for a list of
-  differences.
-
-  ## Quick start
-
-  1.  Add `:mneme` do your deps in `mix.exs`:
-
-          defp deps do
-            [
-              {:mneme, "~> #{Mneme.MixProject.version()}", only: :test}
-            ]
-          end
-
-  2.  Add `:mneme` to your `:import_deps` in `.formatter.exs`:
-
-          [
-            import_deps: [:mneme],
-            inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
-          ]
-
-  3.  Start Mneme right after you start ExUnit in `test/test_helper.exs`:
-
-          ExUnit.start()
-          Mneme.start()
-
-  4.  Add `use Mneme` wherever you `use ExUnit.Case`:
-
-          defmodule MyTest do
-            use ExUnit.Case, async: true
-            use Mneme
-
-            test "arithmetic" do
-              # use auto_assert instead of ExUnit's assert - run this test
-              # and delight in all the typing you don't have to do
-              auto_assert 2 + 2
-            end
-          end
-
-  ## Match patterns
-
-  Mneme tries to generate match patterns that are equivalent to what a
-  human (or at least a nice LLM) would write. Basic data types like
-  strings, numbers, lists, tuples, etc. will be as you would expect.
-
-  Some values, however, do not have a literal representation that can be
-  used in a pattern match. Pids are such an example. For those, guards
-  are used:
-
-      auto_assert self()
-
-      # after running the test and accepting the change
-      auto_assert pid when is_pid(pid) <- self()
-
-  Additionally, local variables can be found and pinned as a part of the
-  pattern. This keeps the number of hard-coded values down, reducing the
-  likelihood that tests have to be updated in the future.
-
-      test "create_post/1 creates a new post with valid attrs", %{user: user} do
-        valid_attrs = %{title: "my_post", author: user}
-
-        auto_assert create_post(valid_attrs)
-      end
-
-      # after running the test
-      test "create_post/1 creates a new post with valid attrs", %{user: user} do
-        valid_attrs = %{title: "my_post", author: user}
-
-        auto_assert {:ok, %Post{title: "my_post", author: ^user}} <- create_post(valid_attrs)
-      end
-
-  In many cases, multiple valid patterns will be possible. Usually, the
-  "simplest" pattern will be selected by default when you are prompted,
-  but you can cycle through the options as well.
-
-  ### Non-exhaustive list of special cases
-
-    * Pinned variables are generated by default if a value is equal to a
-      variable in scope.
-
-    * Date and time values are written using their sigil representation.
-
-    * Struct patterns only include fields that are different from the
-      struct defaults.
-
-    * Structs defined by Ecto schemas exclude primary keys, association
-      foreign keys, and auto generated fields like `:inserted_at` and
-      `:updated_at`. This is because these fields are often randomly
-      generated and would fail on subsequent tests.
+  #{@mdoc}
 
   ## Configuration
 
@@ -200,55 +73,6 @@ defmodule Mneme do
   ### Options
 
   #{Mneme.Options.docs()}
-
-  ## Formatting
-
-  Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update
-  source code, formatting that code before saving the file. Currently,
-  the Elixir formatter and `FreedomFormatter` are supported. **If you do
-  not use a formatter, the first auto-assertion will reformat the entire
-  file.**
-
-  ## Continuous Integration
-
-  In a CI environment, Mneme will not attempt to prompt and update any
-  assertions, but will instead fail any tests that would update. This
-  behavior is enabled by the `CI` environment variable, which is set by
-  convention by many continuous integration providers.
-
-  ```bash
-  export CI=true
-  ```
-
-  ## Editor support
-
-  Guides for optional editor integration can be found here:
-
-    * [`VS Code`](vscode_setup.md)
-
-  ## Acknowledgements
-
-  Special thanks to:
-
-    * [_What if writing tests was a joyful experience?_](https://blog.janestreet.com/the-joy-of-expect-tests/),
-      from the Jane Street Tech Blog, for inspiring this library.
-
-    * [Sourceror](https://github.com/doorgan/sourceror), a library that
-      makes complex code modifications simple.
-
-    * [Rewrite](https://github.com/hrzndhrn/rewrite), which provides the
-      diff functionality present in Mneme.
-
-    * [Owl](https://github.com/fuelen/owl), which makes it much easier
-      to build a pretty CLI.
-
-    * [Insta](https://insta.rs/), a snapshot testing tool for Rust,
-      whose great documentation provided an excellent reference for
-      snapshot testing.
-
-    * [assert_value](https://github.com/assert-value/assert_value_elixir),
-      an existing Elixir project that provides similar functionality.
-      Thank you for paving the way!
   """
 
   @doc """
