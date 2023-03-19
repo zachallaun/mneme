@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.2.1 (2023-03-19)
+
+### Enhancements
+
+  * More consistent formatting between `:semantic` and `:text` diffs.
+
 ## v0.2.0 (2023-03-18)
 
 ### Breaking
