@@ -96,20 +96,14 @@ defmodule Mneme.Prompter.Terminal do
 
   defp diff(:semantic, source) do
     case semantic_diff(source) do
-      {nil, nil} ->
-        diff(:text, source)
-
-      {nil, ins} ->
-        [Owl.Data.unlines(ins), "\n"]
-
-      {del, nil} ->
-        [Owl.Data.unlines(del), "\n"]
-
       {del, ins} ->
+        deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red))
+        insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
+
         [
-          del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("-  ", :red)),
+          deletions,
           "\n\n",
-          ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("+  ", :green)),
+          insertions,
           "\n"
         ]
 
@@ -123,7 +117,10 @@ defmodule Mneme.Prompter.Terminal do
       task = Task.async(Mneme.Diff, :format, [left, right])
 
       case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
-        {:ok, {:ok, diff}} -> diff
+        {:ok, {:ok, {nil, nil}}} -> nil
+        {:ok, {:ok, {nil, ins}}} -> {Owl.Data.lines(left), ins}
+        {:ok, {:ok, {del, nil}}} -> {del, Owl.Data.lines(right)}
+        {:ok, {:ok, {del, ins}}} -> {del, ins}
         {:ok, {:error, {:internal, e, stacktrace}}} -> reraise e, stacktrace
         _ -> nil
       end

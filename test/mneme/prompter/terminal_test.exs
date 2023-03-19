@@ -16,12 +16,24 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ Accept new assertion?
                   │ > 
                   │ y yes  n no  ❮ j ● k ❯\
-                  """ <- message() |> untag_to_string()
+                  """ <- message(mock_source(), mock_assertion())
+
+      auto_assert """
+                  │ [Mneme] New ● example test (ExampleTest)
+                  │ example_test.ex:1
+                  │ 
+                  │  - auto_assert :something
+                  │ 
+                  │  + auto_assert :something <- :something
+                  │ 
+                  │ Accept new assertion?
+                  │ > 
+                  │ y yes  n no  ❮ j ● k ❯\
+                  """ <- message(mock_source(), mock_assertion(), %{diff: :semantic})
     end
 
     test "new assertion with multiple patterns" do
       assertion = Map.update!(mock_assertion(), :patterns, &(&1 ++ [nil, nil]))
-      message = message(mock_source(), assertion)
 
       auto_assert """
                   │ [Mneme] New ● example test (ExampleTest)
@@ -33,12 +45,11 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ Accept new assertion?
                   │ > 
                   │ y yes  n no  ❮ j ●○○ k ❯\
-                  """ <- message |> untag_to_string()
+                  """ <- message(mock_source(), assertion)
     end
 
     test "changed assertion" do
       assertion = Map.put(mock_assertion(), :type, :update)
-      message = message(mock_source(), assertion)
 
       auto_assert """
                   │ [Mneme] Changed ● example test (ExampleTest)
@@ -50,12 +61,12 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ Value has changed! Update pattern?
                   │ > 
                   │ y yes  n no  ❮ j ● k ❯\
-                  """ <- message |> untag_to_string()
+                  """ <- message(mock_source(), assertion)
     end
+  end
 
-    defp message(source \\ mock_source(), assertion \\ mock_assertion(), opts \\ %{diff: :text}) do
-      Terminal.message(source, assertion, opts)
-    end
+  defp message(source, assertion, opts \\ %{diff: :text}) do
+    Terminal.message(source, assertion, opts) |> untag_to_string()
   end
 
   defp untag_to_string(data) do
@@ -76,13 +87,16 @@ defmodule Mneme.Prompter.TerminalTest do
   end
 
   defp mock_source do
-    Rewrite.Source.from_string("""
-    auto_assert :something
-    """)
-    |> Rewrite.Source.update(:test,
-      code: """
-      auto_assert :something <- :something
-      """
-    )
+    left = """
+    auto_assert :something\
+    """
+
+    right = """
+    auto_assert :something <- :something\
+    """
+
+    Rewrite.Source.from_string(left)
+    |> Rewrite.Source.update(:test, code: right)
+    |> Rewrite.Source.put_private(:diff, %{left: left, right: right})
   end
 end
