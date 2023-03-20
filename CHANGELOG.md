@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.2.2 (2023-03-20)
+
+### Fixes
+
+  * Disable a semantic diffing optimization that caused poor diff results in certain cases, usually manifesting as incorrect branches being compared.
+
 ## v0.2.1 (2023-03-19)
 
 ### Enhancements
