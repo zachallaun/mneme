@@ -113,10 +113,6 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp denormalize(:node, _op, {{:., _, _}, _, []}, _zipper) do
-    []
-  end
-
   defp denormalize(:node, op, node, _zipper) do
     [{op, bounds(node)}]
   end
@@ -166,12 +162,24 @@ defmodule Mneme.Diff.Formatter do
   defp denormalize(
          :delimiter,
          op,
-         {{:., _, [left, right]}, %{closing: %{line: l2, column: c2}}, _},
+         {{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _},
          _
        ) do
-    [{op, bounds({left, right})}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+    {_, {l, c}} = bounds(right)
+    [{op, {{l, c}, {l, c + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
   end
 
+  defp denormalize(
+         :delimiter,
+         op,
+         {{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _},
+         _
+       ) do
+    {_, {l, c}} = bounds(var)
+    [{op, {{l, c}, {l, c + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+  end
+
+  # Dot call delimiter with no parens, nothing to highlight
   defp denormalize(:delimiter, _op, {{:., _, _}, _, _}, _), do: []
 
   defp denormalize(:delimiter, op, {atom, %{line: l, column: c}, _}, _) when is_atom(atom) do
@@ -240,12 +248,21 @@ defmodule Mneme.Diff.Formatter do
   defp bounds({_, list, _} = node) when is_list(list), do: node |> bounds()
 
   defp bounds({:%, %{line: l, column: c}, [_, map_node]}) do
-    {_, closing_bound} = map_node |> bounds()
-    {{l, c}, closing_bound}
+    {_, end_bound} = map_node |> bounds()
+    {{l, c}, end_bound}
   end
 
   defp bounds({:%{}, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
     {{l, c - 1}, {l2, c2 + 1}}
+  end
+
+  defp bounds({{:., _, [inner]}, %{closing: %{line: l2, column: c2}}, _}) do
+    {start_bound, _} = bounds(inner)
+    {start_bound, {l2, c2 + 1}}
+  end
+
+  defp bounds({{:., _, _} = call, %{no_parens: true}, []}) do
+    bounds(call)
   end
 
   defp bounds({_, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
@@ -298,18 +315,17 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, end_bound}
   end
 
-  defp bounds({:., %{line: l, column: c}, args}) do
-    {_, end_bound} =
-      case args do
-        [inner] -> bounds(inner)
-        [_, inner] -> bounds(inner)
-      end
-
-    {{l, c}, end_bound}
+  # The . will be between the left and right nodes
+  defp bounds({:., _, [left, right]}) do
+    {start_bound, _} = bounds(left)
+    {_, end_bound} = bounds(right)
+    {start_bound, end_bound}
   end
 
-  defp bounds({{:., _, _} = call, %{no_parens: true}, []}) do
-    call |> bounds()
+  # The . will be after the single node
+  defp bounds({:., _, [inner]}) do
+    {start_bound, {l2, c2}} = bounds(inner)
+    {start_bound, {l2, c2 + 1}}
   end
 
   # TODO: handle multi-line using """/''' delimiters

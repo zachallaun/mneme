@@ -433,35 +433,11 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats qualified calls" do
-      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, "(1, 2, 3)"]],
-                   [["foo.", %Tag{data: "baz", sequences: [:green]}, "(1, 2, 3)"]]} <-
-                    format("foo.bar(1, 2, 3)", "foo.baz(1, 2, 3)")
+      auto_assert {[[%Tag{data: "foo", sequences: [:red]}, ".bar()"]],
+                   [[%Tag{data: "foo.()", sequences: [:green]}, ".bar()"]]} <-
+                    format("foo.bar()", "foo.().bar()")
 
-      auto_assert {nil,
-                   [
-                     [
-                       "foo.bar",
-                       %Tag{data: ".", sequences: [:green]},
-                       %Tag{data: "baz", sequences: [:green]},
-                       "(1, 2, 3)"
-                     ]
-                   ]} <- format("foo.bar(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
-
-      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, ".baz(1, 2, 3)"]],
-                   [["foo.", %Tag{data: "buzz", sequences: [:green]}, ".baz(1, 2, 3)"]]} <-
-                    format("foo.bar.baz(1, 2, 3)", "foo.buzz.baz(1, 2, 3)")
-
-      auto_assert {nil,
-                   [
-                     [
-                       "foo",
-                       %Tag{data: ".", sequences: [:green]},
-                       %Tag{data: "bar", sequences: [:green]},
-                       ".baz(1, 2, 3)"
-                     ]
-                   ]} <- format("foo.baz(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
-
-      auto_assert {nil,
+      auto_assert {[["foo.bar 1, 2, 3"]],
                    [
                      [
                        "foo.bar",
@@ -471,10 +447,38 @@ defmodule Mneme.DiffTest do
                      ]
                    ]} <- format("foo.bar 1, 2, 3", "foo.bar.baz 1, 2, 3")
 
-      auto_assert {nil, nil} <- format("foo.bar(1, 2, 3)", "foo.bar 1, 2, 3")
+      auto_assert {[[%Tag{data: "foo", sequences: [:red]}, ".baz(1, 2, 3)"]],
+                   [[%Tag{data: "foo.bar", sequences: [:green]}, ".baz(1, 2, 3)"]]} <-
+                    format("foo.baz(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
 
-      auto_assert {nil, [["foo", %Tag{data: ".()", sequences: [:green]}, ".bar()"]]} <-
-                    format("foo.bar()", "foo.().bar()")
+      auto_assert {[
+                     [
+                       "foo.bar",
+                       %Tag{data: "(", sequences: [:red]},
+                       "1, 2, 3",
+                       %Tag{data: ")", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       "foo.bar",
+                       %Tag{data: ".", sequences: [:green]},
+                       %Tag{data: "baz", sequences: [:green]},
+                       %Tag{data: "(", sequences: [:green]},
+                       "1, 2, 3",
+                       %Tag{data: ")", sequences: [:green]}
+                     ]
+                   ]} <- format("foo.bar(1, 2, 3)", "foo.bar.baz(1, 2, 3)")
+
+      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, "(1, 2, 3)"]],
+                   [["foo.", %Tag{data: "baz", sequences: [:green]}, "(1, 2, 3)"]]} <-
+                    format("foo.bar(1, 2, 3)", "foo.baz(1, 2, 3)")
+
+      auto_assert {[["foo.", %Tag{data: "bar", sequences: [:red]}, ".baz(1, 2, 3)"]],
+                   [["foo.", %Tag{data: "buzz", sequences: [:green]}, ".baz(1, 2, 3)"]]} <-
+                    format("foo.bar.baz(1, 2, 3)", "foo.buzz.baz(1, 2, 3)")
+
+      auto_assert {nil, nil} <- format("foo.bar(1, 2, 3)", "foo.bar 1, 2, 3")
 
       auto_assert {[["Foo", %Tag{data: ".Bar", sequences: [:red]}, ".baz()"]],
                    [["Foo", %Tag{data: ".Buzz", sequences: [:green]}, ".baz()"]]} <-
@@ -590,12 +594,15 @@ defmodule Mneme.DiffTest do
                      [
                        "{:-, ",
                        %Tag{data: "[", sequences: [:red]},
-                       %Tag{data: "line: 1", sequences: [:red]},
-                       ", column: 1",
+                       %Tag{data: "line:", sequences: [:red]},
+                       " 1, ",
+                       %Tag{data: "column:", sequences: [:red]},
+                       " 1",
                        %Tag{data: "]", sequences: [:red]},
                        ", [{:var, ",
                        %Tag{data: "[", sequences: [:red]},
-                       "line: 1, column: 2",
+                       "line: 1, ",
+                       %Tag{data: "column: 2", sequences: [:red]},
                        %Tag{data: "]", sequences: [:red]},
                        ", :x}]}"
                      ]
@@ -604,12 +611,15 @@ defmodule Mneme.DiffTest do
                      [
                        "{:-, ",
                        %Tag{data: "%{", sequences: [:green]},
-                       "column: 1, line: 1",
+                       %Tag{data: "column:", sequences: [:green]},
+                       " 1, ",
+                       %Tag{data: "line:", sequences: [:green]},
+                       " 1",
                        %Tag{data: "}", sequences: [:green]},
                        ", [{:var, ",
                        %Tag{data: "%{", sequences: [:green]},
-                       "column: 2, ",
-                       %Tag{data: "line: 1", sequences: [:green]},
+                       %Tag{data: "column: 2", sequences: [:green]},
+                       ", line: 1",
                        %Tag{data: "}", sequences: [:green]},
                        ", :x}]}"
                      ]
@@ -618,6 +628,66 @@ defmodule Mneme.DiffTest do
                       "{:-, [line: 1, column: 1], [{:var, [line: 1, column: 2], :x}]}",
                       "{:-, %{column: 1, line: 1}, [{:var, %{column: 2, line: 1}, :x}]}"
                     )
+    end
+
+    test "regression: issues with minimization" do
+      left = """
+      auto_assert {nil,
+                   [
+                     [
+                       "[1, ",
+                       %Tag{data: "[", sequences: [:green]},
+                       "2_000",
+                       %Tag{data: "]", sequences: [:green]},
+                       "]"
+                     ]
+                   ]} <- format("[1, 2_000]", "[1, [3_000]]")
+      """
+
+      right = """
+      auto_assert {[["[1, ", %Tag{data: "2_000", sequences: [:red]}, "]"]],
+                   [["[1, ", %Tag{data: "[3_000]", sequences: [:green]}, "]"]]} <-
+                    format("[1, 2_000]", "[1, [3_000]]")
+      """
+
+      auto_assert {[
+                     ["auto_assert {", %Tag{data: "nil", sequences: [:red]}, ","],
+                     ["             ["],
+                     ["               ["],
+                     ["                 \"[1, \","],
+                     [
+                       "                 %Tag{data: ",
+                       %Tag{data: "\"[\"", sequences: [:red]},
+                       ", sequences: [:green]},"
+                     ],
+                     ["                 ", %Tag{data: "\"2_000\"", sequences: [:red]}, ","],
+                     [
+                       "                 ",
+                       %Tag{data: "%Tag{data: \"]\", sequences: [:green]}", sequences: [:red]},
+                       ","
+                     ],
+                     ["                 \"]\""],
+                     ["               ]"],
+                     ["             ]} <- format(\"[1, 2_000]\", \"[1, [3_000]]\")"],
+                     []
+                   ],
+                   [
+                     [
+                       "auto_assert {",
+                       %Tag{
+                         data: "[[\"[1, \", %Tag{data: \"2_000\", sequences: [:red]}, \"]\"]]",
+                         sequences: [:green]
+                       },
+                       ","
+                     ],
+                     [
+                       "             [[\"[1, \", %Tag{data: ",
+                       %Tag{data: "\"[3_000]\"", sequences: [:green]},
+                       ", sequences: [:green]}, \"]\"]]} <-"
+                     ],
+                     ["              format(\"[1, 2_000]\", \"[1, [3_000]]\")"],
+                     []
+                   ]} <- format(left, right)
     end
 
     def dbg_format(left, right) do

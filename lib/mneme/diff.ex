@@ -104,6 +104,7 @@ defmodule Mneme.Diff do
   defp summarize_edge(%Edge{type: type, kind: :branch, side: side, node: node}) do
     ast =
       case SyntaxNode.ast(node) do
+        {{:., _, _}, _, _} -> {{:., [], "..."}, [], "..."}
         {form, _, _} -> {form, [], "..."}
         {_, _} -> {"...", "..."}
         list when is_list(list) -> ["..."]
@@ -128,10 +129,7 @@ defmodule Mneme.Diff do
 
   @doc false
   def shortest_path!(left_code, right_code) do
-    case SyntaxNode.minimized_roots!(left_code, right_code) do
-      {left, right} -> shortest_path({left, right, nil})
-      nil -> {[], %{}}
-    end
+    shortest_path({SyntaxNode.root!(left_code), SyntaxNode.root!(right_code), nil})
   end
 
   @doc false
@@ -231,7 +229,7 @@ defmodule Mneme.Diff do
   end
 
   defp neighbors({l, r, e} = v) do
-    if debug?() do
+    if debug?("verbose") do
       debug_inspect(summarize_edge(e), "e")
       debug_inspect(summarize_node(l), "l")
       debug_inspect(summarize_node(r), "r")
@@ -349,6 +347,7 @@ defmodule Mneme.Diff do
   end
 
   defp debug?, do: !!System.get_env("DBG_PATH")
+  defp debug?(value), do: System.get_env("DBG_PATH") == value
 
   defp debug_inspect(term, label) do
     IO.inspect(term, label: label, pretty: true, syntax_colors: IO.ANSI.syntax_colors())
