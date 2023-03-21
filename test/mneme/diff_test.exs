@@ -242,6 +242,14 @@ defmodule Mneme.DiffTest do
                     format("[]", "['foo']")
     end
 
+    test "formats strings to sigil charlists" do
+      auto_assert {nil, [[%Tag{data: "~c\"", sequences: [:green]}, "foo\""]]} <-
+                    format(~S("foo"), ~S(~c"foo"))
+
+      auto_assert {[[%Tag{data: "~c\"", sequences: [:red]}, "foo\""]], nil} <-
+                    format(~S(~c"foo"), ~S("foo"))
+    end
+
     test "formats integer insertions" do
       auto_assert {nil, [["[1, ", %Tag{data: "2_000", sequences: [:green]}, "]"]]} <-
                     format("[1]", "[1, 2_000]")

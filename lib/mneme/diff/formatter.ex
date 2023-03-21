@@ -113,6 +113,8 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
+  defp denormalize(:node, _op, [], _zipper), do: []
+
   defp denormalize(:node, op, node, _zipper) do
     [{op, bounds(node)}]
   end
@@ -187,6 +189,9 @@ defmodule Mneme.Diff.Formatter do
     [{op, {{l, c}, {l, c + len}}}]
   end
 
+  # list literals and 2-tuples are structural only in the AST and cannot
+  # be highlighted
+  defp denormalize(:delimiter, _op, list, _) when is_list(list), do: []
   defp denormalize(:delimiter, _op, {_, _}, _), do: []
 
   defp denormalize_delimiter(op, meta, start_len, end_len) do
@@ -348,6 +353,15 @@ defmodule Mneme.Diff.Formatter do
   defp bounds({left, right}) do
     {start_bound, _} = bounds(left)
     {_, end_bound} = bounds(right)
+
+    {start_bound, end_bound}
+  end
+
+  defp bounds([node]), do: bounds(node)
+
+  defp bounds(list) when is_list(list) do
+    {start_bound, _} = bounds(List.first(list))
+    {_, end_bound} = bounds(List.last(list))
 
     {start_bound, end_bound}
   end

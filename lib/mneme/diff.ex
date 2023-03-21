@@ -346,8 +346,8 @@ defmodule Mneme.Diff do
     |> then(fn {left, right} -> {Enum.reverse(left), Enum.reverse(right)} end)
   end
 
-  defp debug?, do: !!System.get_env("DBG_PATH")
-  defp debug?(value), do: System.get_env("DBG_PATH") == value
+  defp debug?, do: !!System.get_env("DEBUG_DIFF")
+  defp debug?(value), do: System.get_env("DEBUG_DIFF") == value
 
   defp debug_inspect(term, label) do
     IO.inspect(term, label: label, pretty: true, syntax_colors: IO.ANSI.syntax_colors())
