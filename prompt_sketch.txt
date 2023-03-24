@@ -1,0 +1,28 @@
+
+[1] New ● test format/2 formats list insertions (Mneme.DiffTest)
+test/mneme/diff_test.exs:10
+
+─Value────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  {nil, [["[1, ", %Tag{data: "[", sequences: [:green]}, "2_000", %Tag{data: "]", sequences: [:green]}, "]"]]}
+
+─old────────────────────────────────────────────────────┬─new─────────────────────────────────────────────────────────
+  - auto_assert format("[1, 2_000]", "[1, [2_000]]")    │  + auto_assert {nil,
+  ·                                                     │  +              [
+  ·                                                     │  +                [
+  ·                                                     │  +                  "[1, ",
+  ·                                                     │  +                  %Tag{data: "[", sequences: [:green]},
+  ·                                                     │  +                  "2_000",
+  ·                                                     │  +                  %Tag{data: "]", sequences: [:green]},
+  ·                                                     │  +                  "]"
+  ·                                                     │  +                ]
+  ·                                                     │  +              ]} <- format("[1, 2_000]", "[1, [2_000]]")
+─old────────────────────────────────────────────────────┴─new─────────────────────────────────────────────────────────
+
+  Accept new assertion?
+
+  y yes     update code to the new value
+  n no      leave code as-is, fail test
+
+  > _
+
