@@ -34,7 +34,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       format_header(assertion),
       "\n",
-      format_diff(opts[:diff], source),
+      format_diff(source, opts),
       format_notes(notes),
       "\n",
       format_explanation(type),
@@ -76,7 +76,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp normalize_gets(_), do: nil
 
-  defp format_diff(:text, source) do
+  defp format_diff(source, %{diff: :text}) do
     Rewrite.TextDiff.format(
       source |> Source.code(Source.version(source) - 1) |> eof_newline(),
       source |> Source.code() |> eof_newline(),
@@ -95,7 +95,7 @@ defmodule Mneme.Prompter.Terminal do
     )
   end
 
-  defp format_diff(:semantic, source) do
+  defp format_diff(source, %{diff: :semantic} = opts) do
     case semantic_diff(source) do
       {del, ins} ->
         del_height = length(del)
@@ -109,7 +109,7 @@ defmodule Mneme.Prompter.Terminal do
 
         cols_each = max(del_length, ins_length) + 6
 
-        if Owl.IO.columns() > cols_each * 2 do
+        if diff_side_by_side?(opts, cols_each) do
           height_padding =
             if del_height == ins_height do
               []
@@ -151,6 +151,9 @@ defmodule Mneme.Prompter.Terminal do
         format_diff(:text, source)
     end
   end
+
+  defp diff_side_by_side?(%{diff_side_by_side?: side_by_side?}, _), do: side_by_side?
+  defp diff_side_by_side?(_opts, cols_each), do: Owl.IO.columns() > cols_each * 2
 
   defp semantic_diff(source) do
     with %{left: left, right: right} <- source.private[:diff] do

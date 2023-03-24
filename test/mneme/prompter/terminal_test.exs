@@ -66,6 +66,7 @@ defmodule Mneme.Prompter.TerminalTest do
   end
 
   defp message(source, assertion, opts \\ %{diff: :text}) do
+    opts = Map.put(opts, :diff_side_by_side?, false)
     Terminal.message(source, assertion, opts) |> untag_to_string()
   end
 
