@@ -37,7 +37,8 @@ defmodule Mneme.MixProject do
 
   defp deps do
     [
-      {:owl, "~> 0.6.0"},
+      # {:owl, "~> 0.6.0"},
+      {:owl, github: "zachallaun/owl", ref: "coverage"},
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 0.12"},
       {:rewrite, "~> 0.6.0"},

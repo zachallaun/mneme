@@ -31,16 +31,16 @@ defmodule Mneme.Prompter.Terminal do
     prefix = tag("│ ", :light_black)
 
     [
-      header_tag(assertion),
+      format_header(assertion),
       "\n",
       diff(opts[:diff], source),
-      notes_tag(notes),
+      format_notes(notes),
       "\n",
-      explanation_tag(type),
+      format_explanation(type),
       "\n",
       tag("> ", :light_black),
       "\n",
-      input_options_tag(pattern_nav)
+      format_input_options(pattern_nav)
     ]
     |> Owl.Data.add_prefix(prefix)
   end
@@ -131,41 +131,41 @@ defmodule Mneme.Prompter.Terminal do
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp header_tag(%Assertion{type: type, test: test, module: module} = assertion) do
+  defp format_header(%Assertion{type: type, test: test, module: module} = assertion) do
     [
-      type_tag(type),
+      format_type(type),
       tag([" ", @bullet_char, " "], [:faint, :light_black]),
       to_string(test),
       " (",
       to_string(module),
       ")\n",
-      file_tag(assertion),
+      format_file(assertion),
       "\n"
     ]
   end
 
-  defp file_tag(%Assertion{file: file, line: line}) do
+  defp format_file(%Assertion{file: file, line: line}) do
     path = Path.relative_to_cwd(file)
     tag([path, ":", to_string(line)], :light_black)
   end
 
-  defp type_tag(:new), do: tag("[Mneme] New", :green)
-  defp type_tag(:update), do: tag("[Mneme] Changed", :yellow)
+  defp format_type(:new), do: tag("[Mneme] New", :green)
+  defp format_type(:update), do: tag("[Mneme] Changed", :yellow)
 
-  defp explanation_tag(:new) do
+  defp format_explanation(:new) do
     "Accept new assertion?"
   end
 
-  defp explanation_tag(:update) do
+  defp format_explanation(:update) do
     [
       tag("Value has changed! ", :yellow),
       "Update pattern?"
     ]
   end
 
-  defp notes_tag([]), do: []
+  defp format_notes([]), do: []
 
-  defp notes_tag(notes) do
+  defp format_notes(notes) do
     notes = Enum.uniq(notes)
 
     [
@@ -176,16 +176,16 @@ defmodule Mneme.Prompter.Terminal do
     |> tag(:light_black)
   end
 
-  defp input_options_tag(nav) do
+  defp format_input_options(nav) do
     [
       [tag("y ", :green), tag("yes", [:faint, :green])],
       [tag("n ", :red), tag("no", [:faint, :red])],
-      nav_options_tag(nav)
+      format_nav_options(nav)
     ]
     |> Enum.intersperse(["  "])
   end
 
-  defp nav_options_tag({index, count}) do
+  defp format_nav_options({index, count}) do
     dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
 
     tag(
