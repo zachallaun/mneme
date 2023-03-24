@@ -107,9 +107,7 @@ defmodule Mneme.Prompter.Terminal do
         deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red))
         insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
 
-        cols_each = max(del_length, ins_length) + 6
-
-        if diff_side_by_side?(opts, cols_each) do
+        if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 6) do
           height_padding =
             if del_height == ins_height do
               []
@@ -152,8 +150,16 @@ defmodule Mneme.Prompter.Terminal do
     end
   end
 
-  defp diff_side_by_side?(%{diff_side_by_side?: side_by_side?}, _), do: side_by_side?
-  defp diff_side_by_side?(_opts, cols_each), do: Owl.IO.columns() > cols_each * 2
+  defp diff_side_by_side(%{diff_side_by_side?: true}, _), do: 98
+  defp diff_side_by_side(%{diff_side_by_side?: false}, _), do: nil
+
+  defp diff_side_by_side(_, largest_side) do
+    cols = Owl.IO.columns()
+
+    if cols && largest_side * 2 <= cols do
+      floor(cols / 2) - 4
+    end
+  end
 
   defp semantic_diff(source) do
     with %{left: left, right: right} <- source.private[:diff] do

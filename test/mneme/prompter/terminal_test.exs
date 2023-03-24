@@ -30,6 +30,21 @@ defmodule Mneme.Prompter.TerminalTest do
                   │ > 
                   │ y yes  n no  ❮ j ● k ❯\
                   """ <- message(mock_source(), mock_assertion(), %{diff: :semantic})
+
+      auto_assert """
+                  │ [Mneme] New ● example test (ExampleTest)
+                  │ example_test.ex:1
+                  │ 
+                  │  - auto_assert :something                                                                          + auto_assert :something <- :something                                                           
+                  │ 
+                  │ Accept new assertion?
+                  │ > 
+                  │ y yes  n no  ❮ j ● k ❯\
+                  """ <-
+                    message(mock_source(), mock_assertion(), %{
+                      diff: :semantic,
+                      diff_side_by_side?: true
+                    })
     end
 
     test "new assertion with multiple patterns" do
@@ -66,7 +81,7 @@ defmodule Mneme.Prompter.TerminalTest do
   end
 
   defp message(source, assertion, opts \\ %{diff: :text}) do
-    opts = Map.put(opts, :diff_side_by_side?, false)
+    opts = Map.put_new(opts, :diff_side_by_side?, false)
     Terminal.message(source, assertion, opts) |> untag_to_string()
   end
 
