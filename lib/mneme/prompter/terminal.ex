@@ -8,6 +8,7 @@ defmodule Mneme.Prompter.Terminal do
   alias Mneme.Assertion
   alias Rewrite.Source
 
+  @middle_dot_char "·"
   @bullet_char "●"
   @empty_bullet_char "○"
   @info_char "🛈"
@@ -33,7 +34,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       format_header(assertion),
       "\n",
-      diff(opts[:diff], source),
+      format_diff(opts[:diff], source),
       format_notes(notes),
       "\n",
       format_explanation(type),
@@ -75,7 +76,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp normalize_gets(_), do: nil
 
-  defp diff(:text, source) do
+  defp format_diff(:text, source) do
     Rewrite.TextDiff.format(
       source |> Source.code(Source.version(source) - 1) |> eof_newline(),
       source |> Source.code() |> eof_newline(),
@@ -94,21 +95,60 @@ defmodule Mneme.Prompter.Terminal do
     )
   end
 
-  defp diff(:semantic, source) do
+  defp format_diff(:semantic, source) do
     case semantic_diff(source) do
       {del, ins} ->
+        del_height = length(del)
+        ins_height = length(ins)
+
+        del_length = del |> Stream.map(&Owl.Data.length/1) |> Enum.max()
+        ins_length = ins |> Stream.map(&Owl.Data.length/1) |> Enum.max()
+
         deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red))
         insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
 
-        [
-          deletions,
-          "\n\n",
-          insertions,
-          "\n"
-        ]
+        cols_each = max(del_length, ins_length) + 6
+
+        if Owl.IO.columns() > cols_each * 2 do
+          height_padding =
+            if del_height == ins_height do
+              []
+            else
+              [
+                "\n",
+                "\n"
+                |> String.duplicate(abs(del_height - ins_height + 1))
+                |> Owl.Data.add_prefix(tag(" #{@middle_dot_char} ", :light_black))
+              ]
+            end
+
+          {deletions, insertions} =
+            if del_height < ins_height do
+              {[deletions, height_padding], insertions}
+            else
+              {deletions, [insertions, height_padding]}
+            end
+
+          opts = [
+            border_style: :none,
+            min_width: cols_each
+          ]
+
+          [
+            Owl.Data.zip(Owl.Box.new(deletions, opts), Owl.Box.new(insertions, opts)),
+            "\n"
+          ]
+        else
+          [
+            deletions,
+            "\n\n",
+            insertions,
+            "\n"
+          ]
+        end
 
       nil ->
-        diff(:text, source)
+        format_diff(:text, source)
     end
   end
 
