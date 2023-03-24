@@ -96,7 +96,7 @@ defmodule Mneme.Prompter.TerminalTest do
       type: :new,
       file: "example_test.ex",
       line: 1,
-      module: "ExampleTest",
+      module: ExampleTest,
       test: :"example test",
       patterns: [{nil, nil, []}]
     }

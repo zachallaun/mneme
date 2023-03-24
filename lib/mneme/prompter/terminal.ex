@@ -186,7 +186,7 @@ defmodule Mneme.Prompter.Terminal do
       tag([" ", @bullet_char, " "], [:faint, :light_black]),
       to_string(test),
       " (",
-      to_string(module),
+      inspect(module),
       ")\n",
       format_file(assertion),
       "\n"
