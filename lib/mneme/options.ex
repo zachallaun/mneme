@@ -97,7 +97,14 @@ defmodule Mneme.Options do
   def configure do
     opts = Application.get_env(:mneme, :defaults, [])
     :persistent_term.put(@config_cache, opts)
+
+    case :ets.info(@options_cache) do
+      :undefined -> :ok
+      _ -> :ets.delete(@options_cache)
+    end
+
     :ets.new(@options_cache, [:named_table, :public])
+    :ok
   end
 
   @doc """
