@@ -15,6 +15,11 @@ defmodule Mneme.Prompter.Terminal do
   @arrow_left_char "❮"
   @arrow_right_car "❯"
 
+  @box_horizontal "─"
+  @box_vertical "│"
+  @box_cross_down "┬"
+  @box_cross_up "┴"
+
   @impl true
   def prompt!(%Source{} = source, %Assertion{} = assertion, opts, _prompt_state) do
     message = message(source, assertion, opts)
@@ -26,10 +31,8 @@ defmodule Mneme.Prompter.Terminal do
   end
 
   @doc false
-  def message(source, %Assertion{type: type} = assertion, opts) do
+  def message(source, %Assertion{} = assertion, opts) do
     notes = Assertion.notes(assertion)
-    pattern_nav = Assertion.pattern_index(assertion)
-    prefix = tag("│ ", :light_black)
 
     [
       format_header(assertion),
@@ -37,13 +40,8 @@ defmodule Mneme.Prompter.Terminal do
       format_diff(source, opts),
       format_notes(notes),
       "\n",
-      format_explanation(type),
-      "\n",
-      tag("> ", :light_black),
-      "\n",
-      format_input_options(pattern_nav)
+      format_input(assertion)
     ]
-    |> Owl.Data.add_prefix(prefix)
   end
 
   defp input do
@@ -58,7 +56,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp gets do
     resp =
-      [IO.ANSI.cursor_up(2), IO.ANSI.cursor_right(4)]
+      [IO.ANSI.cursor_up(2), IO.ANSI.cursor_right(2)]
       |> IO.gets()
       |> normalize_gets()
 
@@ -104,10 +102,10 @@ defmodule Mneme.Prompter.Terminal do
         del_length = del |> Stream.map(&Owl.Data.length/1) |> Enum.max()
         ins_length = ins |> Stream.map(&Owl.Data.length/1) |> Enum.max()
 
-        deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" - ", :red))
-        insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag(" + ", :green))
+        deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  -  ", :red))
+        insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  +  ", :green))
 
-        if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 6) do
+        if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 4) do
           height_padding =
             if del_height == ins_height do
               []
@@ -116,7 +114,7 @@ defmodule Mneme.Prompter.Terminal do
                 "\n",
                 "\n"
                 |> String.duplicate(abs(del_height - ins_height + 1))
-                |> Owl.Data.add_prefix(tag(" #{@middle_dot_char} ", :light_black))
+                |> Owl.Data.add_prefix(tag("  #{@middle_dot_char} ", :faint))
               ]
             end
 
@@ -127,13 +125,23 @@ defmodule Mneme.Prompter.Terminal do
               {deletions, [insertions, height_padding]}
             end
 
-          opts = [
-            border_style: :none,
-            min_width: cols_each
-          ]
+          height = max(del_height, ins_height)
+          left = diff_box(tag("old", :red), deletions, cols_each)
+          right = diff_box(tag("new", :green), insertions, cols_each)
+
+          joiner =
+            tag(
+              [
+                @box_cross_down,
+                "\n",
+                String.duplicate("#{@box_vertical}\n", height),
+                @box_cross_up
+              ],
+              :faint
+            )
 
           [
-            Owl.Data.zip(Owl.Box.new(deletions, opts), Owl.Box.new(insertions, opts)),
+            Enum.reduce([right, joiner, left], &Owl.Data.zip/2),
             "\n"
           ]
         else
@@ -148,6 +156,18 @@ defmodule Mneme.Prompter.Terminal do
       nil ->
         format_diff(:text, source)
     end
+  end
+
+  defp diff_box(title, content, width) do
+    border = [
+      tag(@box_horizontal, :faint),
+      title,
+      tag(String.duplicate(@box_horizontal, width - Owl.Data.length(title) + 1), :faint)
+    ]
+
+    data = [border, "\n", content, "\n", border]
+
+    Owl.Box.new(data, border_style: :none, min_width: width)
   end
 
   defp diff_side_by_side(%{diff_side_by_side?: true}, _), do: 98
@@ -183,7 +203,7 @@ defmodule Mneme.Prompter.Terminal do
   defp format_header(%Assertion{type: type, test: test, module: module} = assertion) do
     [
       format_type(type),
-      tag([" ", @bullet_char, " "], [:faint, :light_black]),
+      tag([" ", @bullet_char, " "], :faint),
       to_string(test),
       " (",
       inspect(module),
@@ -195,22 +215,11 @@ defmodule Mneme.Prompter.Terminal do
 
   defp format_file(%Assertion{file: file, line: line}) do
     path = Path.relative_to_cwd(file)
-    tag([path, ":", to_string(line)], :light_black)
+    tag([path, ":", to_string(line)], :faint)
   end
 
   defp format_type(:new), do: tag("[Mneme] New", :green)
   defp format_type(:update), do: tag("[Mneme] Changed", :yellow)
-
-  defp format_explanation(:new) do
-    "Accept new assertion?"
-  end
-
-  defp format_explanation(:update) do
-    [
-      tag("Value has changed! ", :yellow),
-      "Update pattern?"
-    ]
-  end
 
   defp format_notes([]), do: []
 
@@ -222,24 +231,45 @@ defmodule Mneme.Prompter.Terminal do
       notes |> Owl.Data.unlines() |> Owl.Data.add_prefix("  * "),
       "\n"
     ]
-    |> tag(:light_black)
+    |> tag(:faint)
+  end
+
+  defp format_input(%{type: type} = assertion) do
+    nav = Assertion.pattern_index(assertion)
+
+    [
+      format_explanation(type),
+      "\n",
+      tag("> ", :faint),
+      "\n",
+      format_input_options(nav)
+    ]
   end
 
   defp format_input_options(nav) do
     [
-      [tag("y ", :green), tag("yes", [:faint, :green])],
-      [tag("n ", :red), tag("no", [:faint, :red])],
+      [tag("y ", :green), tag("yes", :faint)],
+      [tag("n ", :red), tag("no", :faint)],
       format_nav_options(nav)
     ]
     |> Enum.intersperse(["  "])
   end
 
+  defp format_nav_options({_, 0}), do: ""
+
   defp format_nav_options({index, count}) do
     dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
+    tag(["#{@arrow_left_char} j ", dots, " k #{@arrow_right_car}"], :faint)
+  end
 
-    tag(
-      ["#{@arrow_left_char} j ", dots, " k #{@arrow_right_car}"],
-      if(count > 1, do: :light_black, else: [:faint, :light_black])
-    )
+  defp format_explanation(:new) do
+    "Accept new assertion?"
+  end
+
+  defp format_explanation(:update) do
+    [
+      tag("Value has changed! ", :yellow),
+      "Update pattern?"
+    ]
   end
 end
