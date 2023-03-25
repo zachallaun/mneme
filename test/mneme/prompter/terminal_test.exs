@@ -7,43 +7,45 @@ defmodule Mneme.Prompter.TerminalTest do
   describe "message/3" do
     test "new assertion" do
       auto_assert """
-                  │ [Mneme] New ● example test (ExampleTest)
-                  │ example_test.ex:1
-                  │ 
-                  │  - auto_assert :something
-                  │  + auto_assert :something <- :something
-                  │ 
-                  │ Accept new assertion?
-                  │ > 
-                  │ y yes  n no  ❮ j ● k ❯\
+                  [Mneme] New ● example test (ExampleTest)
+                  example_test.ex:1
+
+                   - auto_assert :something
+                   + auto_assert :something <- :something
+
+                  Accept new assertion?
+                  > 
+                  y yes  n no  ❮ j ● k ❯\
                   """ <- message(mock_source(), mock_assertion())
 
       auto_assert """
-                  │ [Mneme] New ● example test (ExampleTest)
-                  │ example_test.ex:1
-                  │ 
-                  │  - auto_assert :something
-                  │ 
-                  │  + auto_assert :something <- :something
-                  │ 
-                  │ Accept new assertion?
-                  │ > 
-                  │ y yes  n no  ❮ j ● k ❯\
+                  [Mneme] New ● example test (ExampleTest)
+                  example_test.ex:1
+
+                    -  auto_assert :something
+
+                    +  auto_assert :something <- :something
+
+                  Accept new assertion?
+                  > 
+                  y yes  n no  ❮ j ● k ❯\
                   """ <- message(mock_source(), mock_assertion(), %{diff: :semantic})
 
       auto_assert """
-                  │ [Mneme] New ● example test (ExampleTest)
-                  │ example_test.ex:1
-                  │ 
-                  │  - auto_assert :something                                                                          + auto_assert :something <- :something                                                           
-                  │ 
-                  │ Accept new assertion?
-                  │ > 
-                  │ y yes  n no  ❮ j ● k ❯\
+                  [Mneme] New ● example test (ExampleTest)
+                  example_test.ex:1
+
+                  ─old──────────────────────────────────────┬─new──────────────────────────────────────
+                    -  auto_assert :something               │  +  auto_assert :something <- :something 
+                  ─old──────────────────────────────────────┴─new──────────────────────────────────────
+
+                  Accept new assertion?
+                  > 
+                  y yes  n no  ❮ j ● k ❯\
                   """ <-
                     message(mock_source(), mock_assertion(), %{
                       diff: :semantic,
-                      diff_side_by_side?: true
+                      diff_style: {:side_by_side, 40}
                     })
     end
 
@@ -51,15 +53,15 @@ defmodule Mneme.Prompter.TerminalTest do
       assertion = Map.update!(mock_assertion(), :patterns, &(&1 ++ [nil, nil]))
 
       auto_assert """
-                  │ [Mneme] New ● example test (ExampleTest)
-                  │ example_test.ex:1
-                  │ 
-                  │  - auto_assert :something
-                  │  + auto_assert :something <- :something
-                  │ 
-                  │ Accept new assertion?
-                  │ > 
-                  │ y yes  n no  ❮ j ●○○ k ❯\
+                  [Mneme] New ● example test (ExampleTest)
+                  example_test.ex:1
+
+                   - auto_assert :something
+                   + auto_assert :something <- :something
+
+                  Accept new assertion?
+                  > 
+                  y yes  n no  ❮ j ●○○ k ❯\
                   """ <- message(mock_source(), assertion)
     end
 
@@ -67,21 +69,21 @@ defmodule Mneme.Prompter.TerminalTest do
       assertion = Map.put(mock_assertion(), :type, :update)
 
       auto_assert """
-                  │ [Mneme] Changed ● example test (ExampleTest)
-                  │ example_test.ex:1
-                  │ 
-                  │  - auto_assert :something
-                  │  + auto_assert :something <- :something
-                  │ 
-                  │ Value has changed! Update pattern?
-                  │ > 
-                  │ y yes  n no  ❮ j ● k ❯\
+                  [Mneme] Changed ● example test (ExampleTest)
+                  example_test.ex:1
+
+                   - auto_assert :something
+                   + auto_assert :something <- :something
+
+                  Value has changed! Update pattern?
+                  > 
+                  y yes  n no  ❮ j ● k ❯\
                   """ <- message(mock_source(), assertion)
     end
   end
 
   defp message(source, assertion, opts \\ %{diff: :text}) do
-    opts = Map.put_new(opts, :diff_side_by_side?, false)
+    opts = Map.put_new(opts, :diff_style, :stacked)
     Terminal.message(source, assertion, opts) |> untag_to_string()
   end
 

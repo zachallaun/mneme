@@ -32,6 +32,16 @@ defmodule Mneme.Options do
       algorithm to highlight all changes in text.
       """
     ],
+    diff_style: [
+      type: {:in, [:side_by_side, :stacked]},
+      default: :side_by_side,
+      doc: """
+      Controls how diffs are rendered when the `:diff` option is set to `:semantic`.
+      If `:side_by_side`, old and new code will be rendered side-by-side if the
+      terminal has sufficient space. If `:stacked`, old and new code will be
+      rendered one on top of the other.
+      """
+    ],
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,

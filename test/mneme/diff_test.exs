@@ -7,7 +7,16 @@ defmodule Mneme.DiffTest do
 
   describe "format/2" do
     test "formats list insertions" do
-      auto_assert format("[1, 2_000]", "[1, [2_000]]")
+      auto_assert {nil,
+                   [
+                     [
+                       "[1, ",
+                       %Tag{data: "[", sequences: [:green]},
+                       "2_000",
+                       %Tag{data: "]", sequences: [:green]},
+                       "]"
+                     ]
+                   ]} <- format("[1, 2_000]", "[1, [2_000]]")
 
       auto_assert {nil, [["[", %Tag{data: ":foo", sequences: [:green]}, "]"]]} <-
                     format("[]", "[:foo]")

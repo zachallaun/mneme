@@ -170,16 +170,17 @@ defmodule Mneme.Prompter.Terminal do
     Owl.Box.new(data, border_style: :none, min_width: width)
   end
 
-  defp diff_side_by_side(%{diff_side_by_side?: true}, _), do: 98
-  defp diff_side_by_side(%{diff_side_by_side?: false}, _), do: nil
+  defp diff_side_by_side(%{diff_style: {:side_by_side, int}}, _), do: int
 
-  defp diff_side_by_side(_, largest_side) do
+  defp diff_side_by_side(%{diff_style: :side_by_side}, largest_side) do
     cols = Owl.IO.columns()
 
     if cols && largest_side * 2 <= cols do
       floor(cols / 2) - 4
     end
   end
+
+  defp diff_side_by_side(%{diff_style: :stacked}, _), do: nil
 
   defp semantic_diff(source) do
     with %{left: left, right: right} <- source.private[:diff] do
