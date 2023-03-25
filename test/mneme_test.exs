@@ -50,9 +50,4 @@ defmodule MnemeTest do
            ** (ArgumentError) I told you!
            """)
   end
-
-  test "Mneme.Options.configure/0 can be called multiple times" do
-    assert :ok = Mneme.Options.configure()
-    assert :ok = Mneme.Options.configure()
-  end
 end
