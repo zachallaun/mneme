@@ -4,7 +4,7 @@ defmodule Mneme.MixProject do
   @app :mneme
   @source_url "https://github.com/zachallaun/mneme"
 
-  def version, do: "0.2.4"
+  def version, do: "0.2.5"
 
   def project do
     [
@@ -74,7 +74,7 @@ defmodule Mneme.MixProject do
       name: "mneme",
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      exclude_patterns: ["priv/plts/*"]
+      exclude_patterns: ["priv/plts"]
     ]
   end
 
