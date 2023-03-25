@@ -30,7 +30,10 @@ defmodule Mneme.Patcher do
   Finalize all patches, writing all results to disk.
   """
   def finalize!(project) do
-    :ok = Project.save(project)
+    unless Application.get_env(:mneme, :dry_run) do
+      :ok = Project.save(project)
+    end
+
     project
   end
 
