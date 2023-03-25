@@ -73,7 +73,8 @@ defmodule Mneme.MixProject do
     [
       name: "mneme",
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{"GitHub" => @source_url},
+      exclude_patterns: ["priv/plts/*"]
     ]
   end
 
