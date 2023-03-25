@@ -256,7 +256,7 @@ defmodule Mneme.Prompter.Terminal do
     |> Enum.intersperse(["  "])
   end
 
-  defp format_nav_options({_, 0}), do: ""
+  defp format_nav_options({_, 1}), do: ""
 
   defp format_nav_options({index, count}) do
     dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
