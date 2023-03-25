@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.2.4 (2023-03-25)
+
+### Fixes
+
+  * Remove unnecessary files from Hex package. This cuts the package size by about half.
+
 ## v0.2.3 (2023-03-25)
 
 ### Fixes
