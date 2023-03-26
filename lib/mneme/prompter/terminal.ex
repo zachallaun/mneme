@@ -37,6 +37,7 @@ defmodule Mneme.Prompter.Terminal do
     [
       format_header(assertion),
       "\n",
+      format_value(assertion.value),
       format_diff(source, opts),
       format_notes(notes),
       "\n",
@@ -96,70 +97,84 @@ defmodule Mneme.Prompter.Terminal do
 
   defp format_diff(source, %{diff: :semantic} = opts) do
     case semantic_diff(source) do
-      {del, ins} ->
-        del_height = length(del)
-        ins_height = length(ins)
-
-        del_length = del |> Stream.map(&Owl.Data.length/1) |> Enum.max()
-        ins_length = ins |> Stream.map(&Owl.Data.length/1) |> Enum.max()
-
-        deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  -  ", :red))
-        insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  +  ", :green))
-
-        if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 4) do
-          height_padding =
-            if del_height == ins_height do
-              []
-            else
-              [
-                "\n",
-                "\n"
-                |> String.duplicate(abs(del_height - ins_height) - 1)
-                |> Owl.Data.add_prefix(tag("  #{@middle_dot_char} ", :faint))
-              ]
-            end
-
-          {deletions, insertions} =
-            if del_height < ins_height do
-              {[deletions, height_padding], insertions}
-            else
-              {deletions, [insertions, height_padding]}
-            end
-
-          height = max(del_height, ins_height)
-          left = diff_box(tag("old", :red), deletions, height, cols_each)
-          right = diff_box(tag("new", :green), insertions, height, cols_each)
-
-          joiner =
-            tag(
-              [
-                @box_cross_down,
-                "\n",
-                String.duplicate("#{@box_vertical}\n", height),
-                @box_cross_up
-              ],
-              :faint
-            )
-
-          [
-            Enum.reduce([right, joiner, left], &Owl.Data.zip/2),
-            "\n"
-          ]
-        else
-          [
-            deletions,
-            "\n\n",
-            insertions,
-            "\n"
-          ]
-        end
-
-      nil ->
-        format_diff(:text, source)
+      {del, ins} -> format_semantic_diff({del, ins}, opts)
+      nil -> format_diff(:text, source)
     end
   end
 
-  defp diff_box(title, content, height, width) do
+  defp format_semantic_diff({del, ins}, opts) do
+    del_height = length(del)
+    ins_height = length(ins)
+
+    del_length = del |> Stream.map(&Owl.Data.length/1) |> Enum.max()
+    ins_length = ins |> Stream.map(&Owl.Data.length/1) |> Enum.max()
+
+    deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  -  ", :red))
+    insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  +  ", :green))
+
+    if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 4) do
+      height_padding =
+        if del_height == ins_height do
+          []
+        else
+          [
+            "\n",
+            "\n"
+            |> String.duplicate(abs(del_height - ins_height) - 1)
+            |> Owl.Data.add_prefix(tag("  #{@middle_dot_char} ", :faint))
+          ]
+        end
+
+      {deletions, insertions} =
+        if del_height < ins_height do
+          {[deletions, height_padding], insertions}
+        else
+          {deletions, [insertions, height_padding]}
+        end
+
+      height = max(del_height, ins_height)
+      left = diff_box(tag("old", :red), deletions, height, cols_each)
+      right = diff_box(tag("new", :green), insertions, height, cols_each)
+
+      joiner =
+        tag(
+          [
+            @box_cross_down,
+            "\n",
+            String.duplicate("#{@box_vertical}\n", height),
+            @box_cross_up
+          ],
+          :faint
+        )
+
+      [
+        Enum.reduce([right, joiner, left], &Owl.Data.zip/2),
+        "\n"
+      ]
+    else
+      width = terminal_width(opts)
+      border = @box_horizontal |> String.duplicate(width) |> tag(:faint)
+
+      [
+        border,
+        "\n",
+        deletions,
+        "\n",
+        border,
+        "\n",
+        insertions,
+        "\n",
+        border,
+        "\n"
+      ]
+    end
+  end
+
+  defp format_value(_value) do
+    []
+  end
+
+  defp diff_box(title, content, height, width, bottom_border? \\ true) do
     top_border = [
       tag(@box_horizontal, :faint),
       title,
@@ -167,28 +182,29 @@ defmodule Mneme.Prompter.Terminal do
     ]
 
     bottom_border =
-      if height > 8 do
-        top_border
-      else
-        @box_horizontal |> String.duplicate(width + 2) |> tag(:faint)
+      case {bottom_border?, height > 8} do
+        {true, true} -> ["\n", top_border]
+        {true, false} -> ["\n", @box_horizontal |> String.duplicate(width + 2) |> tag(:faint)]
+        _ -> []
       end
 
-    data = [top_border, "\n", content, "\n", bottom_border]
+    data = [top_border, "\n", content, bottom_border]
 
     Owl.Box.new(data, border_style: :none, min_width: width)
   end
 
-  defp diff_side_by_side(%{diff_style: {:side_by_side, int}}, _), do: int
+  defp diff_side_by_side(%{diff_style: :side_by_side} = opts, largest_side) do
+    width = terminal_width(opts)
 
-  defp diff_side_by_side(%{diff_style: :side_by_side}, largest_side) do
-    cols = Owl.IO.columns()
-
-    if cols && largest_side * 2 <= cols do
-      floor(cols / 2) - 4
+    if largest_side * 2 <= width do
+      div(width, 2) - 4
     end
   end
 
   defp diff_side_by_side(%{diff_style: :stacked}, _), do: nil
+
+  defp terminal_width(%{terminal_width: width}) when is_integer(width), do: width
+  defp terminal_width(_opts), do: Owl.IO.columns() || 98
 
   defp semantic_diff(source) do
     with %{left: left, right: right} <- source.private[:diff] do
@@ -227,7 +243,7 @@ defmodule Mneme.Prompter.Terminal do
     tag([path, ":", to_string(line)], :faint)
   end
 
-  defp format_type(:new), do: tag("[Mneme] New", :green)
+  defp format_type(:new), do: tag("[Mneme] New", :cyan)
   defp format_type(:update), do: tag("[Mneme] Changed", :yellow)
 
   defp format_notes([]), do: []

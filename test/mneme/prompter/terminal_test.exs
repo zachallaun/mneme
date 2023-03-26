@@ -22,9 +22,11 @@ defmodule Mneme.Prompter.TerminalTest do
                   [Mneme] New ● example test (ExampleTest)
                   example_test.ex:1
 
+                  ──────────────────────────────────────────────────
                     -  auto_assert :something
-
+                  ──────────────────────────────────────────────────
                     +  auto_assert :something <- :something
+                  ──────────────────────────────────────────────────
 
                   Accept new assertion?
                   > 
@@ -35,9 +37,9 @@ defmodule Mneme.Prompter.TerminalTest do
                   [Mneme] New ● example test (ExampleTest)
                   example_test.ex:1
 
-                  ─old──────────────────────────────────────┬─new──────────────────────────────────────
-                    -  auto_assert :something               │  +  auto_assert :something <- :something 
-                  ──────────────────────────────────────────┴──────────────────────────────────────────
+                  ─old────────────────────────────────────────────┬─new────────────────────────────────────────────
+                    -  auto_assert :something                     │  +  auto_assert :something <- :something       
+                  ────────────────────────────────────────────────┴────────────────────────────────────────────────
 
                   Accept new assertion?
                   > 
@@ -45,7 +47,8 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <-
                     message(mock_source(), mock_assertion(), %{
                       diff: :semantic,
-                      diff_style: {:side_by_side, 40}
+                      diff_style: :side_by_side,
+                      terminal_width: 100
                     })
     end
 
@@ -83,7 +86,11 @@ defmodule Mneme.Prompter.TerminalTest do
   end
 
   defp message(source, assertion, opts \\ %{diff: :text}) do
-    opts = Map.put_new(opts, :diff_style, :stacked)
+    opts =
+      opts
+      |> Map.put_new(:diff_style, :stacked)
+      |> Map.put_new(:terminal_width, 50)
+
     Terminal.message(source, assertion, opts) |> untag_to_string()
   end
 
