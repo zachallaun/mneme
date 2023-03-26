@@ -1,3 +1,50 @@
+Output examples/demo.gif
+# Output examples/demo.mp4
+# Output examples/demo.webm
+
+Set Shell "bash"
+Set FontSize 20
+Set Width 1600
+Set Height 800
+Set Padding 20
+Set TypingSpeed 30ms
+
+# Setup
+
+Hide
+Type "cd examples/demo_project && clear" Enter
+Type "MIX_ENV=test mix deps.get && clear" Enter
+Type "MIX_ENV=test mix deps.compile --force && clear" Enter
+Type "MIX_ENV=test mix compile && clear" Enter
+Sleep 5s
+Type "clear" Enter
+Show
+
+# Recording
+
+Type "# Mneme is a snapshot testing library" Sleep 1s Enter
+Type "# It prompts you when it finds a new assertion" Sleep 1s Enter
+Type "mix test --only first_example" Sleep 1s Enter
+Sleep 3s
+
+Type "y" Sleep 2s Enter
+Sleep 2s
+
+Type "y" Sleep 2s Enter
+Sleep 2s
+
+Type "# Mneme generated patterns for those two assertions and updated the tests" Sleep 1s Enter
+Type "# If an existing assertion changes, you're also prompted" Sleep 1s Enter
+Type "mix test --only second_example" Sleep 1s Enter
+Sleep 3s
+
+Type "y" Sleep 2s Enter
+Sleep 2s
+
+Type "# Mneme makes testing a lot more interactive and pleasant" Sleep 1s Enter
+Type "# Enjoy!" Enter
+Sleep 5s
+
 # VHS documentation
 #
 # Output:
@@ -45,35 +92,3 @@
 # Display:
 #   Hide                            Hide the subsequent commands from the output
 #   Show                            Show the subsequent commands in the output
-
-Output examples/demo.gif
-# Output examples/demo.mp4
-# Output examples/demo.webm
-
-Set Shell "bash"
-Set FontSize 20
-Set Width 1600
-Set Height 800
-Set Padding 20
-Set Theme "Dracula+"
-Set TypingSpeed 30ms
-
-# Setup
-
-Hide
-Type "cd examples/demo_project && clear" Enter
-Type "MIX_ENV=test mix deps.get && clear" Enter
-Type "MIX_ENV=test mix deps.compile --force && clear" Enter
-Type "MIX_ENV=test mix compile && clear" Enter
-Sleep 5s
-Type "clear" Enter
-Show
-
-# Recording
-
-Type "# Mneme is a snapshot testing library that integrates with ExUnit" Sleep 500ms Enter
-Type "mix test" Sleep 500ms Enter
-Sleep 3s
-
-Type "y" Sleep 500ms Enter
-Sleep 3s
