@@ -48,6 +48,7 @@ defmodule Mneme.Prompter.Terminal do
     case gets() do
       "y" -> :accept
       "n" -> :reject
+      "s" -> :skip
       "k" -> :next
       "j" -> :prev
       _ -> input()
@@ -249,8 +250,9 @@ defmodule Mneme.Prompter.Terminal do
 
   defp format_input_options(nav) do
     [
-      [tag("y ", :green), tag("yes", :faint)],
-      [tag("n ", :red), tag("no", :faint)],
+      [tag("y", :green), " ", tag("yes", :faint)],
+      [tag("n", :red), " ", tag("no", :faint)],
+      [tag("s", :yellow), " ", tag("skip", :faint)],
       format_nav_options(nav)
     ]
     |> Enum.intersperse(["  "])

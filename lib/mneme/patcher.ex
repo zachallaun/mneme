@@ -53,6 +53,9 @@ defmodule Mneme.Patcher do
       {:reject, _} ->
         {{:error, :no_pattern}, project}
 
+      {:skip, _} ->
+        {{:error, :skip}, project}
+
       {:prev, prompt_state} ->
         patch!(project, Assertion.prev(assertion, opts.target), opts, prompt_state)
 

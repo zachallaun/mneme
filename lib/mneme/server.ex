@@ -29,7 +29,8 @@ defmodule Mneme.Server do
     :current_module,
     opts: %{},
     to_register: [],
-    to_patch: []
+    to_patch: [],
+    skipped: 0
   ]
 
   @type t :: %__MODULE__{
@@ -38,7 +39,8 @@ defmodule Mneme.Server do
           current_module: module(),
           opts: %{{mod :: module(), test :: atom()} => map()},
           to_register: [{any(), from :: pid()}],
-          to_patch: [{any(), from :: pid()}]
+          to_patch: [{any(), from :: pid()}],
+          skipped: pos_integer()
         }
 
   @doc """
@@ -113,11 +115,29 @@ defmodule Mneme.Server do
      {:continue, :process_next}}
   end
 
-  def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
-    {:reply, :ok,
-     state
-     |> flush_io()
-     |> Map.update!(:patch_state, &Patcher.finalize!/1)}
+  def handle_call({:formatter, {:suite_finished, _}}, _from, %{skipped: skipped} = state) do
+    state =
+      state
+      |> flush_io()
+      |> Map.update!(:patch_state, &Patcher.finalize!/1)
+
+    if skipped > 0 do
+      System.at_exit(fn
+        _ ->
+          message =
+            if skipped == 1, do: "1 assertion skipped", else: "#{skipped} assertions skipped"
+
+          IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
+
+          exit_status =
+            ExUnit.configuration()
+            |> Keyword.fetch!(:exit_status)
+
+          exit({:shutdown, exit_status})
+      end)
+    end
+
+    {:reply, :ok, state}
   end
 
   def handle_call({:formatter, _msg}, _from, %{current_module: nil} = state) do
@@ -148,6 +168,12 @@ defmodule Mneme.Server do
 
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
     GenServer.reply(from, reply)
+
+    state =
+      case reply do
+        {:error, :skip} -> Map.update!(state, :skipped, &(&1 + 1))
+        _ -> state
+      end
 
     %{state | patch_state: patch_state, current_module: module}
   end

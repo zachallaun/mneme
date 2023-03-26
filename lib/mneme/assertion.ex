@@ -50,6 +50,9 @@ defmodule Mneme.Assertion do
         {:ok, assertion} ->
           Code.eval_quoted(assertion.eval, eval_binding, env)
 
+        {:error, :skip} ->
+          :ok
+
         {:error, :no_pattern} ->
           raise Mneme.AssertionError, message: "No pattern present"
 
@@ -61,6 +64,9 @@ defmodule Mneme.Assertion do
         case Mneme.Server.patch_assertion(assertion) do
           {:ok, assertion} ->
             Code.eval_quoted(assertion.eval, eval_binding, env)
+
+          {:error, :skip} ->
+            :ok
 
           {:error, :no_pattern} ->
             reraise error, [stacktrace_entry(assertion)]
