@@ -114,7 +114,7 @@ defmodule Mneme.Prompter.Terminal do
               [
                 "\n",
                 "\n"
-                |> String.duplicate(abs(del_height - ins_height + 1))
+                |> String.duplicate(abs(del_height - ins_height) - 1)
                 |> Owl.Data.add_prefix(tag("  #{@middle_dot_char} ", :faint))
               ]
             end
