@@ -358,15 +358,22 @@ defmodule Mneme.Assertion do
   # not present in the string. Unless we remove it prior to running an
   # ExUnit assertion, the assertion will fail, but then succeed the next
   # time the test is run.
-  defp normalize_heredoc({:__block__, meta, [string]} = expr) when is_binary(string) do
-    if meta[:delimiter] == ~S(""") do
-      {:__block__, meta, [String.trim_trailing(string, "\\\n")]}
-    else
-      expr
-    end
-  end
+  defp normalize_heredoc(expr) do
+    Sourceror.prewalk(expr, fn
+      {:__block__, meta, [string]} = expr, state when is_binary(string) ->
+        expr =
+          if meta[:delimiter] == ~S(""") do
+            {:__block__, meta, [String.trim_trailing(string, "\\\n")]}
+          else
+            expr
+          end
 
-  defp normalize_heredoc(expr), do: expr
+        {expr, state}
+
+      quoted, state ->
+        {quoted, state}
+    end)
+  end
 
   defp unescape_strings(expr) do
     Sourceror.prewalk(expr, fn

@@ -16,5 +16,14 @@ defmodule Mneme.Integration.FormatTest do
                   bar\
                   """ <- "foo\nbar"
     end
+
+    test "should format nested as heredocs" do
+      # y
+      auto_assert {:ok,
+                   """
+                   foo
+                   bar\
+                   """} <- {:ok, "foo\nbar"}
+    end
   end
 end
