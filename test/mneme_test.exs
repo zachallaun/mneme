@@ -5,7 +5,7 @@ defmodule MnemeTest do
   describe "auto_assert/1" do
     @mneme action: :reject
     test "raises if no pattern is present" do
-      assert_raise Mneme.AssertionError, fn ->
+      assert_raise Mneme.AssertionError, "No pattern present", fn ->
         auto_assert :foo
       end
     end

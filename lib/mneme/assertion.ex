@@ -45,38 +45,42 @@ defmodule Mneme.Assertion do
 
     eval_binding = [{{:value, :mneme}, value} | binding]
 
-    try do
-      case Mneme.Server.register_assertion(assertion) do
-        {:ok, assertion} ->
+    case assertion.type do
+      :new ->
+        run_patch!(assertion, eval_binding, env)
+
+      :update ->
+        {:ok, assertion} = Mneme.Server.register_assertion(assertion)
+
+        try do
           Code.eval_quoted(assertion.eval, eval_binding, env)
-
-        {:error, :skip} ->
-          :ok
-
-        {:error, :no_pattern} ->
-          raise Mneme.AssertionError, message: "No pattern present"
-
-        {:error, {:internal, error, stacktrace}} ->
-          raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
-      end
-    rescue
-      error in [ExUnit.AssertionError] ->
-        case Mneme.Server.patch_assertion(assertion) do
-          {:ok, assertion} ->
-            Code.eval_quoted(assertion.eval, eval_binding, env)
-
-          {:error, :skip} ->
-            :ok
-
-          {:error, :no_pattern} ->
-            reraise error, [stacktrace_entry(assertion)]
-
-          {:error, {:internal, error, stacktrace}} ->
-            raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
+        rescue
+          error in [ExUnit.AssertionError] ->
+            run_patch!(assertion, eval_binding, env, error)
         end
     end
 
     value
+  end
+
+  defp run_patch!(assertion, eval_binding, env, error \\ nil) do
+    case Mneme.Server.patch_assertion(assertion) do
+      {:ok, assertion} ->
+        Code.eval_quoted(assertion.eval, eval_binding, env)
+
+      {:error, :skip} ->
+        :ok
+
+      {:error, :no_pattern} ->
+        if error do
+          reraise error, [stacktrace_entry(assertion)]
+        else
+          raise Mneme.AssertionError, message: "No pattern present"
+        end
+
+      {:error, {:internal, error, stacktrace}} ->
+        raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
+    end
   end
 
   defp stacktrace_entry(assertion) do
@@ -319,9 +323,7 @@ defmodule Mneme.Assertion do
         assert_compare(expected)
 
       _ ->
-        quote do
-          raise Mneme.AssertionError, message: "no match present"
-        end
+        :ok
     end
   end
 
