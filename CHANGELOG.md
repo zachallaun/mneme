@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Enhancements
+
+  * Auto-assertion prompts can now be skipped in addition to accepted or rejected. This allows the test clause to continue so that later assertions might be run, but fails the test run once the suite finishes.
+  * Semantic diffs will now be displayed side-by-side if terminal width allows. If you would prefer to always see diffs stacked, you can use the `diff_style: :stacked` option; see the "Configuration" section of the `Mneme` module doc for more.
+
 ## v0.2.4, v0.2.5 (2023-03-25)
 
 ### Fixes
