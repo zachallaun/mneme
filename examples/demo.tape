@@ -47,8 +47,8 @@
 #   Show                            Show the subsequent commands in the output
 
 Output examples/demo.gif
-Output examples/demo.mp4
-Output examples/demo.webm
+# Output examples/demo.mp4
+# Output examples/demo.webm
 
 Set Shell "bash"
 Set FontSize 20
@@ -61,7 +61,7 @@ Set TypingSpeed 30ms
 # Setup
 
 Hide
-Type "cd examples/example_project && clear" Enter
+Type "cd examples/demo_project && clear" Enter
 Type "MIX_ENV=test mix deps.get && clear" Enter
 Type "MIX_ENV=test mix deps.compile --force && clear" Enter
 Type "MIX_ENV=test mix compile && clear" Enter

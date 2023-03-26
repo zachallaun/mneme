@@ -1,4 +1,4 @@
-defmodule ExampleProjectTest do
+defmodule DemoTest do
   use ExUnit.Case
   use Mneme
 
