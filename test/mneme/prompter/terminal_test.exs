@@ -37,9 +37,9 @@ defmodule Mneme.Prompter.TerminalTest do
                   [Mneme] New ● example test (ExampleTest)
                   example_test.ex:1
 
-                  ─old────────────────────────────────────────────┬─new────────────────────────────────────────────
-                    -  auto_assert :something                     │  +  auto_assert :something <- :something       
-                  ────────────────────────────────────────────────┴────────────────────────────────────────────────
+                  ─old─────────────────────────────────────────────┬─new─────────────────────────────────────────────
+                    -  auto_assert :something                      │  +  auto_assert :something <- :something        
+                  ─────────────────────────────────────────────────┴─────────────────────────────────────────────────
 
                   Accept new assertion?
                   > 

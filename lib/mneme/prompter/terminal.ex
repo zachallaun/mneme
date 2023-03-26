@@ -37,10 +37,8 @@ defmodule Mneme.Prompter.Terminal do
     [
       format_header(assertion),
       "\n",
-      format_value(assertion.value),
       format_diff(source, opts),
       format_notes(notes),
-      "\n",
       format_input(assertion)
     ]
   end
@@ -112,7 +110,10 @@ defmodule Mneme.Prompter.Terminal do
     deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  -  ", :red))
     insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  +  ", :green))
 
-    if cols_each = diff_side_by_side(opts, max(del_length, ins_length) + 4) do
+    # add the size of the prefix added to each side of the diff above
+    required_width = max(del_length, ins_length) + 5
+
+    if cols_each = diff_side_by_side(opts, required_width) do
       height_padding =
         if del_height == ins_height do
           []
@@ -153,39 +154,30 @@ defmodule Mneme.Prompter.Terminal do
       ]
     else
       width = terminal_width(opts)
-      border = @box_horizontal |> String.duplicate(width) |> tag(:faint)
 
       [
-        border,
+        horizontal_border(width),
         "\n",
         deletions,
         "\n",
-        border,
+        horizontal_border(width),
         "\n",
         insertions,
         "\n",
-        border,
+        horizontal_border(width),
         "\n"
       ]
     end
   end
 
-  defp format_value(_value) do
-    []
-  end
-
-  defp diff_box(title, content, height, width, bottom_border? \\ true) do
-    top_border = [
-      tag(@box_horizontal, :faint),
-      title,
-      @box_horizontal |> String.duplicate(width - Owl.Data.length(title) + 1) |> tag(:faint)
-    ]
+  defp diff_box(title, content, height, width) do
+    top_border = horizontal_border(width, title)
 
     bottom_border =
-      case {bottom_border?, height > 8} do
-        {true, true} -> ["\n", top_border]
-        {true, false} -> ["\n", @box_horizontal |> String.duplicate(width + 2) |> tag(:faint)]
-        _ -> []
+      if height > 8 do
+        ["\n", top_border]
+      else
+        ["\n", horizontal_border(width)]
       end
 
     data = [top_border, "\n", content, bottom_border]
@@ -197,7 +189,7 @@ defmodule Mneme.Prompter.Terminal do
     width = terminal_width(opts)
 
     if largest_side * 2 <= width do
-      div(width, 2) - 4
+      div(width, 2) - 1
     end
   end
 
@@ -263,6 +255,7 @@ defmodule Mneme.Prompter.Terminal do
     nav = Assertion.pattern_index(assertion)
 
     [
+      "\n",
       format_explanation(type),
       "\n",
       tag("> ", :faint),
@@ -296,6 +289,18 @@ defmodule Mneme.Prompter.Terminal do
     [
       tag("Value has changed! ", :yellow),
       "Update pattern?"
+    ]
+  end
+
+  defp horizontal_border(width) when is_integer(width) do
+    @box_horizontal |> String.duplicate(width) |> tag(:faint)
+  end
+
+  defp horizontal_border(width, title) when is_integer(width) do
+    [
+      tag(@box_horizontal, :faint),
+      title,
+      @box_horizontal |> String.duplicate(width - Owl.Data.length(title) - 1) |> tag(:faint)
     ]
   end
 end
