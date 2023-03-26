@@ -127,8 +127,8 @@ defmodule Mneme.Prompter.Terminal do
             end
 
           height = max(del_height, ins_height)
-          left = diff_box(tag("old", :red), deletions, cols_each)
-          right = diff_box(tag("new", :green), insertions, cols_each)
+          left = diff_box(tag("old", :red), deletions, height, cols_each)
+          right = diff_box(tag("new", :green), insertions, height, cols_each)
 
           joiner =
             tag(
@@ -159,14 +159,21 @@ defmodule Mneme.Prompter.Terminal do
     end
   end
 
-  defp diff_box(title, content, width) do
-    border = [
+  defp diff_box(title, content, height, width) do
+    top_border = [
       tag(@box_horizontal, :faint),
       title,
-      tag(String.duplicate(@box_horizontal, width - Owl.Data.length(title) + 1), :faint)
+      @box_horizontal |> String.duplicate(width - Owl.Data.length(title) + 1) |> tag(:faint)
     ]
 
-    data = [border, "\n", content, "\n", border]
+    bottom_border =
+      if height > 8 do
+        top_border
+      else
+        @box_horizontal |> String.duplicate(width + 2) |> tag(:faint)
+      end
+
+    data = [top_border, "\n", content, "\n", bottom_border]
 
     Owl.Box.new(data, border_style: :none, min_width: width)
   end
