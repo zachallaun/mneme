@@ -2,7 +2,11 @@
 
 https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4
 
-##
+---
+
+**Note:** This README tracks the `main` branch. See the HexDocs linked below for documentation for the latest release.
+
+---
 
 <!-- MDOC !-->
 
