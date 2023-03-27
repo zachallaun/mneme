@@ -9,13 +9,13 @@ defmodule Mneme.ExampleTest do
   test "1" do
     s1 = %MyStruct{}
 
-    auto_assert %MyStruct{} <- s1
+    auto_assert ^s1 <- s1
   end
 
   test "2" do
     s2 = %MyStruct{field: 5}
 
-    auto_assert %MyStruct{} <- Map.put(s2, :list, [:foo, :baz])
+    auto_assert %MyStruct{field: 5, list: [:foo, :baz]} <- Map.put(s2, :list, [:foo, :baz])
   end
 
   test "3" do

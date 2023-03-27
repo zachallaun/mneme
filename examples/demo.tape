@@ -1,13 +1,15 @@
 Output examples/demo.gif
-# Output examples/demo.mp4
+Output examples/demo.mp4
 # Output examples/demo.webm
 
 Set Shell "bash"
-Set FontSize 20
+Set FontSize 22
+Set FontFamily "Berkeley Mono"
 Set Width 1600
 Set Height 800
 Set Padding 20
 Set TypingSpeed 30ms
+Set Theme "Argonaut"
 
 # Setup
 
@@ -22,28 +24,29 @@ Show
 
 # Recording
 
-Type "# Mneme is a snapshot testing library" Sleep 1s Enter
-Type "# It prompts you when it finds a new assertion" Sleep 1s Enter
-Type "mix test --only first_example" Sleep 1s Enter
+Type "# Mneme is a snapshot testing library" Sleep 300ms Enter Sleep 1s
+Type "# It introduces a new assertion macro: auto_assert" Sleep 300ms Enter Sleep 1s
+Type "# When a new auto-assertion is found, Mneme generates a pattern for you" Sleep 300ms Enter Sleep 1s
+Type "# Let's see what it looks like..." Sleep 300ms Enter Sleep 1s
+Type "clear && mix test --only first_example" Sleep 1.5s Enter
+Sleep 4s
+
+Type "y" Sleep 2s Enter
+Sleep 2s
+
+Type "y" Sleep 2s Enter
 Sleep 3s
 
-Type "y" Sleep 2s Enter
-Sleep 2s
+Type "# We accepted both patterns and the test was updated automatically" Sleep 300ms Enter Sleep 1s
+Type "# You're also prompted if something changes and a pattern doesn't match" Sleep 300ms Enter Sleep 1s
+Type "clear && mix test --only second_example" Sleep 1.5s Enter
+Sleep 4s
 
 Type "y" Sleep 2s Enter
-Sleep 2s
-
-Type "# Mneme generated patterns for those two assertions and updated the tests" Sleep 1s Enter
-Type "# If an existing assertion changes, you're also prompted" Sleep 1s Enter
-Type "mix test --only second_example" Sleep 1s Enter
 Sleep 3s
 
-Type "y" Sleep 2s Enter
-Sleep 2s
-
-Type "# Mneme makes testing a lot more interactive and pleasant" Sleep 1s Enter
-Type "# Enjoy!" Enter
-Sleep 5s
+Type "# Testing with Mneme can be really interactive and fun!" Sleep 300ms Enter Sleep 1s
+Type "# Give it a try and please share any feedback you have!" Sleep 5s
 
 # VHS documentation
 #

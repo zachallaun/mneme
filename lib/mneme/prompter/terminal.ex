@@ -24,7 +24,7 @@ defmodule Mneme.Prompter.Terminal do
   def prompt!(%Source{} = source, %Assertion{} = assertion, opts, _prompt_state) do
     message = message(source, assertion, opts)
 
-    Owl.IO.puts(["\n\n", message])
+    Owl.IO.puts(["\n", message])
     result = input()
 
     {result, nil}
@@ -39,7 +39,8 @@ defmodule Mneme.Prompter.Terminal do
       "\n",
       format_diff(source, opts),
       format_notes(notes),
-      format_input(assertion)
+      format_input(assertion),
+      "\n"
     ]
   end
 
@@ -56,11 +57,11 @@ defmodule Mneme.Prompter.Terminal do
 
   defp gets do
     resp =
-      [IO.ANSI.cursor_up(2), IO.ANSI.cursor_right(2)]
+      [IO.ANSI.cursor_up(3), IO.ANSI.cursor_right(2)]
       |> IO.gets()
       |> normalize_gets()
 
-    IO.write([IO.ANSI.cursor_down(1), "\r"])
+    IO.write([IO.ANSI.cursor_down(2), "\r"])
 
     resp
   end

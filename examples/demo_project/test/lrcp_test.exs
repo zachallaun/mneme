@@ -13,7 +13,8 @@ defmodule LRCPTest do
 
     @tag :second_example
     test "parses valid messages (2)" do
-      auto_assert {:error, "hello\\//"} <- LRCP.parse("/data/12345/0/hello\\//")
+      auto_assert {:error, "hello\\//"} <-
+                    LRCP.parse("/data/12345/0/hello\\//")
     end
   end
 end
