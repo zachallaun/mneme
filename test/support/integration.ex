@@ -77,7 +77,12 @@ defmodule Mneme.Integration do
             message: "integration test failed to complete within 15 seconds: #{test.path}"
       end
 
-    code_after_test = File.read!(file_path)
+    code_after_test =
+      file_path
+      |> File.read!()
+      # This allows us to modify the test file in-place without the
+      # `code_after_test == test.expected_code` check failing
+      |> String.trim_trailing("#")
 
     errors =
       [
@@ -89,7 +94,7 @@ defmodule Mneme.Integration do
       |> Enum.reject(fn {check, _} -> check end)
       |> Enum.map(fn {_, message} -> message end)
 
-    debug_output(System.get_env("DBG"), test, output)
+    debug_output(System.get_env("DBG"), test, code_after_test, output)
 
     unless errors == [] do
       message = "\n" <> Enum.join(errors, "\n")
@@ -115,15 +120,19 @@ defmodule Mneme.Integration do
     end
   end
 
-  defp debug_output(nil, _, _), do: :ok
+  defp debug_output(nil, _, _, _), do: :ok
 
-  defp debug_output("", test, _) do
+  defp debug_output("", test, _, _) do
     Owl.IO.puts([Owl.Data.tag("Complete: ", :green), test.path, "\n"])
   end
 
-  defp debug_output(debug, test, output) do
+  defp debug_output(debug, test, code_after, output) do
     if String.contains?(test.path, debug) do
-      Owl.IO.puts([Owl.Data.tag("Output: ", :cyan), output, "\n"])
+      [
+        [Owl.Data.tag("Actual:\n\n", :cyan), code_after, "\n"],
+        [Owl.Data.tag("\n\nOutput:\n", :cyan), output, "\n"]
+      ]
+      |> Owl.IO.puts()
     end
   end
 

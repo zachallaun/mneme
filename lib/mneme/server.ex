@@ -116,28 +116,16 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:formatter, {:suite_finished, _}}, _from, %{skipped: skipped} = state) do
-    state =
-      state
-      |> flush_io()
-      |> Map.update!(:patch_state, &Patcher.finalize!/1)
-
-    if skipped > 0 do
-      System.at_exit(fn
-        _ ->
-          message =
-            if skipped == 1, do: "1 assertion skipped", else: "#{skipped} assertions skipped"
-
-          IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
-
-          exit_status =
-            ExUnit.configuration()
-            |> Keyword.fetch!(:exit_status)
-
-          exit({:shutdown, exit_status})
-      end)
+    case Patcher.finalize!(state.patch_state) do
+      :ok -> :ok
+      {:error, {:not_saved, files}} -> ensure_exit_with_error!(:not_saved, files)
     end
 
-    {:reply, :ok, state}
+    if skipped > 0 do
+      ensure_exit_with_error!(:skipped, skipped)
+    end
+
+    {:reply, :ok, flush_io(state)}
   end
 
   def handle_call({:formatter, _msg}, _from, %{current_module: nil} = state) do
@@ -229,4 +217,37 @@ defmodule Mneme.Server do
   defp current_module?(%{current_module: nil}, _), do: true
   defp current_module?(%{current_module: mod}, mod), do: true
   defp current_module?(_state, _mod), do: false
+
+  defp ensure_exit_with_error!(reason, arg)
+
+  defp ensure_exit_with_error!(:skipped, skipped) do
+    ensure_exit_with_error!(fn ->
+      message = if skipped == 1, do: "1 assertion skipped", else: "#{skipped} assertions skipped"
+
+      IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
+    end)
+  end
+
+  defp ensure_exit_with_error!(:not_saved, files) do
+    ensure_exit_with_error!(fn ->
+      message = [
+        "Could not save the following files (possibly because their content changed):\n\n",
+        Enum.map(files, &["  * ", &1, "\n"])
+      ]
+
+      IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
+    end)
+  end
+
+  defp ensure_exit_with_error!(fun) when is_function(fun, 0) do
+    System.at_exit(fn _ ->
+      fun.()
+
+      exit_status =
+        ExUnit.configuration()
+        |> Keyword.fetch!(:exit_status)
+
+      exit({:shutdown, exit_status})
+    end)
+  end
 end

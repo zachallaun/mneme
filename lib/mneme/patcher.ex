@@ -22,7 +22,12 @@ defmodule Mneme.Patcher do
         project
 
       :error ->
-        Project.update(project, Source.read!(file))
+        source =
+          file
+          |> Source.read!()
+          |> Source.put_private(:hash, content_hash(file))
+
+        Project.update(project, source)
     end
   end
 
@@ -30,11 +35,36 @@ defmodule Mneme.Patcher do
   Finalize all patches, writing all results to disk.
   """
   def finalize!(project) do
-    unless Application.get_env(:mneme, :dry_run) do
-      :ok = Project.save(project)
-    end
+    if Application.get_env(:mneme, :dry_run) do
+      :ok
+    else
+      unsaved_files =
+        project
+        |> Project.sources()
+        |> Enum.flat_map(fn source ->
+          file = Source.path(source)
 
-    project
+          if source.private[:hash] == content_hash(file) do
+            case Source.save(source) do
+              :ok -> []
+              _ -> [file]
+            end
+          else
+            [file]
+          end
+        end)
+
+      if unsaved_files == [] do
+        :ok
+      else
+        {:error, {:not_saved, unsaved_files}}
+      end
+    end
+  end
+
+  defp content_hash(file) do
+    data = File.read!(file)
+    :crypto.hash(:sha256, data)
   end
 
   @doc """
