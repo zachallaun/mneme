@@ -2,12 +2,20 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v0.2.6 (2023-03-27)
 
 ### Enhancements
 
-  * Auto-assertion prompts can now be skipped in addition to accepted or rejected. This allows the test clause to continue so that later assertions might be run, but fails the test run once the suite finishes.
-  * Semantic diffs will now be displayed side-by-side if terminal width allows. If you would prefer to always see diffs stacked, you can use the `diff_style: :stacked` option; see the "Configuration" section of the `Mneme` module doc for more.
+  * Auto-assertion prompts can now be skipped (`s`) in addition to accepted (`y`) or rejected (`n`). This allows the test clause to continue so that later assertions might be run, but fails the test run once the suite finishes.
+  * Updated formatting for semantic diffs:
+    * Diffs will be displayed side-by-side if terminal width allows. To always display diffs stacked, use the `diff_style: :stacked` option; see the "Configuration" section of the `Mneme` module doc for more.
+    * Both `:stacked` and `:side_by_side` diffs have updated, more consistent formatting.
+
+### Fixes
+
+  * Don't overwrite test files if their content changes after starting the test run ([#23](https://github.com/zachallaun/mneme/issues/23)).
+  * Fix a crash that occurred when a value contained nested strings with newlines, e.g. `{:ok, "hello\nworld"}` ([#25](https://github.com/zachallaun/mneme/issues/25)).
+  * The `j/k` options will no longer be rendered when prompting if there is only a single pattern option.
 
 ## v0.2.4, v0.2.5 (2023-03-25)
 
