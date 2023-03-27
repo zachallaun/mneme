@@ -1,5 +1,9 @@
 # /ni:mi:/ - Snapshot testing for Elixir ExUnit
 
+https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4
+
+##
+
 <!-- MDOC !-->
 
 [![Hex.pm](https://img.shields.io/hexpm/v/mneme.svg)](https://hex.pm/packages/mneme)
