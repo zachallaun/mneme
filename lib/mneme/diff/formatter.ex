@@ -249,9 +249,6 @@ defmodule Mneme.Diff.Formatter do
     end)
   end
 
-  # HACK: meta in args haven't been converted to maps, so we do it here
-  defp bounds({_, list, _} = node) when is_list(list), do: node |> bounds()
-
   defp bounds({:%, %{line: l, column: c}, [_, map_node]}) do
     {_, end_bound} = map_node |> bounds()
     {{l, c}, end_bound}
@@ -344,10 +341,17 @@ defmodule Mneme.Diff.Formatter do
     raise ArgumentError, "bounds unimplemented for: #{inspect(sigil)}"
   end
 
-  defp bounds({call, _, args}) when is_atom(call) and is_list(args) do
+  defp bounds({:__block__, _, args}) do
     [first | _] = args
     last = List.last(args)
     bounds({first, last})
+  end
+
+  defp bounds({call, %{line: l, column: c}, args}) when is_atom(call) and is_list(args) do
+    [first | _] = args
+    last = List.last(args)
+    {start_bound, end_bound} = bounds({first, last})
+    {min(start_bound, {l, c}), end_bound}
   end
 
   defp bounds({left, right}) do

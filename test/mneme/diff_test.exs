@@ -563,6 +563,29 @@ defmodule Mneme.DiffTest do
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
+    test "formats ex_unit targets" do
+      auto_assert {[
+                     [
+                       %Tag{data: "auto_assert pid when is_pid(pid) <- self()", sequences: [:red]}
+                     ],
+                     []
+                   ],
+                   [
+                     [%Tag{data: "assert pid = self()", sequences: [:green]}],
+                     [%Tag{data: "assert is_pid(pid)", sequences: [:green]}],
+                     []
+                   ]} <-
+                    format(
+                      """
+                      auto_assert pid when is_pid(pid) <- self()
+                      """,
+                      """
+                      assert pid = self()
+                      assert is_pid(pid)
+                      """
+                    )
+    end
+
     # TODO: This could possibly be improved.
     test "regression: unnecessary novel nodes" do
       auto_assert {[
