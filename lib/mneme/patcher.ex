@@ -121,7 +121,6 @@ defmodule Mneme.Patcher do
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
-    # Hack: String serialization fix
     # Sourceror's AST is richer than the one we get back from a macro call.
     # String literals are in a :__block__ tuple and include a delimiter;
     # we use this information when formatting to ensure that the same
@@ -131,18 +130,19 @@ defmodule Mneme.Patcher do
       |> Map.put(:code, Zipper.node(zipper))
       |> Assertion.regenerate_code(opts.target, opts.default_pattern)
 
+    code = escape_strings(assertion.code)
+
     ast =
       zipper
-      |> zipper_update_with_meta(assertion.code)
+      |> Zipper.update(fn _ -> code end)
       |> Zipper.root()
-      |> escape_newlines()
 
     source =
       source
       |> Source.update(:mneme, ast: ast)
       |> Source.put_private(:diff, %{
         left: zipper |> Zipper.node() |> format_node(),
-        right: assertion.code |> format_node()
+        right: code |> format_node()
       })
 
     {source, assertion}
@@ -154,34 +154,28 @@ defmodule Mneme.Patcher do
     |> Source.code()
   end
 
-  defp zipper_update_with_meta(zipper, {:__block__, _, [{call1, _, args1}, {call2, _, args2}]}) do
-    {_, meta, _} = Zipper.node(zipper)
-    call1_meta = Keyword.put(meta, :end_of_expression, newlines: 1)
-
-    zipper
-    |> Zipper.insert_left({call1, call1_meta, args1})
-    |> Zipper.insert_left({call2, meta, args2})
-    |> Zipper.remove()
+  def escape_strings(code) when is_list(code) do
+    Enum.map(code, &escape_strings/1)
   end
 
-  defp zipper_update_with_meta(zipper, {call, _, args}) do
-    Zipper.update(zipper, fn {_, meta, _} -> {call, meta, args} end)
-  end
-
-  defp escape_newlines(code) when is_list(code) do
-    Enum.map(code, &escape_newlines/1)
-  end
-
-  defp escape_newlines(code) do
+  def escape_strings(code) do
     Sourceror.prewalk(code, fn
       {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
         case meta[:delimiter] do
-          "\"" -> {{:__block__, meta, [String.replace(string, "\n", "\\n")]}, state}
+          "\"" -> {{:__block__, meta, [escape_string(string)]}, state}
           _ -> {quoted, state}
         end
 
       quoted, state ->
         {quoted, state}
     end)
+  end
+
+  defp escape_string(string) when is_binary(string) do
+    string
+    |> String.replace("\n", "\\n")
+    |> String.replace("\#{", "\\\#{")
+
+    # |> String.replace("\"", "\\\"")
   end
 end

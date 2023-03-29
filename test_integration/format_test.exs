@@ -26,4 +26,22 @@ defmodule Mneme.Integration.FormatTest do
                    """} <- {:ok, "foo\nbar"}
     end
   end
+
+  describe "escaped characters" do
+    @mneme default_pattern: :last
+    test "should correctly escape quotes and interpolations" do
+      res =
+        {:ok,
+         %{
+           database: {:literal, "\"my_app_test\#{System.get_env(\"MIX_TEST_PARTITION\")}\""}
+         }}
+
+      # y
+      auto_assert {:ok,
+                   %{
+                     database:
+                       {:literal, "\"my_app_test\#{System.get_env(\"MIX_TEST_PARTITION\")}\""}
+                   }} <- res
+    end
+  end
 end
