@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased (2023-03-29)
+
+### Fixes
+
+  * Fix a crash related to escaped string interpolation characters ([#29](https://github.com/zachallaun/mneme/issues/29)).
+
 ## v0.2.6 (2023-03-27)
 
 ### Enhancements
