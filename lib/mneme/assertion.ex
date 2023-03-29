@@ -285,8 +285,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:ex_unit, :match, code, expr, nil) do
-    {:assert, meta(code),
-     [{:=, meta(value_expr(code)), [normalize_heredoc(expr), value_expr(code)]}]}
+    {:assert, meta(code), [{:=, meta(value_expr(code)), [unescape(expr), value_expr(code)]}]}
   end
 
   defp build_call(:ex_unit, :match, code, expr, guard) do
@@ -328,11 +327,11 @@ defmodule Mneme.Assertion do
   end
 
   defp assert_compare(expr) do
-    {:assert, [], [{:==, [], [normalized_expect_expr(expr), Macro.var(:value, :mneme)]}]}
+    {:assert, [], [{:==, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
   end
 
   defp assert_match(expr) do
-    {:assert, [], [{:=, [], [normalized_expect_expr(expr), Macro.var(:value, :mneme)]}]}
+    {:assert, [], [{:=, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
   end
 
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
@@ -341,44 +340,12 @@ defmodule Mneme.Assertion do
   defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
   defp value_expr({_, _, [value_expr]}), do: value_expr
 
-  defp normalized_expect_expr(expect_expr) do
-    expect_expr |> normalize_heredoc() |> unescape_strings()
-  end
-
-  # Allows us to format multiline strings as heredocs when they don't
-  # end with a newline, e.g.
-  #
-  #     """
-  #     some
-  #     thing\
-  #     """
-  #
-  # In order to format correctly, the heredoc must end with "\\\n", but
-  # but when that content is re-parsed, the backslash and newline are
-  # not present in the string. Unless we remove it prior to running an
-  # ExUnit assertion, the assertion will fail, but then succeed the next
-  # time the test is run.
-  defp normalize_heredoc(expr) do
-    Sourceror.prewalk(expr, fn
-      {:__block__, meta, [string]} = expr, state when is_binary(string) ->
-        expr =
-          if meta[:delimiter] == ~S(""") do
-            {:__block__, meta, [String.trim_trailing(string, "\\\n")]}
-          else
-            expr
-          end
-
-        {expr, state}
-
-      quoted, state ->
-        {quoted, state}
-    end)
-  end
+  defp unescape(expect_expr), do: unescape_strings(expect_expr)
 
   defp unescape_strings(expr) do
     Sourceror.prewalk(expr, fn
       {:__block__, meta, [string]}, state when is_binary(string) ->
-        {{:__block__, meta, [String.replace(string, "\\\\", "\\")]}, state}
+        {{:__block__, meta, [Macro.unescape_string(string)]}, state}
 
       quoted, state ->
         {quoted, state}
