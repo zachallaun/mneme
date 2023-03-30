@@ -6,6 +6,11 @@ defmodule Mneme.DiffTest do
   alias Owl.Tag, warn: false
 
   describe "format/2" do
+    test "formats insertions/deletions from nothing" do
+      auto_assert {[[]], [[%Tag{data: "123", sequences: [:green]}]]} <- format("", "123")
+      auto_assert {[[%Tag{data: "123", sequences: [:red]}]], [[]]} <- format("123", "")
+    end
+
     test "formats list insertions" do
       auto_assert {nil,
                    [
@@ -92,6 +97,9 @@ defmodule Mneme.DiffTest do
       auto_assert {[["[", %Tag{data: "\"foo\"", sequences: [:red]}, "]"]],
                    [["[", %Tag{data: "\"bar\"", sequences: [:green]}, "]"]]} <-
                     format(~s(["foo"]), ~s(["bar"]))
+
+      auto_assert {nil, [["[", %Tag{data: "\"\\\"foo\\\"\"", sequences: [:green]}, "]"]]} <-
+                    format("[]", ~s(["\\\"foo\\\""]))
     end
 
     test "formats strings using myers diff when they are similar" do
@@ -733,6 +741,12 @@ defmodule Mneme.DiffTest do
       ])
 
       {left, right}
+    end
+
+    def dbg_format!(left, right) do
+      IEx.break!(Mneme.Diff, :compute, 2)
+      IEx.break!(Mneme.Diff.Formatter, :highlight_lines, 2)
+      format(left, right)
     end
 
     defp format(left, right) do

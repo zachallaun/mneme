@@ -10,12 +10,11 @@ defmodule Mneme.Diff.Formatter do
   """
   def highlight_lines(code, instructions) do
     lines = code |> Owl.Data.lines() |> Enum.reverse()
-    [last_line | rest] = lines
+    [last_line | earlier_lines] = lines
+    hl_instructions = denormalize_all(instructions)
+    highlighted = highlight(hl_instructions, length(lines), last_line, earlier_lines)
 
-    instructions
-    |> denormalize_all()
-    |> highlight(length(lines), last_line, rest)
-    |> Enum.map(fn
+    Enum.map(highlighted, fn
       list when is_list(list) ->
         Enum.filter(list, &(Owl.Data.length(&1) > 0))
 
@@ -116,7 +115,11 @@ defmodule Mneme.Diff.Formatter do
   defp denormalize(:node, _op, [], _zipper), do: []
 
   defp denormalize(:node, op, node, _zipper) do
-    [{op, bounds(node)}]
+    if bounds = bounds(node) do
+      [{op, bounds}]
+    else
+      []
+    end
   end
 
   defp denormalize(:delimiter, _op, {:%, _, _}, _), do: []
@@ -341,11 +344,8 @@ defmodule Mneme.Diff.Formatter do
     raise ArgumentError, "bounds unimplemented for: #{inspect(sigil)}"
   end
 
-  defp bounds({:__block__, _, args}) do
-    [first | _] = args
-    last = List.last(args)
-    bounds({first, last})
-  end
+  defp bounds({:__block__, _, []}), do: nil
+  defp bounds({:__block__, _, args}), do: bounds(args)
 
   defp bounds({call, %{line: l, column: c}, args}) when is_atom(call) and is_list(args) do
     [first | _] = args
