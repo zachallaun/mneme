@@ -82,7 +82,7 @@ defmodule Mneme.Server do
   @impl true
   def handle_call({:register_assertion, assertion}, from, state) do
     state =
-      case assertion.type do
+      case assertion.stage do
         :new -> Map.update!(state, :to_patch, &[{assertion, from} | &1])
         :update -> Map.update!(state, :to_register, &[{assertion, from} | &1])
       end

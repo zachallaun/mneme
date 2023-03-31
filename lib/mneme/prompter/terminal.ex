@@ -218,9 +218,9 @@ defmodule Mneme.Prompter.Terminal do
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp format_header(%Assertion{type: type, test: test, module: module} = assertion) do
+  defp format_header(%Assertion{stage: stage, test: test, module: module} = assertion) do
     [
-      format_type(type),
+      format_stage(stage),
       tag([" ", @bullet_char, " "], :faint),
       to_string(test),
       " (",
@@ -236,8 +236,8 @@ defmodule Mneme.Prompter.Terminal do
     tag([path, ":", to_string(line)], :faint)
   end
 
-  defp format_type(:new), do: tag("[Mneme] New", :cyan)
-  defp format_type(:update), do: tag("[Mneme] Changed", :yellow)
+  defp format_stage(:new), do: tag("[Mneme] New", :cyan)
+  defp format_stage(:update), do: tag("[Mneme] Changed", :yellow)
 
   defp format_notes([]), do: []
 
@@ -252,12 +252,12 @@ defmodule Mneme.Prompter.Terminal do
     |> tag(:faint)
   end
 
-  defp format_input(%{type: type} = assertion) do
+  defp format_input(%{stage: stage} = assertion) do
     nav = Assertion.pattern_index(assertion)
 
     [
       "\n",
-      format_explanation(type),
+      format_explanation(stage),
       "\n",
       tag("> ", :faint),
       "\n",

@@ -5,7 +5,7 @@ defmodule Mneme.Assertion do
   alias Mneme.Assertion.Builder
 
   defstruct [
-    :type,
+    :stage,
     :value,
     :code,
     :eval,
@@ -45,7 +45,7 @@ defmodule Mneme.Assertion do
 
     eval_binding = [{{:value, :mneme}, value} | binding]
 
-    case assertion.type do
+    case assertion.stage do
       :new ->
         run_patch!(assertion, eval_binding, env)
 
@@ -104,7 +104,7 @@ defmodule Mneme.Assertion do
   @doc false
   def new(code, value, context) do
     %Assertion{
-      type: get_type(code),
+      stage: get_stage(code),
       value: value,
       code: code,
       eval: code_for_eval(code, value),
@@ -117,8 +117,8 @@ defmodule Mneme.Assertion do
     }
   end
 
-  defp get_type({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
-  defp get_type(_code), do: :new
+  defp get_stage({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
+  defp get_stage(_code), do: :new
 
   @doc """
   Regenerate assertion code for the given target.
@@ -153,11 +153,11 @@ defmodule Mneme.Assertion do
     {prev, [pattern]}
   end
 
-  defp build_and_select_pattern(%{type: :new} = assertion, :infer) do
+  defp build_and_select_pattern(%{stage: :new} = assertion, :infer) do
     build_and_select_pattern(assertion, :first)
   end
 
-  defp build_and_select_pattern(%{type: :update, value: value, code: code} = assertion, :infer) do
+  defp build_and_select_pattern(%{stage: :update, value: value, code: code} = assertion, :infer) do
     [expr, guard] =
       case code do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]

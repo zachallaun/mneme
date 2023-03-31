@@ -69,7 +69,7 @@ defmodule Mneme.Prompter.TerminalTest do
     end
 
     test "changed assertion" do
-      assertion = Map.put(mock_assertion(), :type, :update)
+      assertion = Map.put(mock_assertion(), :stage, :update)
 
       auto_assert """
                   [Mneme] Changed ● example test (ExampleTest)
@@ -102,7 +102,7 @@ defmodule Mneme.Prompter.TerminalTest do
 
   defp mock_assertion do
     %Mneme.Assertion{
-      type: :new,
+      stage: :new,
       file: "example_test.ex",
       line: 1,
       module: ExampleTest,
