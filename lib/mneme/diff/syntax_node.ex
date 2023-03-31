@@ -49,11 +49,14 @@ defmodule Mneme.Diff.SyntaxNode do
       n_descendants: n_descendants(ast),
       form: form,
       branch?: Zipper.branch?(ast),
-      binary_op?: Macro.operator?(form, 2),
+      binary_op?: binary_op?(form),
       null?: !zipper,
       terminal?: !zipper && terminal_parent?(parent)
     }
   end
+
+  defp binary_op?(form) when is_atom(form), do: Macro.operator?(form, 2)
+  defp binary_op?(_), do: false
 
   defp form({{:., _, _}, _, _}), do: :.
   defp form({atom, _, _}) when is_atom(atom), do: atom
