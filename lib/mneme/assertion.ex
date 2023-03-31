@@ -14,9 +14,9 @@ defmodule Mneme.Assertion do
     :module,
     :test,
     :patterns,
+    :pattern_idx,
     aliases: [],
-    binding: [],
-    prev_patterns: []
+    binding: []
   ]
 
   @doc """
@@ -126,12 +126,12 @@ defmodule Mneme.Assertion do
   def regenerate_code(assertion, target, default_pattern \\ :infer)
 
   def regenerate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
-    {prev_patterns, patterns} = build_and_select_pattern(assertion, default_pattern)
+    {patterns, pattern_idx} = build_and_select_pattern(assertion, default_pattern)
 
     assertion
     |> Map.merge(%{
       patterns: patterns,
-      prev_patterns: prev_patterns
+      pattern_idx: pattern_idx
     })
     |> regenerate_code(target)
   end
@@ -145,12 +145,12 @@ defmodule Mneme.Assertion do
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
-    {[], Builder.to_patterns(value, assertion)}
+    {Builder.to_patterns(value, assertion), 0}
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :last) do
-    [pattern | prev] = Builder.to_patterns(value, assertion) |> Enum.reverse()
-    {prev, [pattern]}
+    patterns = Builder.to_patterns(value, assertion)
+    {patterns, length(patterns) - 1}
   end
 
   defp build_and_select_pattern(%{stage: :new} = assertion, :infer) do
@@ -175,8 +175,8 @@ defmodule Mneme.Assertion do
         true
     end)
     |> case do
-      {patterns, []} -> {[], patterns}
-      {prev_reverse, patterns} -> {Enum.reverse(prev_reverse), patterns}
+      {patterns, []} -> {patterns, 0}
+      {patterns, selected} -> {patterns ++ selected, length(patterns)}
     end
   end
 
@@ -198,42 +198,40 @@ defmodule Mneme.Assertion do
   @doc """
   Select the previous pattern.
   """
-  def prev(%Assertion{prev_patterns: [prev | rest], patterns: patterns} = assertion, target) do
-    %{assertion | prev_patterns: rest, patterns: [prev | patterns]}
+  def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion, target) do
+    %{assertion | pattern_idx: length(ps) - 1}
     |> regenerate_code(target)
   end
 
-  def prev(%Assertion{prev_patterns: [], patterns: patterns} = assertion, target) do
-    [pattern | new_prev] = Enum.reverse(patterns)
-
-    %{assertion | prev_patterns: new_prev, patterns: [pattern]}
+  def prev(%Assertion{pattern_idx: idx} = assertion, target) do
+    %{assertion | pattern_idx: idx - 1}
     |> regenerate_code(target)
   end
 
   @doc """
   Select the next pattern.
   """
-  def next(%Assertion{prev_patterns: prev, patterns: [current]} = assertion, target) do
-    %{assertion | prev_patterns: [], patterns: Enum.reverse(prev) ++ [current]}
-    |> regenerate_code(target)
-  end
-
-  def next(%Assertion{prev_patterns: prev, patterns: [current | rest]} = assertion, target) do
-    %{assertion | prev_patterns: [current | prev], patterns: rest}
+  def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion, target) do
+    %{assertion | pattern_idx: rem(idx + 1, length(ps))}
     |> regenerate_code(target)
   end
 
   @doc """
   Returns a tuple of `{current_index, count}` of all patterns for this assertion.
   """
-  def pattern_index(%Assertion{prev_patterns: prev, patterns: patterns}) do
-    {length(prev), length(prev) + length(patterns)}
+  def pattern_index(%Assertion{pattern_idx: idx, patterns: patterns}) do
+    {idx, length(patterns)}
   end
+
+  @doc """
+  Returns the currently selected pattern.
+  """
+  def pattern(%Assertion{pattern_idx: idx, patterns: patterns}), do: Enum.at(patterns, idx)
 
   @doc """
   Returns any notes associated with the current pattern.
   """
-  def notes(%Assertion{patterns: [{_, _, notes} | _]}), do: notes
+  def notes(%Assertion{} = assertion), do: assertion |> pattern() |> elem(2)
 
   @doc """
   Check whether the assertion struct represents the given AST node.
@@ -248,12 +246,14 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{code: code, value: falsy, patterns: [{expr, nil, _} | _]}, target)
+  def to_code(%Assertion{code: code, value: falsy} = assertion, target)
       when falsy in [nil, false] do
+    {expr, nil, _} = pattern(assertion)
     build_call(target, :compare, code, block_with_line(expr, meta(code)), nil)
   end
 
-  def to_code(%Assertion{code: code, patterns: [{expr, guard, _} | _]}, target) do
+  def to_code(%Assertion{code: code} = assertion, target) do
+    {expr, guard, _} = pattern(assertion)
     build_call(target, :match, code, block_with_line(expr, meta(code)), guard)
   end
 

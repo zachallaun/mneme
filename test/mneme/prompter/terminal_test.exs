@@ -107,6 +107,7 @@ defmodule Mneme.Prompter.TerminalTest do
       line: 1,
       module: ExampleTest,
       test: :"example test",
+      pattern_idx: 0,
       patterns: [{nil, nil, []}]
     }
   end
