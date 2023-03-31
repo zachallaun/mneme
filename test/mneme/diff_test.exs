@@ -509,6 +509,38 @@ defmodule Mneme.DiffTest do
       auto_assert {[["x ", %Tag{data: "+", sequences: [:red]}, " y"]],
                    [["x ", %Tag{data: "-", sequences: [:green]}, " y"]]} <-
                     format("x + y", "x - y")
+
+      auto_assert {[
+                     [
+                       %Tag{data: "1", sequences: [:red]},
+                       " + ",
+                       %Tag{data: "2", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "2", sequences: [:green]},
+                       " + ",
+                       %Tag{data: "1", sequences: [:green]}
+                     ]
+                   ]} <- format("1 + 2", "2 + 1")
+
+      auto_assert {[
+                     [
+                       "1 ",
+                       %Tag{data: "+", sequences: [:red]},
+                       " ",
+                       %Tag{data: "2", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "2", sequences: [:green]},
+                       " ",
+                       %Tag{data: "-", sequences: [:green]},
+                       " 1"
+                     ]
+                   ]} <- format("1 + 2", "2 - 1")
     end
 
     test "formats pins" do

@@ -275,10 +275,12 @@ defmodule Mneme.Diff do
 
   defp maybe_add_unchanged_branch(neighbors, _v), do: neighbors
 
-  defp add_novel_edges(neighbors, {left, right, _} = v) do
-    with {:string, _, s1} <- SyntaxNode.ast(left),
-         {:string, _, s2} <- SyntaxNode.ast(right),
-         dist when dist > 0.5 <- String.bag_distance(s1, s2) do
+  # When both nodes are strings, we may want to include a Myers edit script
+  defp add_novel_edges(neighbors, {%{form: :string} = left, %{form: :string} = right, _} = v) do
+    {:string, _, s1} = SyntaxNode.ast(left)
+    {:string, _, s2} = SyntaxNode.ast(right)
+
+    if String.bag_distance(s1, s2) > 0.5 do
       {left_edit, right_edit} = myers_edit_scripts(s1, s2)
       left_delta = Delta.novel(:node, :left, left, left_edit)
       right_delta = Delta.novel(:node, :right, right, right_edit)
@@ -291,11 +293,32 @@ defmodule Mneme.Diff do
 
       add_edge(neighbors, v, v2)
     else
-      _ ->
-        neighbors
-        |> add_novel_left(v)
-        |> add_novel_right(v)
+      neighbors
+      |> add_novel_left(v)
+      |> add_novel_right(v)
     end
+  end
+
+  # When the parent is an unchanged binary operation, mark both nodes as
+  # novel together to avoid arguments "sliding", e.g. `2 + 1` and `1 + 2`
+  defp add_novel_edges(
+         neighbors,
+         {%{parent: {_, %{binary_op?: true}}} = left, right,
+          %Delta{type: :unchanged, kind: :branch}} = v
+       ) do
+    v2 = {
+      SyntaxNode.next_sibling(left),
+      SyntaxNode.next_sibling(right),
+      [Delta.novel(:node, :left, left), Delta.novel(:node, :right, right)]
+    }
+
+    add_edge(neighbors, v, v2)
+  end
+
+  defp add_novel_edges(neighbors, v) do
+    neighbors
+    |> add_novel_left(v)
+    |> add_novel_right(v)
   end
 
   defp add_novel_left(neighbors, {left, %{null?: true} = right, _} = v) do

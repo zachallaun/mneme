@@ -18,6 +18,7 @@ defmodule Mneme.Diff.SyntaxNode do
     :n_descendants,
     :form,
     :branch?,
+    :binary_op?,
     :null?,
     :terminal?
   ]
@@ -30,6 +31,7 @@ defmodule Mneme.Diff.SyntaxNode do
           n_descendants: integer(),
           form: any(),
           branch?: boolean(),
+          binary_op?: boolean(),
           null?: boolean(),
           terminal?: boolean()
         }
@@ -37,6 +39,7 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc false
   def new(zipper, parent \\ nil) do
     ast = Zipper.node(zipper)
+    form = form(ast)
 
     %SyntaxNode{
       zipper: zipper,
@@ -44,8 +47,9 @@ defmodule Mneme.Diff.SyntaxNode do
       id: id(zipper),
       hash: hash(ast),
       n_descendants: n_descendants(ast),
-      form: form(ast),
+      form: form,
       branch?: Zipper.branch?(ast),
+      binary_op?: Macro.operator?(form, 2),
       null?: !zipper,
       terminal?: !zipper && terminal_parent?(parent)
     }
@@ -245,9 +249,8 @@ defmodule Mneme.Diff.SyntaxNode do
   Returns true if both nodes have the same content, despite location in
   the ast.
   """
-  def similar?(%SyntaxNode{} = left, %SyntaxNode{} = right) do
-    !left.null? && !right.null? && left.hash == right.hash
-  end
+  def similar?(%SyntaxNode{null?: false, hash: h}, %SyntaxNode{null?: false, hash: h}), do: true
+  def similar?(_, _), do: false
 
   @doc """
   Returns true if both branches have similar delimiters.
