@@ -37,7 +37,7 @@ defmodule Mneme.Diff do
   #
 
   alias Mneme.Diff.AST
-  alias Mneme.Diff.Edge
+  alias Mneme.Diff.Delta
   alias Mneme.Diff.Formatter
   alias Mneme.Diff.Pathfinding
   alias Mneme.Diff.SyntaxNode
@@ -84,8 +84,8 @@ defmodule Mneme.Diff do
     {deletions, insertions}
   end
 
-  defp to_instructions(novel_edges, ins_kind) when ins_kind in [:ins, :del] do
-    novel_edges
+  defp to_instructions(novel_deltas, ins_kind) when ins_kind in [:ins, :del] do
+    novel_deltas
     |> coalesce()
     |> Enum.map(fn
       {kind, node} -> {ins_kind, kind, node.zipper}
@@ -94,13 +94,13 @@ defmodule Mneme.Diff do
   end
 
   @doc false
-  def summarize_path(path), do: Enum.map(path, &summarize_edge/1)
+  def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
 
-  defp summarize_edge(%Edge{type: type, kind: :node, side: side, node: node}) do
+  defp summarize_delta(%Delta{type: type, kind: :node, side: side, node: node}) do
     {type, side, :node, summarize_node(node)}
   end
 
-  defp summarize_edge(%Edge{type: type, kind: :branch, side: side, node: node}) do
+  defp summarize_delta(%Delta{type: type, kind: :branch, side: side, node: node}) do
     ast =
       case SyntaxNode.ast(node) do
         {{:., _, _}, _, _} -> {{:., [], "..."}, [], "..."}
@@ -112,7 +112,7 @@ defmodule Mneme.Diff do
     {type, side, :branch, ast}
   end
 
-  defp summarize_edge(nil), do: nil
+  defp summarize_delta(nil), do: nil
 
   defp summarize_node(%SyntaxNode{terminal?: true}), do: "TERMINAL"
   defp summarize_node(%SyntaxNode{null?: true}), do: "NULL"
@@ -144,31 +144,31 @@ defmodule Mneme.Diff do
     {Enum.map(path, &elem(&1, 2)), meta}
   end
 
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, edge}) do
-    {l_id, r_id, edge_id(edge)}
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do
+    {l_id, r_id, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, edge}) do
-    {l_id, r_id, entry, edge_id(edge)}
+  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, delta}) do
+    {l_id, r_id, entry, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, edge}) do
-    {l_id, r_id, entry, edge_id(edge)}
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, delta}) do
+    {l_id, r_id, entry, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, edge}) do
-    {l_id, r_id, e1, e2, edge_id(edge)}
+  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, delta}) do
+    {l_id, r_id, e1, e2, delta_id(delta)}
   end
 
-  defp edge_id(nil), do: nil
-  defp edge_id({e1, e2}), do: {e1.type, e1.node.id, e2.type, e2.node.id}
-  defp edge_id(e), do: {e.type, e.node.id}
+  defp delta_id(nil), do: nil
+  defp delta_id(list) when is_list(list), do: Enum.map(list, &delta_id/1)
+  defp delta_id(d), do: {d.type, d.node.id}
 
   defp split_novels(path) do
     path
     |> Stream.flat_map(fn
-      {left, right} -> [left, right]
-      %Edge{type: :novel} = edge -> [edge]
+      [left, right] -> [left, right]
+      %Delta{type: :novel} = delta -> [delta]
       _ -> []
     end)
     |> Enum.group_by(& &1.side)
@@ -180,15 +180,15 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp coalesce(novel_edges) do
+  defp coalesce(novel_deltas) do
     novel_node_ids =
-      for %{kind: :node, node: node} <- novel_edges do
+      for %{kind: :node, node: node} <- novel_deltas do
         node.id
       end
       |> MapSet.new()
 
     novel_ids =
-      for %{kind: :branch, node: branch} <- Enum.reverse(novel_edges),
+      for %{kind: :branch, node: branch} <- Enum.reverse(novel_deltas),
           reduce: novel_node_ids do
         ids ->
           if all_child_ids_in?(branch, ids) do
@@ -198,7 +198,7 @@ defmodule Mneme.Diff do
           end
       end
 
-    Enum.flat_map(novel_edges, fn %{kind: kind, node: node, edit_script: edit_script} ->
+    Enum.flat_map(novel_deltas, fn %{kind: kind, node: node, edit_script: edit_script} ->
       branch? = kind == :branch
       parent = SyntaxNode.parent(node)
 
@@ -229,7 +229,7 @@ defmodule Mneme.Diff do
 
   defp neighbors({l, r, e} = v) do
     if debug?("verbose") do
-      debug_inspect(summarize_edge(e), "e")
+      debug_inspect(summarize_delta(e), "e")
       debug_inspect(summarize_node(l), "l")
       debug_inspect(summarize_node(r), "r")
       IO.puts("")
@@ -252,8 +252,8 @@ defmodule Mneme.Diff do
   end
 
   defp add_unchanged_node(neighbors, {left, right, _} = v) do
-    edge = Edge.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), edge})
+    delta = Delta.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
   end
 
   defp maybe_add_unchanged_branch(
@@ -261,8 +261,11 @@ defmodule Mneme.Diff do
          {%{branch?: true} = left, %{branch?: true} = right, _} = v
        ) do
     if SyntaxNode.similar_branch?(left, right) do
-      edge = Edge.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
-      v2 = {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), edge}
+      delta =
+        Delta.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+
+      v2 =
+        {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), delta}
 
       add_edge(neighbors, v, v2)
     else
@@ -277,13 +280,13 @@ defmodule Mneme.Diff do
          {:string, _, s2} <- SyntaxNode.ast(right),
          dist when dist > 0.5 <- String.bag_distance(s1, s2) do
       {left_edit, right_edit} = myers_edit_scripts(s1, s2)
-      left_edge = Edge.novel(:node, :left, left, left_edit)
-      right_edge = Edge.novel(:node, :right, right, right_edit)
+      left_delta = Delta.novel(:node, :left, left, left_edit)
+      right_delta = Delta.novel(:node, :right, right, right_edit)
 
       v2 = {
         SyntaxNode.next_sibling(left),
         SyntaxNode.next_sibling(right),
-        {left_edge, right_edge}
+        [left_delta, right_delta]
       }
 
       add_edge(neighbors, v, v2)
@@ -297,43 +300,43 @@ defmodule Mneme.Diff do
 
   defp add_novel_left(neighbors, {left, %{null?: true} = right, _} = v) do
     neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.novel(:node, :left, left)})
   end
 
   defp add_novel_left(neighbors, {%{branch?: true} = left, right, _} = v) do
     neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
-    |> add_edge(v, {SyntaxNode.next_child(left), right, Edge.novel(:branch, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.novel(:node, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_child(left), right, Delta.novel(:branch, :left, left)})
   end
 
   defp add_novel_left(neighbors, {%{branch?: false} = left, right, _} = v) do
     neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Edge.novel(:node, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.novel(:node, :left, left)})
   end
 
   defp add_novel_right(neighbors, {%{null?: true} = left, right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.novel(:node, :right, right)})
   end
 
   defp add_novel_right(neighbors, {left, %{branch?: true} = right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
-    |> add_edge(v, {left, SyntaxNode.next_child(right), Edge.novel(:branch, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.novel(:node, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.novel(:branch, :right, right)})
   end
 
   defp add_novel_right(neighbors, {left, %{branch?: false} = right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Edge.novel(:node, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.novel(:node, :right, right)})
   end
 
-  defp add_edge(neighbors, _v1, {left, right, edge}) do
+  defp add_edge(neighbors, _v1, {left, right, delta}) do
     {left, right} = SyntaxNode.pop(left, right)
-    [{{left, right, edge}, edge_cost(edge)} | neighbors]
+    [{{left, right, delta}, delta_cost(delta)} | neighbors]
   end
 
-  defp edge_cost(%Edge{} = edge), do: Edge.cost(edge)
-  defp edge_cost({left, right}), do: Edge.cost(left) + Edge.cost(right)
+  defp delta_cost(%Delta{} = delta), do: Delta.cost(delta)
+  defp delta_cost(list) when is_list(list), do: list |> Enum.map(&Delta.cost/1) |> Enum.sum()
 
   defp myers_edit_scripts(s1, s2) do
     String.myers_difference(s1, s2)
