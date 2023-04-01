@@ -13,13 +13,12 @@ defmodule Mneme.Assertion do
           binding: list()
         }
 
-  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes: [String.t()]}
+  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
 
   @type t :: %Assertion{
           stage: :new | :update,
           value: term(),
           code: Macro.t(),
-          eval: Macro.t(),
           patterns: [pattern],
           pattern_idx: non_neg_integer(),
           context: context
@@ -29,7 +28,6 @@ defmodule Mneme.Assertion do
     :stage,
     :value,
     :code,
-    :eval,
     :patterns,
     :pattern_idx,
     :context
@@ -69,7 +67,7 @@ defmodule Mneme.Assertion do
         {:ok, assertion} = Mneme.Server.register_assertion(assertion)
 
         try do
-          Code.eval_quoted(assertion.eval, eval_binding, env)
+          eval(assertion, eval_binding, env)
         rescue
           error in [ExUnit.AssertionError] ->
             run_patch!(assertion, eval_binding, env, error)
@@ -82,7 +80,7 @@ defmodule Mneme.Assertion do
   defp run_patch!(assertion, eval_binding, env, error \\ nil) do
     case Mneme.Server.patch_assertion(assertion) do
       {:ok, assertion} ->
-        Code.eval_quoted(assertion.eval, eval_binding, env)
+        eval(assertion, eval_binding, env)
 
       {:error, :skip} ->
         :ok
@@ -123,7 +121,6 @@ defmodule Mneme.Assertion do
       stage: get_stage(code),
       value: value,
       code: code,
-      eval: code_for_eval(code, value),
       context: Map.new(context)
     }
   end
@@ -148,11 +145,7 @@ defmodule Mneme.Assertion do
   end
 
   def regenerate_code(%Assertion{} = assertion, target, _) do
-    new_code = to_code(assertion, target)
-
-    assertion
-    |> Map.put(:code, new_code)
-    |> Map.put(:eval, code_for_eval(new_code, assertion.value))
+    %{assertion | code: to_code(assertion, target)}
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
@@ -311,13 +304,21 @@ defmodule Mneme.Assertion do
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
 
-  defp code_for_eval({:__block__, _, _} = code, _value), do: code
+  defp eval(assertion, binding, env) do
+    assertion
+    |> code_for_eval()
+    |> Code.eval_quoted(binding, env)
+  end
 
-  defp code_for_eval({_, _, [{:<-, _, [expected, _]}]}, falsy) when falsy in [false, nil] do
+  @doc false
+  def code_for_eval(%Assertion{code: {:__block__, _, _} = code}), do: code
+
+  def code_for_eval(%Assertion{code: {_, _, [{:<-, _, [expected, _]}]}, value: falsy})
+      when falsy in [false, nil] do
     assert_compare(expected)
   end
 
-  defp code_for_eval({_, _, [pattern]}, _value) do
+  def code_for_eval(%Assertion{code: {_, _, [pattern]}}) do
     case pattern do
       {match, _, [{:when, _, [expected, guard]}, _]} when match in [:<-, :=] ->
         quote do

@@ -65,7 +65,7 @@ defmodule Mneme.AssertionTest do
   end
 
   defp to_code_string(assertion, :eval) do
-    assertion.eval |> Sourceror.to_string(@format_opts)
+    assertion |> Assertion.code_for_eval() |> Sourceror.to_string(@format_opts)
   end
 
   defp to_code_string(assertion, target) do
