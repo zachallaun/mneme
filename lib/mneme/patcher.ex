@@ -73,7 +73,7 @@ defmodule Mneme.Patcher do
   Returns `{result, patch_state}`.
   """
   def patch!(%Project{} = project, assertion, opts, prompt_state \\ nil) do
-    project = load_file!(project, assertion.file)
+    project = load_file!(project, assertion.context.file)
     {source, assertion} = patch_assertion(project, assertion, opts)
 
     case prompt_change(source, assertion, opts, prompt_state) do
@@ -113,7 +113,7 @@ defmodule Mneme.Patcher do
   end
 
   defp patch_assertion(project, assertion, opts) do
-    source = Project.source!(project, assertion.file)
+    source = Project.source!(project, assertion.context.file)
 
     zipper =
       source

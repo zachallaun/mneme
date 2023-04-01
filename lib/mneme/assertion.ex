@@ -4,19 +4,35 @@ defmodule Mneme.Assertion do
   alias __MODULE__
   alias Mneme.Assertion.Builder
 
+  @type context :: %{
+          file: String.t(),
+          line: non_neg_integer(),
+          module: module(),
+          test: atom(),
+          aliases: list(),
+          binding: list()
+        }
+
+  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes: [String.t()]}
+
+  @type t :: %Assertion{
+          stage: :new | :update,
+          value: term(),
+          code: Macro.t(),
+          eval: Macro.t(),
+          patterns: [pattern],
+          pattern_idx: non_neg_integer(),
+          context: context
+        }
+
   defstruct [
     :stage,
     :value,
     :code,
     :eval,
-    :file,
-    :line,
-    :module,
-    :test,
     :patterns,
     :pattern_idx,
-    aliases: [],
-    binding: []
+    :context
   ]
 
   @doc """
@@ -83,8 +99,8 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp stacktrace_entry(assertion) do
-    {assertion.module, assertion.test, 1, [file: assertion.file, line: assertion.line]}
+  defp stacktrace_entry(%{context: context}) do
+    {context.module, context.test, 1, [file: context.file, line: context.line]}
   end
 
   defp assertion_context(caller) do
@@ -108,12 +124,7 @@ defmodule Mneme.Assertion do
       value: value,
       code: code,
       eval: code_for_eval(code, value),
-      file: context[:file],
-      line: context[:line],
-      module: context[:module],
-      test: context[:test],
-      aliases: context[:aliases] || [],
-      binding: context[:binding] || []
+      context: Map.new(context)
     }
   end
 
@@ -145,11 +156,11 @@ defmodule Mneme.Assertion do
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
-    {Builder.to_patterns(value, assertion), 0}
+    {Builder.to_patterns(value, assertion.context), 0}
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :last) do
-    patterns = Builder.to_patterns(value, assertion)
+    patterns = Builder.to_patterns(value, assertion.context)
     {patterns, length(patterns) - 1}
   end
 
@@ -166,7 +177,7 @@ defmodule Mneme.Assertion do
       end
       |> Enum.map(&simplify_expr/1)
 
-    Builder.to_patterns(value, assertion)
+    Builder.to_patterns(value, assertion.context)
     |> Enum.split_while(fn
       {pattern_expr, pattern_guard, _} ->
         !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
@@ -236,7 +247,7 @@ defmodule Mneme.Assertion do
   @doc """
   Check whether the assertion struct represents the given AST node.
   """
-  def same?(%Assertion{line: line}, node) do
+  def same?(%Assertion{context: %{line: line}}, node) do
     case node do
       {:auto_assert, meta, [_]} -> meta[:line] == line
       _ -> false

@@ -20,6 +20,7 @@ defmodule Mneme.Server do
 
   use GenServer
 
+  alias Mneme.Assertion
   alias Mneme.Options
   alias Mneme.Patcher
 
@@ -151,7 +152,7 @@ defmodule Mneme.Server do
   end
 
   defp do_patch_assertion(state, {assertion, from}) do
-    %{module: module, test: test} = assertion
+    %Assertion{context: %{module: module, test: test}} = assertion
     opts = state.opts[{module, test}]
 
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
@@ -167,7 +168,7 @@ defmodule Mneme.Server do
   end
 
   defp do_register_assertion(state, {assertion, from}) do
-    %{module: module, test: test} = assertion
+    %Assertion{context: %{module: module, test: test}} = assertion
     opts = state.opts[{module, test}]
 
     case opts.target do
@@ -191,7 +192,7 @@ defmodule Mneme.Server do
   defp pop_to_register(%{to_register: []}, _acc), do: nil
 
   defp pop_to_register(%{to_register: [next | rest]} = state, acc) do
-    {%{module: module, test: test}, _from} = next
+    {%Assertion{context: %{module: module, test: test}}, _from} = next
 
     if state.opts[{module, test}] do
       {next, %{state | to_register: acc ++ rest}}
@@ -205,7 +206,7 @@ defmodule Mneme.Server do
   defp pop_to_patch(%{to_patch: []}, _acc), do: nil
 
   defp pop_to_patch(%{to_patch: [next | rest]} = state, acc) do
-    {%{module: module, test: test}, _from} = next
+    {%Assertion{context: %{module: module, test: test}}, _from} = next
 
     if current_module?(state, module) && state.opts[{module, test}] do
       {next, %{state | to_patch: acc ++ rest}}

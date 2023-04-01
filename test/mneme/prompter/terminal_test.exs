@@ -103,12 +103,14 @@ defmodule Mneme.Prompter.TerminalTest do
   defp mock_assertion do
     %Mneme.Assertion{
       stage: :new,
-      file: "example_test.ex",
-      line: 1,
-      module: ExampleTest,
-      test: :"example test",
       pattern_idx: 0,
-      patterns: [{nil, nil, []}]
+      patterns: [{nil, nil, []}],
+      context: %{
+        file: "example_test.ex",
+        line: 1,
+        module: ExampleTest,
+        test: :"example test"
+      }
     }
   end
 

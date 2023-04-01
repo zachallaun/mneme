@@ -218,7 +218,9 @@ defmodule Mneme.Prompter.Terminal do
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp format_header(%Assertion{stage: stage, test: test, module: module} = assertion) do
+  defp format_header(assertion) do
+    %{stage: stage, context: %{module: module, test: test}} = assertion
+
     [
       format_stage(stage),
       tag([" ", @bullet_char, " "], :faint),
@@ -231,7 +233,7 @@ defmodule Mneme.Prompter.Terminal do
     ]
   end
 
-  defp format_file(%Assertion{file: file, line: line}) do
+  defp format_file(%Assertion{context: %{file: file, line: line}}) do
     path = Path.relative_to_cwd(file)
     tag([path, ":", to_string(line)], :faint)
   end
