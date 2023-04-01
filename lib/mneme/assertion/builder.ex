@@ -1,31 +1,12 @@
 defmodule Mneme.Assertion.Builder do
   @moduledoc false
 
-  @typedoc """
-  Represents a possible pattern that would match a runtime value.
-  """
-  @type pattern :: {match_expression, guard_expression, notes}
-
-  @type match_expression :: Macro.t()
-  @type guard_expression :: Macro.t() | nil
-  @type notes :: [binary()]
+  alias Mneme.Assertion
 
   @doc """
-  Converts `value` into an AST that could be used to match that value.
-
-  The second `context` argument is a map containing information about
-  the context in which the expressions will be evaluated. It contains:
-
-    * `:binding` - a keyword list of variables/values present in the
-      calling environment
-
-  Returns a list of possible matching patterns.
+  Builds pattern expressions from a runtime value.
   """
-  @callback to_patterns(value :: any(), context :: map()) :: [pattern, ...]
-
-  @doc """
-  Default implementation of `c:to_pattern`.
-  """
+  @spec to_patterns(term(), Assertion.context()) :: [Assertion.pattern(), ...]
   def to_patterns(value, context) do
     patterns = do_to_patterns(value, context)
 
