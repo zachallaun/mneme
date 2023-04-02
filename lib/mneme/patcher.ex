@@ -6,9 +6,13 @@ defmodule Mneme.Patcher do
   alias Rewrite.Project
   alias Rewrite.Source
 
+  @type state :: Project.t()
+  @type source :: Source.t()
+
   @doc """
   Initialize patch state.
   """
+  @spec init() :: state
   def init do
     Rewrite.Project.from_sources([])
   end
@@ -16,10 +20,11 @@ defmodule Mneme.Patcher do
   @doc """
   Load and cache and source and AST required by the context.
   """
-  def load_file!(%Project{} = project, file) do
+  @spec load_source!(state, String.t()) :: {state, source}
+  def load_source!(%Project{} = project, file) do
     case Project.source(project, file) do
-      {:ok, _source} ->
-        project
+      {:ok, source} ->
+        {project, source}
 
       :error ->
         source =
@@ -27,13 +32,14 @@ defmodule Mneme.Patcher do
           |> Source.read!()
           |> Source.put_private(:hash, content_hash(file))
 
-        Project.update(project, source)
+        {Project.update(project, source), source}
     end
   end
 
   @doc """
   Finalize all patches, writing all results to disk.
   """
+  @spec finalize!(state) :: :ok | {:error, term()}
   def finalize!(project) do
     if Application.get_env(:mneme, :dry_run) do
       :ok
@@ -72,110 +78,69 @@ defmodule Mneme.Patcher do
 
   Returns `{result, patch_state}`.
   """
-  def patch!(%Project{} = project, assertion, opts, prompt_state \\ nil) do
-    project = load_file!(project, assertion.context.file)
-    {source, assertion} = patch_assertion(project, assertion, opts)
-
-    case prompt_change(source, assertion, opts, prompt_state) do
-      {:accept, _} ->
-        {{:ok, assertion}, Project.update(project, source)}
-
-      {:reject, _} ->
-        {{:error, :no_pattern}, project}
-
-      {:skip, _} ->
-        {{:error, :skip}, project}
-
-      {:prev, prompt_state} ->
-        patch!(project, Assertion.prev(assertion, opts.target), opts, prompt_state)
-
-      {:next, prompt_state} ->
-        patch!(project, Assertion.next(assertion, opts.target), opts, prompt_state)
-    end
+  @spec patch!(state, Assertion.t(), map()) ::
+          {{:ok, Assertion.t()} | {:error, term()}, state}
+  def patch!(%Project{} = project, %Assertion{} = assertion, %{} = opts) do
+    {project, source} = load_source!(project, assertion.context.file)
+    {assertion, zipper} = prepare_assertion(assertion, source)
+    patch!(project, source, assertion, zipper, opts)
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}
   end
 
-  defp prompt_change(
-         source,
-         assertion,
-         %{action: :prompt, prompter: prompter} = opts,
-         prompt_state
-       ) do
-    prompter.prompt!(source, assertion, opts, prompt_state)
-  end
-
-  defp prompt_change(_, _, %{action: action}, _), do: {action, nil}
-
-  defp patch_assertion(_, %{value: :__mneme__super_secret_test_value_goes_boom__}, _) do
+  defp patch!(_, _, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _) do
     raise ArgumentError, "I told you!"
   end
 
-  defp patch_assertion(project, assertion, opts) do
-    source = Project.source!(project, assertion.context.file)
+  defp patch!(project, source, assertion, zipper, opts) do
+    assertion = Assertion.generate_code(assertion, opts.target, opts.default_pattern)
 
+    case prompt_change(assertion, opts) do
+      :accept ->
+        ast =
+          zipper
+          |> Zipper.update(fn _ -> assertion.code end)
+          |> Zipper.root()
+
+        source = Source.update(source, :mneme, ast: ast)
+
+        {{:ok, assertion}, Project.update(project, source)}
+
+      :reject ->
+        {{:error, :no_pattern}, project}
+
+      :skip ->
+        {{:error, :skip}, project}
+
+      :prev ->
+        patch!(project, source, Assertion.prev(assertion), zipper, opts)
+
+      :next ->
+        patch!(project, source, Assertion.next(assertion), zipper, opts)
+    end
+  end
+
+  defp prompt_change(assertion, %{action: :prompt, prompter: prompter} = opts) do
+    diff = %{left: format_node(assertion.rich_ast), right: format_node(assertion.code)}
+    prompter.prompt!(assertion, diff, opts)
+  end
+
+  defp prompt_change(_, %{action: action}), do: action
+
+  defp prepare_assertion(assertion, source) do
     zipper =
       source
       |> Source.ast()
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
-    # Sourceror's AST is richer than the one we get back from a macro call.
-    # String literals are in a :__block__ tuple and include a delimiter;
-    # we use this information when formatting to ensure that the same
-    # delimiters are used for output.
-    assertion =
-      assertion
-      |> Map.put(:code, Zipper.node(zipper))
-      |> Assertion.regenerate_code(opts.target, opts.default_pattern)
-
-    code = escape_strings(assertion.code)
-
-    ast =
-      zipper
-      |> Zipper.update(fn _ -> code end)
-      |> Zipper.root()
-
-    source =
-      source
-      |> Source.update(:mneme, ast: ast)
-      |> Source.put_private(:diff, %{
-        left: zipper |> Zipper.node() |> format_node(),
-        right: code |> format_node()
-      })
-
-    {source, assertion}
+    {Assertion.put_rich_ast(assertion, Zipper.node(zipper)), zipper}
   end
 
   defp format_node(node) do
     node
     |> Source.from_ast()
     |> Source.code()
-  end
-
-  def escape_strings(code) when is_list(code) do
-    Enum.map(code, &escape_strings/1)
-  end
-
-  def escape_strings(code) do
-    Sourceror.prewalk(code, fn
-      {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
-        case meta[:delimiter] do
-          "\"" -> {{:__block__, meta, [escape_string(string)]}, state}
-          _ -> {quoted, state}
-        end
-
-      quoted, state ->
-        {quoted, state}
-    end)
-  end
-
-  defp escape_string(string) when is_binary(string) do
-    string
-    |> String.replace("\n", "\\n")
-    |> String.replace("\#{", "\\\#{")
-
-    # |> String.replace("\"", "\\\"")
   end
 end

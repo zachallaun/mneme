@@ -6,7 +6,6 @@ defmodule Mneme.Prompter.Terminal do
   import Owl.Data, only: [tag: 2]
 
   alias Mneme.Assertion
-  alias Rewrite.Source
 
   @middle_dot_char "·"
   @bullet_char "●"
@@ -21,23 +20,19 @@ defmodule Mneme.Prompter.Terminal do
   @box_cross_up "┴"
 
   @impl true
-  def prompt!(%Source{} = source, %Assertion{} = assertion, opts, _prompt_state) do
-    message = message(source, assertion, opts)
-
-    Owl.IO.puts(["\n", message])
-    result = input()
-
-    {result, nil}
+  def prompt!(%Assertion{} = assertion, diff, opts) do
+    Owl.IO.puts(["\n", message(assertion, diff, opts)])
+    input()
   end
 
   @doc false
-  def message(source, %Assertion{} = assertion, opts) do
+  def message(%Assertion{} = assertion, diff, opts) do
     notes = Assertion.notes(assertion)
 
     [
       format_header(assertion),
       "\n",
-      format_diff(source, opts),
+      format_diff(diff, opts),
       format_notes(notes),
       format_input(assertion),
       "\n"
@@ -75,10 +70,8 @@ defmodule Mneme.Prompter.Terminal do
 
   defp normalize_gets(_), do: nil
 
-  defp format_diff(source, %{diff: :text}) do
-    Rewrite.TextDiff.format(
-      source |> Source.code(Source.version(source) - 1) |> eof_newline(),
-      source |> Source.code() |> eof_newline(),
+  defp format_diff(%{left: left, right: right}, %{diff: :text}) do
+    Rewrite.TextDiff.format(eof_newline(left), eof_newline(right),
       line_numbers: false,
       format: [
         separator: "",
@@ -94,10 +87,23 @@ defmodule Mneme.Prompter.Terminal do
     )
   end
 
-  defp format_diff(source, %{diff: :semantic} = opts) do
-    case semantic_diff(source) do
+  defp format_diff(diff, %{diff: :semantic} = opts) do
+    case await_semantic_diff(diff) do
       {del, ins} -> format_semantic_diff({del, ins}, opts)
-      nil -> format_diff(:text, source)
+      nil -> format_diff(diff, Map.put(opts, :diff, :text))
+    end
+  end
+
+  defp await_semantic_diff(%{left: left, right: right}) do
+    task = Task.async(Mneme.Diff, :format, [left, right])
+
+    case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, {nil, nil}}} -> nil
+      {:ok, {:ok, {nil, ins}}} -> {Owl.Data.lines(left), ins}
+      {:ok, {:ok, {del, nil}}} -> {del, Owl.Data.lines(right)}
+      {:ok, {:ok, {del, ins}}} -> {del, ins}
+      {:ok, {:error, {:internal, e, stacktrace}}} -> reraise e, stacktrace
+      _ -> nil
     end
   end
 
@@ -198,23 +204,6 @@ defmodule Mneme.Prompter.Terminal do
 
   defp terminal_width(%{terminal_width: width}) when is_integer(width), do: width
   defp terminal_width(_opts), do: Owl.IO.columns() || 98
-
-  defp semantic_diff(source) do
-    with %{left: left, right: right} <- source.private[:diff] do
-      task = Task.async(Mneme.Diff, :format, [left, right])
-
-      case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
-        {:ok, {:ok, {nil, nil}}} -> nil
-        {:ok, {:ok, {nil, ins}}} -> {Owl.Data.lines(left), ins}
-        {:ok, {:ok, {del, nil}}} -> {del, Owl.Data.lines(right)}
-        {:ok, {:ok, {del, ins}}} -> {del, ins}
-        {:ok, {:error, {:internal, e, stacktrace}}} -> reraise e, stacktrace
-        _ -> nil
-      end
-    else
-      _ -> nil
-    end
-  end
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 

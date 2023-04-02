@@ -18,6 +18,8 @@ defmodule Mneme.Assertion do
   @type t :: %Assertion{
           stage: :new | :update,
           value: term(),
+          macro_ast: Macro.t(),
+          rich_ast: Macro.t(),
           code: Macro.t(),
           patterns: [pattern],
           pattern_idx: non_neg_integer(),
@@ -27,6 +29,8 @@ defmodule Mneme.Assertion do
   defstruct [
     :stage,
     :value,
+    :macro_ast,
+    :rich_ast,
     :code,
     :patterns,
     :pattern_idx,
@@ -36,11 +40,11 @@ defmodule Mneme.Assertion do
   @doc """
   Build an assertion.
   """
-  def build(code, caller) do
+  def build(macro_ast, caller) do
     quote do
       Mneme.Assertion.run!(
-        unquote(Macro.escape(code)),
-        unquote(value_expr(code)),
+        unquote(Macro.escape(macro_ast)),
+        unquote(value_expr(macro_ast)),
         unquote(assertion_context(caller)),
         binding(),
         __ENV__
@@ -49,10 +53,10 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def run!(code, value, context, binding, env) do
+  def run!(macro_ast, value, context, binding, env) do
     assertion =
       new(
-        code,
+        macro_ast,
         value,
         Keyword.put(context, :binding, binding)
       )
@@ -116,24 +120,36 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def new(code, value, context) do
+  def new(macro_ast, value, context) do
     %Assertion{
-      stage: get_stage(code),
+      stage: get_stage(macro_ast),
+      macro_ast: macro_ast,
+      code: macro_ast,
       value: value,
-      code: code,
       context: Map.new(context)
     }
   end
 
   defp get_stage({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
-  defp get_stage(_code), do: :new
+  defp get_stage(_ast), do: :new
 
   @doc """
-  Regenerate assertion code for the given target.
+  Set the rich AST from Sourceror for the given assertion.
   """
-  def regenerate_code(assertion, target, default_pattern \\ :infer)
+  def put_rich_ast(%Assertion{rich_ast: nil} = assertion, ast) do
+    %{assertion | rich_ast: ast}
+  end
 
-  def regenerate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
+  @doc """
+  Generate output code for the given target.
+  """
+  def generate_code(assertion, target, default_pattern \\ :infer)
+
+  def generate_code(%Assertion{rich_ast: nil}, _, _) do
+    raise ArgumentError, "cannot generate code until `:rich_ast` has been set"
+  end
+
+  def generate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
     {patterns, pattern_idx} = build_and_select_pattern(assertion, default_pattern)
 
     assertion
@@ -141,11 +157,11 @@ defmodule Mneme.Assertion do
       patterns: patterns,
       pattern_idx: pattern_idx
     })
-    |> regenerate_code(target)
+    |> generate_code(target)
   end
 
-  def regenerate_code(%Assertion{} = assertion, target, _) do
-    %{assertion | code: to_code(assertion, target)}
+  def generate_code(%Assertion{} = assertion, target, _) do
+    %{assertion | code: assertion |> to_code(target) |> escape_strings()}
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
@@ -161,9 +177,12 @@ defmodule Mneme.Assertion do
     build_and_select_pattern(assertion, :first)
   end
 
-  defp build_and_select_pattern(%{stage: :update, value: value, code: code} = assertion, :infer) do
+  defp build_and_select_pattern(
+         %{stage: :update, value: value, rich_ast: ast} = assertion,
+         :infer
+       ) do
     [expr, guard] =
-      case code do
+      case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
         {_, _, [{:==, _, [_, expr]}]} -> [expr, nil]
@@ -202,22 +221,19 @@ defmodule Mneme.Assertion do
   @doc """
   Select the previous pattern.
   """
-  def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion, target) do
+  def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion) do
     %{assertion | pattern_idx: length(ps) - 1}
-    |> regenerate_code(target)
   end
 
-  def prev(%Assertion{pattern_idx: idx} = assertion, target) do
+  def prev(%Assertion{pattern_idx: idx} = assertion) do
     %{assertion | pattern_idx: idx - 1}
-    |> regenerate_code(target)
   end
 
   @doc """
   Select the next pattern.
   """
-  def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion, target) do
+  def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion) do
     %{assertion | pattern_idx: rem(idx + 1, length(ps))}
-    |> regenerate_code(target)
   end
 
   @doc """
@@ -250,15 +266,15 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{code: code, value: falsy} = assertion, target)
+  def to_code(%Assertion{rich_ast: ast, value: falsy} = assertion, target)
       when falsy in [nil, false] do
     {expr, nil, _} = pattern(assertion)
-    build_call(target, :compare, code, block_with_line(expr, meta(code)), nil)
+    build_call(target, :compare, ast, block_with_line(expr, meta(ast)), nil)
   end
 
-  def to_code(%Assertion{code: code} = assertion, target) do
+  def to_code(%Assertion{rich_ast: ast} = assertion, target) do
     {expr, guard, _} = pattern(assertion)
-    build_call(target, :match, code, block_with_line(expr, meta(code)), guard)
+    build_call(target, :match, ast, block_with_line(expr, meta(ast)), guard)
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this
@@ -271,29 +287,29 @@ defmodule Mneme.Assertion do
     {:__block__, [line: parent_meta[:line]], [value]}
   end
 
-  defp build_call(:mneme, :compare, code, falsy_expr, nil) do
-    {:auto_assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy_expr]}]}
+  defp build_call(:mneme, :compare, ast, falsy_expr, nil) do
+    {:auto_assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), falsy_expr]}]}
   end
 
-  defp build_call(:mneme, :match, code, expr, nil) do
-    {:auto_assert, meta(code), [{:<-, meta(value_expr(code)), [expr, value_expr(code)]}]}
+  defp build_call(:mneme, :match, ast, expr, nil) do
+    {:auto_assert, meta(ast), [{:<-, meta(value_expr(ast)), [expr, value_expr(ast)]}]}
   end
 
-  defp build_call(:mneme, :match, code, expr, guard) do
-    {:auto_assert, meta(code),
-     [{:<-, meta(value_expr(code)), [{:when, [], [expr, guard]}, value_expr(code)]}]}
+  defp build_call(:mneme, :match, ast, expr, guard) do
+    {:auto_assert, meta(ast),
+     [{:<-, meta(value_expr(ast)), [{:when, [], [expr, guard]}, value_expr(ast)]}]}
   end
 
-  defp build_call(:ex_unit, :compare, code, falsy, nil) do
-    {:assert, meta(code), [{:==, meta(value_expr(code)), [value_expr(code), falsy]}]}
+  defp build_call(:ex_unit, :compare, ast, falsy, nil) do
+    {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), falsy]}]}
   end
 
-  defp build_call(:ex_unit, :match, code, expr, nil) do
-    {:assert, meta(code), [{:=, meta(value_expr(code)), [unescape(expr), value_expr(code)]}]}
+  defp build_call(:ex_unit, :match, ast, expr, nil) do
+    {:assert, meta(ast), [{:=, meta(value_expr(ast)), [unescape(expr), value_expr(ast)]}]}
   end
 
-  defp build_call(:ex_unit, :match, code, expr, guard) do
-    check = build_call(:ex_unit, :match, code, expr, nil)
+  defp build_call(:ex_unit, :match, ast, expr, guard) do
+    check = build_call(:ex_unit, :match, ast, expr, nil)
 
     quote do
       unquote(check)
@@ -362,5 +378,30 @@ defmodule Mneme.Assertion do
       quoted, state ->
         {quoted, state}
     end)
+  end
+
+  defp escape_strings(code) when is_list(code) do
+    Enum.map(code, &escape_strings/1)
+  end
+
+  defp escape_strings(code) do
+    Sourceror.prewalk(code, fn
+      {:__block__, meta, [string]} = quoted, state when is_binary(string) ->
+        case meta[:delimiter] do
+          "\"" -> {{:__block__, meta, [escape_string(string)]}, state}
+          _ -> {quoted, state}
+        end
+
+      quoted, state ->
+        {quoted, state}
+    end)
+  end
+
+  defp escape_string(string) when is_binary(string) do
+    string
+    |> String.replace("\n", "\\n")
+    |> String.replace("\#{", "\\\#{")
+
+    # |> String.replace("\"", "\\\"")
   end
 end

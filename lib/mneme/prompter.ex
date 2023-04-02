@@ -3,13 +3,9 @@ defmodule Mneme.Prompter do
   # assertion patch. This behaviour may become public in the future.
   @moduledoc false
 
-  @type response :: :accept | :reject | :prev | :next
-  @type prompt_state :: term()
+  @type response :: :accept | :reject | :skip | :prev | :next
+  @type diff :: %{left: String.t(), right: String.t()}
+  @type options :: map()
 
-  @callback prompt!(
-              Rewrite.Source.t(),
-              assertion :: term(),
-              opts :: map(),
-              reprompt :: nil | prompt_state
-            ) :: {response, prompt_state}
+  @callback prompt!(Mneme.Assertion.t(), diff, options) :: response
 end

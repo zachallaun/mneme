@@ -1,10 +1,13 @@
 # Short demonstration of Mneme's interactive prompts.
 # Download and run in your terminal with: elixir tour_mneme.exs
 
-Mix.install([
-  {:mneme, ">= 0.0.0"}
-])
+unless Code.ensure_loaded?(Mneme.MixProject) do
+  Mix.install([
+    {:mneme, ">= 0.0.0"}
+  ])
+end
 
+Application.put_env(:mneme, :dry_run, true)
 ExUnit.start(seed: 0)
 Mneme.start()
 
@@ -27,7 +30,10 @@ defmodule ExampleTest do
 
     test "for maps" do
       # not what you expected? use j/k to cycle to a more complex value
-      auto_assert %{first_name: "Jane", last_name: "Doe"}
+      auto_assert Map.put(%{first_name: "Jane"}, :last_name, "Doe")
+
+      value = [%{foo: 1, bar: 2}, %{baz: 3, buzz: %{cool: :stuff}}]
+      auto_assert value
     end
 
     test "using guards if needed" do

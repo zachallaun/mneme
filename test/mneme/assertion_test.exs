@@ -6,13 +6,7 @@ defmodule Mneme.AssertionTest do
   @format_opts Mneme.Utils.formatter_opts()
 
   test "w/o guard" do
-    assertion =
-      Assertion.new(
-        quote(do: auto_assert([1, 2, 3] <- [1, 2, 3])),
-        [1, 2, 3],
-        %{}
-      )
-      |> Assertion.regenerate_code(:mneme)
+    assertion = new_assertion(quote(do: auto_assert([1, 2, 3] <- [1, 2, 3])), [1, 2, 3])
 
     auto_assert "auto_assert [1, 2, 3] <- [1, 2, 3]" <- to_code_string(assertion, :mneme)
 
@@ -23,14 +17,7 @@ defmodule Mneme.AssertionTest do
 
   test "w/ guard" do
     me = self()
-
-    assertion =
-      Assertion.new(
-        quote(do: auto_assert(pid when is_pid(pid) <- me)),
-        me,
-        %{}
-      )
-      |> Assertion.regenerate_code(:mneme)
+    assertion = new_assertion(quote(do: auto_assert(pid when is_pid(pid) <- me)), me)
 
     auto_assert "auto_assert pid when is_pid(pid) <- me" <- to_code_string(assertion, :mneme)
 
@@ -48,20 +35,19 @@ defmodule Mneme.AssertionTest do
 
   test "falsy values" do
     x = nil
-
-    assertion =
-      Assertion.new(
-        quote(do: auto_assert(_ <- x)),
-        x,
-        %{}
-      )
-      |> Assertion.regenerate_code(:mneme)
+    assertion = new_assertion(quote(do: auto_assert(_ <- x)), x)
 
     auto_assert "auto_assert x == nil" <- to_code_string(assertion, :mneme)
 
     auto_assert "assert x == nil" <- to_code_string(assertion, :ex_unit)
 
     auto_assert "assert nil == value" <- to_code_string(assertion, :eval)
+  end
+
+  defp new_assertion(ast, value, context \\ %{}) do
+    Assertion.new(ast, value, context)
+    |> Assertion.put_rich_ast(ast)
+    |> Assertion.generate_code(:mneme)
   end
 
   defp to_code_string(assertion, :eval) do
