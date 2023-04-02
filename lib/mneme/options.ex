@@ -174,10 +174,10 @@ defmodule Mneme.Options do
   """
   def collect_attributes(%{registered: %{} = attrs}) do
     %{}
-    |> collect_attributes([:persistent_term.get(@config_cache)])
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
     |> collect_attributes(Map.get(attrs, @module_attr, []))
+    |> collect_attributes([:persistent_term.get(@config_cache)])
   end
 
   def collect_attributes(_), do: %{}

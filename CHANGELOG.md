@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixes
 
+  * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.
   * Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
 
 ## v0.2.7 (2023-03-29)
