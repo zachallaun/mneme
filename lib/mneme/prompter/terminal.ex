@@ -52,7 +52,7 @@ defmodule Mneme.Prompter.Terminal do
 
   defp gets do
     resp =
-      [IO.ANSI.cursor_up(3), IO.ANSI.cursor_right(2)]
+      [IO.ANSI.cursor_up(3), IO.ANSI.cursor_right(2), "\e[0K"]
       |> IO.gets()
       |> normalize_gets()
 
