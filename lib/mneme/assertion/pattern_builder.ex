@@ -1,4 +1,4 @@
-defmodule Mneme.Assertion.Builder do
+defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
   alias Mneme.Assertion

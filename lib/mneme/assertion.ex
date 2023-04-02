@@ -2,7 +2,7 @@ defmodule Mneme.Assertion do
   @moduledoc false
 
   alias __MODULE__
-  alias Mneme.Assertion.Builder
+  alias Mneme.Assertion.PatternBuilder
 
   @type context :: %{
           file: String.t(),
@@ -149,11 +149,11 @@ defmodule Mneme.Assertion do
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
-    {Builder.to_patterns(value, assertion.context), 0}
+    {PatternBuilder.to_patterns(value, assertion.context), 0}
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :last) do
-    patterns = Builder.to_patterns(value, assertion.context)
+    patterns = PatternBuilder.to_patterns(value, assertion.context)
     {patterns, length(patterns) - 1}
   end
 
@@ -170,7 +170,7 @@ defmodule Mneme.Assertion do
       end
       |> Enum.map(&simplify_expr/1)
 
-    Builder.to_patterns(value, assertion.context)
+    PatternBuilder.to_patterns(value, assertion.context)
     |> Enum.split_while(fn
       {pattern_expr, pattern_guard, _} ->
         !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
