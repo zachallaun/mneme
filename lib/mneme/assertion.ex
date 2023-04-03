@@ -4,16 +4,16 @@ defmodule Mneme.Assertion do
   alias __MODULE__
   alias Mneme.Assertion.PatternBuilder
 
-  @type context :: %{
-          file: String.t(),
-          line: non_neg_integer(),
-          module: module(),
-          test: atom(),
-          aliases: list(),
-          binding: list()
-        }
-
-  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
+  defstruct [
+    :stage,
+    :value,
+    :macro_ast,
+    :rich_ast,
+    :code,
+    :patterns,
+    :pattern_idx,
+    :context
+  ]
 
   @type t :: %Assertion{
           stage: :new | :update,
@@ -26,16 +26,17 @@ defmodule Mneme.Assertion do
           context: context
         }
 
-  defstruct [
-    :stage,
-    :value,
-    :macro_ast,
-    :rich_ast,
-    :code,
-    :patterns,
-    :pattern_idx,
-    :context
-  ]
+  @type context :: %{
+          file: String.t(),
+          line: non_neg_integer(),
+          module: module(),
+          test: atom(),
+          aliases: list(),
+          binding: list(),
+          foo: integer()
+        }
+
+  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
 
   @doc """
   Builds a quoted expression that will run the assertion.
