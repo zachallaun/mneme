@@ -6,6 +6,11 @@ defmodule Mneme.ExampleTest do
     defstruct field: nil, list: [], map: %{}
   end
 
+  test "hmm" do
+    x = nil
+    auto_assert nil <- x
+  end
+
   test "1" do
     s1 = %MyStruct{}
 

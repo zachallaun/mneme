@@ -112,15 +112,15 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert ~r/a#\{b\}c/ <- ~R/a#\{b\}c/
   end
 
-  test "falsy values compare using ==" do
+  test "falsy values" do
     # y
-    auto_assert false == false
+    auto_assert false <- false
 
     # y
-    auto_assert nil == nil
+    auto_assert nil <- nil
 
     falsy = false
     # y
-    auto_assert falsy == false
+    auto_assert false <- falsy
   end
 end

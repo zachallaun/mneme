@@ -22,9 +22,6 @@ defmodule Mneme.Integration.ExampleTest do
 
   test "fourth example" do
     # y
-    auto_assert Function.identity(nil) == false, Function.identity(nil) == nil
-
-    # y
-    auto_assert Function.identity(nil) == nil
+    auto_assert nil <- Function.identity(nil)
   end
 end

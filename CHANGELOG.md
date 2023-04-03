@@ -4,6 +4,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Unreleased
 
+### Breaking changes
+
+  * `auto_assert` now uses `<-` when comparing against falsy values instead of `==`. Support for comparisons using `==` has been removed.
+
 ### Fixes
 
   * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.

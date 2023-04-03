@@ -172,13 +172,18 @@ defmodule Mneme do
 
   ## Differences from ExUnit `assert`
 
-  The `auto_assert` macro is meant to match `assert` as closely as
-  possible. In fact, it generates ExUnit assertions under the hood.
-  There are, however, a few small differences to note:
+  The `auto_assert` macro is meant to match `assert` very closely, but
+  there are a few differences to note:
 
     * Pattern-matching assertions use the `<-` operator instead of the
-      `=` match operator. Value-comparison assertions still use `==`
-      (for instance, when the expression returns `nil` or `false`).
+      `=` match operator.
+
+    * Unlike ExUnit's `assert`, `auto_assert` can match falsy values.
+      The following are equivalent:
+
+          falsy = nil
+          auto_assert nil <- falsy
+          assert falsy == nil
 
     * Guards can be added with a `when` clause, while `assert` would
       require a second assertion. For example:

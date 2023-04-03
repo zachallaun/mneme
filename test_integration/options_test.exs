@@ -37,6 +37,10 @@ defmodule Mneme.Integration.OptionsTest do
     test "should rewrite to ExUnit assertion keeping the same pattern" do
       assert %{foo: 1} <- %{foo: 1}, %{foo: 1} = %{foo: 1}
     end
+
+    test "should rewrite falsy values as == comparisons" do
+      assert nil <- Function.identity(nil), Function.identity(nil) == nil
+    end
   end
 
   @mneme action: :accept, default_pattern: :last

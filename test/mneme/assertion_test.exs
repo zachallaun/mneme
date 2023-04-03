@@ -38,7 +38,7 @@ defmodule Mneme.AssertionTest do
     x = nil
     assertion = new_assertion(quote(do: auto_assert(_ <- x)), x)
 
-    auto_assert "auto_assert x == nil" <- to_code_string(assertion, :mneme)
+    auto_assert "auto_assert nil <- x" <- to_code_string(assertion, :mneme)
 
     auto_assert "assert x == nil" <- to_code_string(assertion, :ex_unit)
 

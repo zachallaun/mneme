@@ -20,12 +20,14 @@ defmodule Mneme.Assertion.PatternBuilder do
     Keyword.merge([line: context[:line]], meta)
   end
 
-  defp fetch_pinned(value, context) do
+  defp fetch_pinned(value, context) when value not in [true, false, nil] do
     case List.keyfind(context[:binding] || [], value, 1) do
       {name, ^value} -> {:ok, {:^, with_meta(context), [make_var(name, context)]}}
       _ -> :error
     end
   end
+
+  defp fetch_pinned(_, _), do: :error
 
   defp do_to_patterns(int, context) when is_integer(int) do
     pattern = {{:__block__, with_meta([token: inspect(int)], context), [int]}, nil, []}

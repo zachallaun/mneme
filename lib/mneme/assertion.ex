@@ -108,7 +108,7 @@ defmodule Mneme.Assertion do
     }
   end
 
-  defp get_stage({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
+  defp get_stage({_, _, [{:<-, _, [_, _]}]}), do: :update
   defp get_stage(_ast), do: :new
 
   defp patch(assertion, eval_binding, env, error \\ nil) do
@@ -187,7 +187,6 @@ defmodule Mneme.Assertion do
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
-        {_, _, [{:==, _, [_, expr]}]} -> [expr, nil]
       end
       |> Enum.map(&simplify_expr/1)
 
@@ -268,13 +267,9 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{rich_ast: ast, value: falsy}, target) when falsy in [nil, false] do
-    build_call(target, :compare, ast, block_with_line(falsy, meta(ast)), nil)
-  end
-
-  def to_code(%Assertion{rich_ast: ast} = assertion, target) do
+  def to_code(%Assertion{rich_ast: ast, value: value} = assertion, target) do
     {expr, guard, _} = pattern(assertion)
-    build_call(target, :match, ast, block_with_line(expr, meta(ast)), guard)
+    build_call(target, :match, ast, block_with_line(expr, meta(ast)), guard, value)
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this
@@ -287,29 +282,25 @@ defmodule Mneme.Assertion do
     {:__block__, [line: parent_meta[:line]], [value]}
   end
 
-  defp build_call(:mneme, :compare, ast, expr, nil) do
-    {:auto_assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
-  end
-
-  defp build_call(:mneme, :match, ast, expr, nil) do
+  defp build_call(:mneme, :match, ast, expr, nil, _value) do
     {:auto_assert, meta(ast), [{:<-, meta(value_expr(ast)), [expr, value_expr(ast)]}]}
   end
 
-  defp build_call(:mneme, :match, ast, expr, guard) do
+  defp build_call(:mneme, :match, ast, expr, guard, _value) do
     {:auto_assert, meta(ast),
      [{:<-, meta(value_expr(ast)), [{:when, [], [expr, guard]}, value_expr(ast)]}]}
   end
 
-  defp build_call(:ex_unit, :compare, ast, expr, nil) do
+  defp build_call(:ex_unit, :match, ast, expr, nil, falsy) when falsy in [false, nil] do
     {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
-  defp build_call(:ex_unit, :match, ast, expr, nil) do
+  defp build_call(:ex_unit, :match, ast, expr, nil, _value) do
     {:assert, meta(ast), [{:=, meta(value_expr(ast)), [unescape(expr), value_expr(ast)]}]}
   end
 
-  defp build_call(:ex_unit, :match, ast, expr, guard) do
-    check = build_call(:ex_unit, :match, ast, expr, nil)
+  defp build_call(:ex_unit, :match, ast, expr, guard, value) do
+    check = build_call(:ex_unit, :match, ast, expr, nil, value)
 
     quote do
       unquote(check)
@@ -327,34 +318,31 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def code_for_eval(%Assertion{code: nil, macro_ast: ast}), do: code_for_eval(ast)
-  def code_for_eval(%Assertion{code: code}), do: code_for_eval(code)
+  def code_for_eval(%Assertion{code: nil, macro_ast: ast, value: value}) do
+    code_for_eval(ast, value)
+  end
+
+  def code_for_eval(%Assertion{code: code, value: value}) do
+    code_for_eval(code, value)
+  end
 
   # Only case it's a block is if the output target is :ex_unit, so we eval directly
-  def code_for_eval({:__block__, _, _} = code), do: code
+  def code_for_eval({:__block__, _, _} = code, _value), do: code
 
-  def code_for_eval({_assertion, _, [expression]}) do
-    case expression do
-      {match, _, [{:when, _, [expected, guard]}, _]} when match in [:<-, :=] ->
-        quote do
-          value = unquote(assert_match(expected))
-          assert unquote(guard)
-          value
-        end
+  def code_for_eval({_, _, [{_, _, [expr, _]}]}, falsy) when falsy in [nil, false] do
+    {:assert, [], [{:==, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
+  end
 
-      {match, _, [expected, _]} when match in [:<-, :=] ->
-        assert_match(expected)
-
-      {:==, _, [_, expected]} ->
-        assert_compare(expected)
-
-      _ ->
-        :ok
+  def code_for_eval({_, _, [{_, _, [{:when, _, [expected, guard]}, _]}]}, _value) do
+    quote do
+      value = unquote(assert_match(expected))
+      assert unquote(guard)
+      value
     end
   end
 
-  defp assert_compare(expr) do
-    {:assert, [], [{:==, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
+  def code_for_eval({_, _, [{_, _, [expected, _]}]}, _value) do
+    assert_match(expected)
   end
 
   defp assert_match(expr) do
@@ -364,7 +352,6 @@ defmodule Mneme.Assertion do
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
   defp value_expr({_, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
   defp value_expr({_, _, [{:=, _, [_, value_expr]}]}), do: value_expr
-  defp value_expr({_, _, [{:==, _, [value_expr, _]}]}), do: value_expr
   defp value_expr({_, _, [value_expr]}), do: value_expr
 
   defp unescape(expect_expr), do: unescape_strings(expect_expr)

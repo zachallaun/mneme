@@ -27,8 +27,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   describe "minimized_roots!/2" do
     test "discards identical nodes" do
-      auto_assert minimize!(":foo", ":foo") == nil
-      auto_assert minimize!("[1, 2, 3]", "[1, 2, 3]") == nil
+      auto_assert nil <- minimize!(":foo", ":foo")
+      auto_assert nil <- minimize!("[1, 2, 3]", "[1, 2, 3]")
     end
 
     test "discards identical outer branches with a single change" do
