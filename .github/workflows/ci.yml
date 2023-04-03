@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - pair:
-              elixir: '1.14'
+              elixir: 1.14.4
               otp: 25
     steps:
       - uses: actions/checkout@v3
@@ -26,19 +26,11 @@ jobs:
           otp-version: ${{matrix.pair.otp}}
           elixir-version: ${{matrix.pair.elixir}}
 
-      - name: Deps Cache
+      - name: Deps cache
         uses: actions/cache@v3
         with:
           path: deps
           key: mix-deps-${{ hashFiles('**/mix.lock') }}
-
-      - name: PLT Cache (Dialyzer)
-        uses: actions/cache@v3
-        id: plt_cache
-        with:
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          path: priv/plts
 
       - run: mix deps.get
 
@@ -50,9 +42,25 @@ jobs:
 
       - run: mix compile --warnings-as-errors
 
+      - name: Restore PLT cache
+        uses: actions/cache/restore@v3
+        id: plt_cache
+        with:
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          path: priv/plts
+
       - name: Create PLTs
         if: steps.plt_cache.outputs.cache-hit != 'true'
         run: MIX_ENV=dev mix dialyzer --plt
+
+      - name: Save PLT cache
+        uses: actions/cache/save@v3
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        id: plt_cache_save
+        with:
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          path: priv/plts
 
       - name: Run Dialyzer
         run: MIX_ENV=dev mix dialyzer --format github
@@ -64,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        elixir: [1.14]
+        elixir: [1.14.3, 1.14.4]
         otp: [24.3, 25]
     steps:
       - uses: actions/checkout@v3
