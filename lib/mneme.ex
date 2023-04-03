@@ -119,7 +119,7 @@ defmodule Mneme do
   """
   def start(opts \\ []) do
     ExUnit.configure(
-      formatters: [Mneme.ExUnitFormatter],
+      formatters: [Mneme.Server.ExUnitFormatter],
       default_formatter: ExUnit.CLIFormatter,
       timeout: :infinity
     )

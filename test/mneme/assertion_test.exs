@@ -3,7 +3,8 @@ defmodule Mneme.AssertionTest do
   use Mneme
   alias Mneme.Assertion
 
-  @format_opts Mneme.Utils.formatter_opts()
+  {_formatter, opts} = Mix.Tasks.Format.formatter_for_file(__ENV__.file)
+  @format_opts opts
 
   test "w/o guard" do
     assertion = new_assertion(quote(do: auto_assert([1, 2, 3] <- [1, 2, 3])), [1, 2, 3])

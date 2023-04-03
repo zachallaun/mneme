@@ -53,6 +53,8 @@ defmodule Mneme.Server do
 
   @doc """
   Register a new assertion.
+
+  This will not return until the test has been reported as started.
   """
   def register_assertion(assertion) do
     GenServer.call(__MODULE__, {:register_assertion, assertion}, :infinity)
@@ -65,12 +67,14 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
-  def on_formatter_init(_opts) do
+  @doc false
+  def on_formatter_init do
     {:ok, io_pid} = StringIO.open("")
     Process.group_leader(self(), io_pid)
     GenServer.call(__MODULE__, {:capture_formatter, io_pid}, :infinity)
   end
 
+  @doc false
   def on_formatter_event(message) do
     GenServer.call(__MODULE__, {:formatter, message}, :infinity)
   end

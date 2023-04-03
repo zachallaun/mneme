@@ -41,11 +41,23 @@ defmodule Mneme.Diff do
   alias Mneme.Diff.Formatter
   alias Mneme.Diff.Pathfinding
   alias Mneme.Diff.SyntaxNode
+  alias Mneme.Diff.Zipper
+
+  @type instruction ::
+          {instruction_kind, :node | :delimiter, Zipper.t()}
+          | {instruction_kind, :node, Zipper.t(), edit_script}
+
+  @type instruction_kind :: :ins | :del
+
+  @type edit_script :: [{:eq | :novel, String.t()}]
+
+  @type vertex :: {left :: SyntaxNode.t(), right :: SyntaxNode.t(), delta :: Delta.t() | nil}
 
   @doc """
-  Formats `left` and `right` as `t:Owl.Data.t()`.
+  Diffs and formats `left` (old) and `right` (new).
   """
-  def format(left, right) do
+  @spec format(String.t(), String.t()) :: {:ok, {Owl.Data.t(), Owl.Data.t()}} | {:error, term()}
+  def format(left, right) when is_binary(left) and is_binary(right) do
     result =
       case compute(left, right) do
         {[], []} -> {nil, nil}
@@ -59,116 +71,40 @@ defmodule Mneme.Diff do
     e -> {:error, {:internal, e, __STACKTRACE__}}
   end
 
-  @doc """
-  Formats `code` as `t:Owl.Data.t()` using the given instructions.
-  """
+  @doc false
+  @spec format_lines(String.t(), [instruction]) :: Owl.Data.t()
   def format_lines(code, instructions) when is_binary(code) do
     Formatter.highlight_lines(code, instructions)
   end
 
-  @doc """
-  Returns a tuple of `{deletions, insertions}`.
-  """
+  @doc false
+  @spec compute(String.t(), String.t()) :: {[instruction], [instruction]}
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
-    {path, _meta} = shortest_path!(left_code, right_code)
-
-    {left_novels, right_novels} = split_novels(path)
-
-    {deletions, insertions} =
-      {to_instructions(left_novels, :del), to_instructions(right_novels, :ins)}
+    left = SyntaxNode.root!(left_code)
+    right = SyntaxNode.root!(right_code)
+    path = shortest_path({left, right, nil})
 
     if debug?() do
       debug_inspect(summarize_path(path), "path")
     end
 
-    {deletions, insertions}
+    path
+    |> split_novels()
+    |> to_instructions()
   end
 
-  defp to_instructions(novel_deltas, ins_kind) when ins_kind in [:ins, :del] do
-    novel_deltas
-    |> coalesce()
-    |> Enum.map(fn
-      {kind, node} -> {ins_kind, kind, node.zipper}
-      {kind, node, edit_script} -> {ins_kind, kind, node.zipper, edit_script}
-    end)
-  end
-
-  @doc false
-  def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
-
-  defp summarize_delta(%Delta{type: type, kind: :node, side: side, node: node}) do
-    {type, side, :node, summarize_node(node)}
-  end
-
-  defp summarize_delta(%Delta{type: type, kind: :branch, side: side, node: node}) do
-    ast =
-      case SyntaxNode.ast(node) do
-        {{:., _, _}, _, _} -> {{:., [], "..."}, [], "..."}
-        {form, _, _} -> {form, [], "..."}
-        {_, _} -> {"...", "..."}
-        list when is_list(list) -> ["..."]
-      end
-
-    {type, side, :branch, ast}
-  end
-
-  defp summarize_delta(nil), do: nil
-
-  defp summarize_node(%SyntaxNode{terminal?: true}), do: "TERMINAL"
-  defp summarize_node(%SyntaxNode{null?: true}), do: "NULL"
-
-  defp summarize_node(node) do
-    node
-    |> SyntaxNode.ast()
-    |> AST.prewalk(fn
-      {form, _meta, args} -> {form, [], args}
-      quoted -> quoted
-    end)
-  end
-
-  @doc false
-  def shortest_path!(left_code, right_code) do
-    shortest_path({SyntaxNode.root!(left_code), SyntaxNode.root!(right_code), nil})
-  end
-
-  @doc false
-  def shortest_path(root) do
-    start = System.monotonic_time()
+  @spec shortest_path(vertex) :: [Delta.t()]
+  defp shortest_path(root) do
     [_root | path] = Pathfinding.lazy_dijkstra(root, &vertex_id/1, &neighbors/1)
-    finish = System.monotonic_time()
-
-    meta = %{
-      time_ms: System.convert_time_unit(finish - start, :native, :millisecond)
-    }
-
-    {Enum.map(path, &elem(&1, 2)), meta}
+    Enum.map(path, fn {_v1, _v2, delta} -> delta end)
   end
 
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do
-    {l_id, r_id, delta_id(delta)}
-  end
-
-  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, delta}) do
-    {l_id, r_id, entry, delta_id(delta)}
-  end
-
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, delta}) do
-    {l_id, r_id, entry, delta_id(delta)}
-  end
-
-  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, delta}) do
-    {l_id, r_id, e1, e2, delta_id(delta)}
-  end
-
-  defp delta_id(nil), do: nil
-  defp delta_id(list) when is_list(list), do: Enum.map(list, &delta_id/1)
-  defp delta_id(d), do: {d.type, d.node.id}
-
+  @spec split_novels([Delta.t()]) :: {[Delta.t()], [Delta.t()]}
   defp split_novels(path) do
     path
     |> Stream.flat_map(fn
-      [left, right] -> [left, right]
       %Delta{type: :novel} = delta -> [delta]
+      novels when is_list(novels) -> novels
       _ -> []
     end)
     |> Enum.group_by(& &1.side)
@@ -178,6 +114,20 @@ defmodule Mneme.Diff do
       %{right: right} -> {[], right}
       _ -> {[], []}
     end
+  end
+
+  @spec to_instructions({[Delta.t()], [Delta.t()]}) :: {[instruction], [instruction]}
+  defp to_instructions({left_novels, right_novels}) do
+    {to_instructions(left_novels, :del), to_instructions(right_novels, :ins)}
+  end
+
+  defp to_instructions(novel_deltas, ins_kind) do
+    novel_deltas
+    |> coalesce()
+    |> Enum.map(fn
+      {kind, node} -> {ins_kind, kind, node.zipper}
+      {kind, node, edit_script} -> {ins_kind, kind, node.zipper, edit_script}
+    end)
   end
 
   defp coalesce(novel_deltas) do
@@ -361,6 +311,26 @@ defmodule Mneme.Diff do
   defp delta_cost(%Delta{} = delta), do: Delta.cost(delta)
   defp delta_cost(list) when is_list(list), do: list |> Enum.map(&Delta.cost/1) |> Enum.sum()
 
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do
+    {l_id, r_id, delta_id(delta)}
+  end
+
+  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, delta}) do
+    {l_id, r_id, entry, delta_id(delta)}
+  end
+
+  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, delta}) do
+    {l_id, r_id, entry, delta_id(delta)}
+  end
+
+  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, delta}) do
+    {l_id, r_id, e1, e2, delta_id(delta)}
+  end
+
+  defp delta_id(nil), do: nil
+  defp delta_id(list) when is_list(list), do: Enum.map(list, &delta_id/1)
+  defp delta_id(d), do: {d.type, d.node.id}
+
   defp myers_edit_scripts(s1, s2) do
     String.myers_difference(s1, s2)
     |> Enum.reduce({[], []}, fn
@@ -376,5 +346,38 @@ defmodule Mneme.Diff do
 
   defp debug_inspect(term, label) do
     IO.inspect(term, label: label, pretty: true, syntax_colors: IO.ANSI.syntax_colors())
+  end
+
+  @doc false
+  def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
+
+  defp summarize_delta(%Delta{type: type, kind: :node, side: side, node: node}) do
+    {type, side, :node, summarize_node(node)}
+  end
+
+  defp summarize_delta(%Delta{type: type, kind: :branch, side: side, node: node}) do
+    ast =
+      case SyntaxNode.ast(node) do
+        {{:., _, _}, _, _} -> {{:., [], "..."}, [], "..."}
+        {form, _, _} -> {form, [], "..."}
+        {_, _} -> {"...", "..."}
+        list when is_list(list) -> ["..."]
+      end
+
+    {type, side, :branch, ast}
+  end
+
+  defp summarize_delta(nil), do: nil
+
+  defp summarize_node(%SyntaxNode{terminal?: true}), do: "TERMINAL"
+  defp summarize_node(%SyntaxNode{null?: true}), do: "NULL"
+
+  defp summarize_node(node) do
+    node
+    |> SyntaxNode.ast()
+    |> AST.prewalk(fn
+      {form, _meta, args} -> {form, [], args}
+      quoted -> quoted
+    end)
   end
 end

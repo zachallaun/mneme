@@ -10,7 +10,7 @@ defmodule Mneme.Patcher do
   @type source :: Source.t()
 
   @doc """
-  Initialize patch state.
+  Create initial patcher state.
   """
   @spec init() :: state
   def init do
@@ -74,7 +74,7 @@ defmodule Mneme.Patcher do
   end
 
   @doc """
-  Run an assertion patch.
+  Patch an assertion.
 
   Returns `{result, patch_state}`.
   """

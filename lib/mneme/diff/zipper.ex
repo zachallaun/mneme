@@ -17,7 +17,7 @@ defmodule Mneme.Diff.Zipper do
   # Type: nil
   # @dialyzer {:nowarn_function, do_prev: 1, prev_after_remove: 1}
 
-  @type zipper :: {tree :: any(), meta :: map()}
+  @type t :: {tree :: any(), meta :: map()}
 
   import Kernel, except: [node: 1]
 

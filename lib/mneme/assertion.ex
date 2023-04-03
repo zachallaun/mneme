@@ -38,11 +38,11 @@ defmodule Mneme.Assertion do
   ]
 
   @doc """
-  Build an assertion.
+  Builds a quoted expression that will run the assertion.
   """
   def build(macro_ast, caller) do
     quote do
-      Mneme.Assertion.run!(
+      Mneme.Assertion.run(
         unquote(Macro.escape(macro_ast)),
         unquote(value_expr(macro_ast)),
         unquote(assertion_context(caller)),
@@ -52,8 +52,22 @@ defmodule Mneme.Assertion do
     end
   end
 
-  @doc false
-  def run!(macro_ast, value, context, binding, env) do
+  defp assertion_context(caller) do
+    {test, _arity} = caller.function
+
+    [
+      test: test,
+      file: caller.file,
+      line: caller.line,
+      module: caller.module,
+      aliases: caller.aliases
+    ]
+  end
+
+  @doc """
+  Run an auto-assertion, potentially patching the code.
+  """
+  def run(macro_ast, value, context, binding, env) do
     assertion =
       new(
         macro_ast,
@@ -65,7 +79,7 @@ defmodule Mneme.Assertion do
 
     case assertion.stage do
       :new ->
-        run_patch!(assertion, eval_binding, env)
+        patch(assertion, eval_binding, env)
 
       :update ->
         {:ok, assertion} = Mneme.Server.register_assertion(assertion)
@@ -74,14 +88,30 @@ defmodule Mneme.Assertion do
           eval(assertion, eval_binding, env)
         rescue
           error in [ExUnit.AssertionError] ->
-            run_patch!(assertion, eval_binding, env, error)
+            patch(assertion, eval_binding, env, error)
         end
     end
 
     value
   end
 
-  defp run_patch!(assertion, eval_binding, env, error \\ nil) do
+  @doc """
+  Create an assertion struct.
+  """
+  def new(macro_ast, value, context) do
+    %Assertion{
+      stage: get_stage(macro_ast),
+      macro_ast: macro_ast,
+      code: macro_ast,
+      value: value,
+      context: Map.new(context)
+    }
+  end
+
+  defp get_stage({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
+  defp get_stage(_ast), do: :new
+
+  defp patch(assertion, eval_binding, env, error \\ nil) do
     case Mneme.Server.patch_assertion(assertion) do
       {:ok, assertion} ->
         eval(assertion, eval_binding, env)
@@ -104,34 +134,6 @@ defmodule Mneme.Assertion do
   defp stacktrace_entry(%{context: context}) do
     {context.module, context.test, 1, [file: context.file, line: context.line]}
   end
-
-  defp assertion_context(caller) do
-    {test, _arity} = caller.function
-
-    [
-      file: caller.file,
-      line: caller.line,
-      module: caller.module,
-      test: test,
-      # TODO: Macro.Env :aliases is technically private; so we should
-      # access some other way
-      aliases: caller.aliases
-    ]
-  end
-
-  @doc false
-  def new(macro_ast, value, context) do
-    %Assertion{
-      stage: get_stage(macro_ast),
-      macro_ast: macro_ast,
-      code: macro_ast,
-      value: value,
-      context: Map.new(context)
-    }
-  end
-
-  defp get_stage({_, _, [{op, _, [_, _]}]}) when op in [:<-, :==], do: :update
-  defp get_stage(_ast), do: :new
 
   @doc """
   Set the rich AST from Sourceror for the given assertion.

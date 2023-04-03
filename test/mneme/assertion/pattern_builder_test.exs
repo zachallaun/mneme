@@ -4,7 +4,8 @@ defmodule Mneme.Assertion.PatternBuilderTest do
 
   alias Mneme.Assertion.PatternBuilder
 
-  @format_opts Mneme.Utils.formatter_opts()
+  {_formatter, opts} = Mix.Tasks.Format.formatter_for_file(__ENV__.file)
+  @format_opts opts
 
   describe "patterns" do
     test "atoms" do

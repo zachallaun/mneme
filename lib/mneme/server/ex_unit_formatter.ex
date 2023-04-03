@@ -1,4 +1,4 @@
-defmodule Mneme.ExUnitFormatter do
+defmodule Mneme.Server.ExUnitFormatter do
   @moduledoc false
 
   use GenServer
@@ -7,8 +7,7 @@ defmodule Mneme.ExUnitFormatter do
   def init(opts) do
     formatter = Keyword.fetch!(opts, :default_formatter)
     {:ok, config} = formatter.init(opts)
-    Mneme.Server.on_formatter_init(opts)
-
+    Mneme.Server.on_formatter_init()
     {:ok, {formatter, config}}
   end
 

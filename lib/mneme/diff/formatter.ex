@@ -1,6 +1,7 @@
 defmodule Mneme.Diff.Formatter do
   @moduledoc false
 
+  alias Mneme.Diff
   alias Mneme.Diff.Zipper
 
   @re_newline ~r/\n|\r\n/
@@ -8,6 +9,7 @@ defmodule Mneme.Diff.Formatter do
   @doc """
   Highlights the given code based on the instructions.
   """
+  @spec highlight_lines(String.t(), [Diff.instruction()]) :: Owl.Data.t()
   def highlight_lines(code, instructions) do
     lines = code |> Owl.Data.lines() |> Enum.reverse()
     [last_line | earlier_lines] = lines

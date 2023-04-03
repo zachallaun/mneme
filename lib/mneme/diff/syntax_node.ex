@@ -24,7 +24,7 @@ defmodule Mneme.Diff.SyntaxNode do
   ]
 
   @type t :: %SyntaxNode{
-          zipper: Zipper.zipper() | nil,
+          zipper: Zipper.t() | nil,
           parent: {:pop_either | :pop_both, t()} | nil,
           id: any(),
           hash: any(),
