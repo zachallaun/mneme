@@ -102,7 +102,6 @@ defmodule Mneme.Assertion do
     %Assertion{
       stage: get_stage(macro_ast),
       macro_ast: macro_ast,
-      code: macro_ast,
       value: value,
       context: Map.new(context)
     }
@@ -268,10 +267,8 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{rich_ast: ast, value: falsy} = assertion, target)
-      when falsy in [nil, false] do
-    {expr, nil, _} = pattern(assertion)
-    build_call(target, :compare, ast, block_with_line(expr, meta(ast)), nil)
+  def to_code(%Assertion{rich_ast: ast, value: falsy}, target) when falsy in [nil, false] do
+    build_call(target, :compare, ast, block_with_line(falsy, meta(ast)), nil)
   end
 
   def to_code(%Assertion{rich_ast: ast} = assertion, target) do
@@ -289,8 +286,8 @@ defmodule Mneme.Assertion do
     {:__block__, [line: parent_meta[:line]], [value]}
   end
 
-  defp build_call(:mneme, :compare, ast, falsy_expr, nil) do
-    {:auto_assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), falsy_expr]}]}
+  defp build_call(:mneme, :compare, ast, expr, nil) do
+    {:auto_assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
   defp build_call(:mneme, :match, ast, expr, nil) do
@@ -302,8 +299,8 @@ defmodule Mneme.Assertion do
      [{:<-, meta(value_expr(ast)), [{:when, [], [expr, guard]}, value_expr(ast)]}]}
   end
 
-  defp build_call(:ex_unit, :compare, ast, falsy, nil) do
-    {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), falsy]}]}
+  defp build_call(:ex_unit, :compare, ast, expr, nil) do
+    {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
   defp build_call(:ex_unit, :match, ast, expr, nil) do
@@ -329,15 +326,14 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def code_for_eval(%Assertion{code: {:__block__, _, _} = code}), do: code
+  def code_for_eval(%Assertion{code: nil, macro_ast: ast}), do: code_for_eval(ast)
+  def code_for_eval(%Assertion{code: code}), do: code_for_eval(code)
 
-  def code_for_eval(%Assertion{code: {_, _, [{:<-, _, [expected, _]}]}, value: falsy})
-      when falsy in [false, nil] do
-    assert_compare(expected)
-  end
+  # Only case it's a block is if the output target is :ex_unit, so we eval directly
+  def code_for_eval({:__block__, _, _} = code), do: code
 
-  def code_for_eval(%Assertion{code: {_, _, [pattern]}}) do
-    case pattern do
+  def code_for_eval({_assertion, _, [expression]}) do
+    case expression do
       {match, _, [{:when, _, [expected, guard]}, _]} when match in [:<-, :=] ->
         quote do
           value = unquote(assert_match(expected))
