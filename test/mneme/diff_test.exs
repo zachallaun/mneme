@@ -761,6 +761,14 @@ defmodule Mneme.DiffTest do
                    ]} <- format(left, right)
     end
 
+    if Version.match?(System.version(), ">= 1.14.4") do
+      test "elixir bug: escaped interpolation column count" do
+        auto_assert {[["auto_assert ", %Tag{data: "res", sequences: [:red]}]],
+                     [["auto_assert ", %Tag{data: "{:ok, \"\\\#{foo}\"}", sequences: [:green]}]]} <-
+                      format(~S|auto_assert res|, ~S|auto_assert {:ok, "\#{foo}"}|)
+      end
+    end
+
     def dbg_format(left, right) do
       {left, right} = format(left, right)
 

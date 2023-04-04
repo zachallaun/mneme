@@ -13,6 +13,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.
   * Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
 
+### Notes
+
+  * Upgrade to >= Elixir v1.14.4 to fix a diff syntax highlighting bug related to escaped string interpolations ([#30](https://github.com/zachallaun/mneme)).
+
 ## v0.2.7 (2023-03-29)
 
 ### Fixes
