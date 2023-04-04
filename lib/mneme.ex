@@ -76,7 +76,8 @@ defmodule Mneme do
   """
 
   @doc """
-  Sets up Mneme configuration for this module and imports `auto_assert/1`.
+  Sets up Mneme configuration for this module and imports auto-assertion
+  macros.
 
   This macro accepts all options described in the "Configuration"
   section above.
@@ -94,7 +95,7 @@ defmodule Mneme do
   """
   defmacro __using__(opts) do
     quote do
-      import Mneme, only: [auto_assert: 1]
+      import Mneme, only: :macros
       require Mneme.Options
       Mneme.Options.register_attributes(unquote(opts))
     end
@@ -164,7 +165,7 @@ defmodule Mneme do
   """
   defmacro auto_assert(arg) do
     ensure_in_test!(:auto_assert, __CALLER__)
-    Mneme.Assertion.build(:auto_assert, arg, __CALLER__)
+    Mneme.Assertion.build(:auto_assert, [arg], __CALLER__)
   end
 
   @doc """
@@ -172,26 +173,26 @@ defmodule Mneme do
   generating the `exception` and `message` if needed.
   """
   defmacro auto_assert_raise(function) do
-    do_auto_assert_raise({function, nil, nil}, __CALLER__)
+    do_auto_assert_raise([function], __CALLER__)
   end
 
   @doc """
   See `auto_assert_raise/1`.
   """
   defmacro auto_assert_raise(exception, function) do
-    do_auto_assert_raise({function, exception, nil}, __CALLER__)
+    do_auto_assert_raise([exception, function], __CALLER__)
   end
 
   @doc """
   See `auto_assert_raise/1`.
   """
   defmacro auto_assert_raise(exception, message, function) do
-    do_auto_assert_raise({function, exception, message}, __CALLER__)
+    do_auto_assert_raise([exception, message, function], __CALLER__)
   end
 
-  defp do_auto_assert_raise(arg, caller) do
+  defp do_auto_assert_raise(args, caller) do
     ensure_in_test!(:auto_assert_raise, caller)
-    Mneme.Assertion.build(:auto_assert_raise, arg, caller)
+    Mneme.Assertion.build(:auto_assert_raise, args, caller)
   end
 
   @doc """

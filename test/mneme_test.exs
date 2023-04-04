@@ -1,5 +1,5 @@
 defmodule MnemeTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   describe "auto_assert/1" do
@@ -30,7 +30,7 @@ defmodule MnemeTest do
       end
       """
 
-      assert_raise Mneme.CompileError, "auto_assert can only be used inside of a test", fn ->
+      auto_assert_raise Mneme.CompileError, "auto_assert can only be used inside of a test", fn ->
         Code.eval_string(code)
       end
     end
@@ -40,13 +40,15 @@ defmodule MnemeTest do
     import ExUnit.CaptureIO
 
     test "existing correct assertions succeed" do
-      assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 1)), 1, context(__ENV__))
+      assertion =
+        Mneme.Assertion.new(:auto_assert, quote(do: auto_assert(1 <- 1)), 1, context(__ENV__))
 
       assert Mneme.Assertion.run(assertion, __ENV__, false)
     end
 
     test "existing incorrect assertions fail with an ExUnit.AssertionError" do
-      assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 2)), 2, context(__ENV__))
+      assertion =
+        Mneme.Assertion.new(:auto_assert, quote(do: auto_assert(1 <- 2)), 2, context(__ENV__))
 
       assert capture_io(fn ->
                assert_raise ExUnit.AssertionError, fn ->
@@ -56,7 +58,8 @@ defmodule MnemeTest do
     end
 
     test "new assertions fail with a Mneme.AssertionError" do
-      assertion = Mneme.Assertion.new(quote(do: auto_assert(1)), 1, context(__ENV__))
+      assertion =
+        Mneme.Assertion.new(:auto_assert, quote(do: auto_assert(1)), 1, context(__ENV__))
 
       assert capture_io(fn ->
                assert_raise Mneme.AssertionError, fn ->
