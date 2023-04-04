@@ -101,9 +101,13 @@ defmodule Mneme.MixProject do
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       plt_add_apps: [:mix, :ex_unit],
       flags: [
-        :underspecs,
+        # enable warnings:
         :extra_return,
-        :missing_return
+        :missing_return,
+        :underspecs,
+
+        # disable warnings:
+        :no_return
       ]
     ]
   end
