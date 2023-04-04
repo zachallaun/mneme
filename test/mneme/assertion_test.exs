@@ -46,7 +46,7 @@ defmodule Mneme.AssertionTest do
   end
 
   defp new_assertion(ast, value, context \\ %{}) do
-    Assertion.new(:auto_assert, ast, value, context)
+    Assertion.new(ast, value, context)
     |> Assertion.put_rich_ast(ast)
     |> Assertion.generate_code(:mneme)
   end

@@ -49,7 +49,6 @@ defmodule Mneme.Assertion do
 
     quote do
       Mneme.Assertion.new(
-        unquote(call),
         unquote(Macro.escape(macro_ast)),
         unquote(value_eval_expr(macro_ast)),
         Keyword.put(unquote(assertion_context(caller)), :binding, binding())
@@ -118,7 +117,7 @@ defmodule Mneme.Assertion do
   @doc """
   Create an assertion struct.
   """
-  def new(call, macro_ast, value, context) do
+  def new({call, _, _} = macro_ast, value, context) do
     %Assertion{
       call: call,
       stage: get_stage(call, macro_ast),
