@@ -135,6 +135,16 @@ defmodule Mneme.Diff.Formatter do
     ]
   end
 
+  defp denormalize(:delimiter, op, {:.., %{line: l, column: c}, [_, _]}, _) do
+    [{op, {{l, c}, {l, c + 2}}}]
+  end
+
+  defp denormalize(:delimiter, op, {:"..//", %{line: l, column: c}, [_, range_end, _]}, _) do
+    {_, {l2, c2}} = bounds(range_end)
+
+    [{op, {{l, c}, {l, c + 2}}}, {op, {{l2, c2}, {l2, c2 + 2}}}]
+  end
+
   defp denormalize(:delimiter, op, {:"[]", meta, _}, _) do
     denormalize_delimiter(op, meta, 1, 1)
   end

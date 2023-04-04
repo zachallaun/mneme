@@ -714,6 +714,42 @@ defmodule Mneme.DiffTest do
                     )
     end
 
+    test "formats ranges" do
+      auto_assert {[[]], [[%Tag{data: "1..10", sequences: [:green]}]]} <- format("", "1..10")
+
+      auto_assert {[[]], [[%Tag{data: "1..10//2", sequences: [:green]}]]} <-
+                    format("", "1..10//2")
+
+      auto_assert {[[%Tag{data: "1", sequences: [:red]}, "..10"]],
+                   [[%Tag{data: "2", sequences: [:green]}, "..10"]]} <-
+                    format("1..10", "2..10")
+
+      auto_assert {[["1..10//", %Tag{data: "1", sequences: [:red]}]],
+                   [["1..10//", %Tag{data: "2", sequences: [:green]}]]} <-
+                    format("1..10//1", "1..10//2")
+
+      auto_assert {[
+                     [
+                       %Tag{data: "[", sequences: [:red]},
+                       "1, 10",
+                       %Tag{data: "]", sequences: [:red]}
+                     ]
+                   ],
+                   [["1", %Tag{data: "..", sequences: [:green]}, "10"]]} <-
+                    format("[1, 10]", "1..10")
+
+      auto_assert {[["1", %Tag{data: "..", sequences: [:red]}, "10"]],
+                   [
+                     [
+                       "1",
+                       %Tag{data: "..", sequences: [:green]},
+                       "10",
+                       %Tag{data: "//", sequences: [:green]},
+                       %Tag{data: "2", sequences: [:green]}
+                     ]
+                   ]} <- format("1..10", "1..10//2")
+    end
+
     # TODO: This could possibly be improved.
     test "regression: unnecessary novel nodes" do
       auto_assert {[

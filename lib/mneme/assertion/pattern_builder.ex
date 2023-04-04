@@ -81,7 +81,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  for module <- [Regex, DateTime, NaiveDateTime, Date, Time] do
+  for module <- [Range, Regex, DateTime, NaiveDateTime, Date, Time] do
     defp do_to_patterns(%unquote(module){} = value, context) do
       {call, meta, args} = value |> inspect() |> Code.string_to_quoted!()
       pattern = {{call, with_meta(meta, context), args}, nil, []}

@@ -123,4 +123,12 @@ defmodule Mneme.Integration.BasicTest do
     # y
     auto_assert false <- falsy
   end
+
+  test "ranges" do
+    # y
+    auto_assert 1..10 <- Range.new(1, 10)
+
+    # y
+    auto_assert 1..10//2 <- Range.new(1, 10, 2)
+  end
 end

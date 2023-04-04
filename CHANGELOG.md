@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Enhancements
 
   * Existing auto-assertions will now run even when `Mneme.start()` is not called, but new auto-assertions will fail ([#32](https://github.com/zachallaun/mneme/issues/32)).
+  * Generate patterns for ranges will now use `..` and `..//` syntax instead of `%Range{}`.
 
 ### Fixes
 
