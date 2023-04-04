@@ -190,34 +190,32 @@ defmodule Mneme.Diff.ASTTest do
     end
 
     test "structs" do
-      auto_assert {:%, [line: 1, column: 1],
+      auto_assert {:%, [closing: [line: 1, column: 6], line: 1, column: 1],
                    [
                      {:__aliases__, [last: [line: 1, column: 2], line: 1, column: 2],
                       [{:var, [line: 1, column: 2], :Foo}]},
-                     {:%{}, [closing: [line: 1, column: 6], line: 1, column: 5], []}
+                     []
                    ]} <- parse_string!("%Foo{}")
 
-      auto_assert {:%, [line: 1, column: 1],
+      auto_assert {:%, [closing: [line: 1, column: 24], line: 1, column: 1],
                    [
                      {:__aliases__, [last: [line: 1, column: 6], line: 1, column: 2],
                       [{:var, [line: 1, column: 2], :Foo}, {:var, [line: 1, column: 6], :Bar}]},
-                     {:%{}, [closing: [line: 1, column: 24], line: 1, column: 9],
-                      [
-                        {{:atom, [format: :keyword, line: 1, column: 10], :foo},
-                         {:int, [token: "1", line: 1, column: 15], 1}},
-                        {{:atom, [format: :keyword, line: 1, column: 18], :bar},
-                         {:int, [token: "2", line: 1, column: 23], 2}}
-                      ]}
+                     [
+                       {{:atom, [format: :keyword, line: 1, column: 10], :foo},
+                        {:int, [token: "1", line: 1, column: 15], 1}},
+                       {{:atom, [format: :keyword, line: 1, column: 18], :bar},
+                        {:int, [token: "2", line: 1, column: 23], 2}}
+                     ]
                    ]} <- parse_string!("%Foo.Bar{foo: 1, bar: 2}")
 
-      auto_assert {:%, [line: 1, column: 1],
+      auto_assert {:%, [closing: [line: 1, column: 10], line: 1, column: 1],
                    [
                      {:var, [line: 1, column: 2], :x},
-                     {:%{}, [closing: [line: 1, column: 10], line: 1, column: 3],
-                      [
-                        {{:atom, [format: :keyword, line: 1, column: 4], :foo},
-                         {:int, [token: "1", line: 1, column: 9], 1}}
-                      ]}
+                     [
+                       {{:atom, [format: :keyword, line: 1, column: 4], :foo},
+                        {:int, [token: "1", line: 1, column: 9], 1}}
+                     ]
                    ]} <- parse_string!("%x{foo: 1}")
     end
 

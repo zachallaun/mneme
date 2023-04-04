@@ -44,19 +44,30 @@ defmodule Mneme.DiffTest do
 
       auto_assert {[
                      [
-                       "{:foo, %",
+                       "{:foo, ",
+                       %Tag{data: "%", sequences: [:red]},
                        %Tag{data: "MyStruct", sequences: [:red]},
-                       "{",
+                       %Tag{data: "{", sequences: [:red]},
                        %Tag{data: "hmm:", sequences: [:red]},
                        " ",
                        %Tag{data: "[", sequences: [:red]},
                        %Tag{data: ":bar", sequences: [:red]},
                        ", {:some, :thing}",
                        %Tag{data: "]", sequences: [:red]},
-                       "}}"
+                       %Tag{data: "}", sequences: [:red]},
+                       "}"
                      ]
                    ],
-                   [["{:foo, %{", %Tag{data: "cool:", sequences: [:green]}, " {:some, :thing}}}"]]} <-
+                   [
+                     [
+                       "{:foo, ",
+                       %Tag{data: "%{", sequences: [:green]},
+                       %Tag{data: "cool:", sequences: [:green]},
+                       " {:some, :thing}",
+                       %Tag{data: "}", sequences: [:green]},
+                       "}"
+                     ]
+                   ]} <-
                     format(
                       "{:foo, %MyStruct{hmm: [:bar, {:some, :thing}]}}",
                       "{:foo, %{cool: {:some, :thing}}}"
@@ -370,24 +381,56 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats map to struct" do
-      auto_assert {nil, [["%", %Tag{data: "MyStruct", sequences: [:green]}, "{bar: 1}"]]} <-
-                    format("%{bar: 1}", "%MyStruct{bar: 1}")
-
-      auto_assert {[["%", %Tag{data: "MyStruct", sequences: [:red]}, "{foo: 1}"]], nil} <-
-                    format("%MyStruct{foo: 1}", "%{foo: 1}")
+      auto_assert {[
+                     [
+                       %Tag{data: "%{", sequences: [:red]},
+                       "bar: 1",
+                       %Tag{data: "}", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "%", sequences: [:green]},
+                       %Tag{data: "MyStruct", sequences: [:green]},
+                       %Tag{data: "{", sequences: [:green]},
+                       "bar: 1",
+                       %Tag{data: "}", sequences: [:green]}
+                     ]
+                   ]} <- format("%{bar: 1}", "%MyStruct{bar: 1}")
 
       auto_assert {[
-                     "%{",
-                     "  foo: 1,",
+                     [
+                       %Tag{data: "%", sequences: [:red]},
+                       %Tag{data: "MyStruct", sequences: [:red]},
+                       %Tag{data: "{", sequences: [:red]},
+                       "foo: 1",
+                       %Tag{data: "}", sequences: [:red]}
+                     ]
+                   ],
+                   [
+                     [
+                       %Tag{data: "%{", sequences: [:green]},
+                       "foo: 1",
+                       %Tag{data: "}", sequences: [:green]}
+                     ]
+                   ]} <- format("%MyStruct{foo: 1}", "%{foo: 1}")
+
+      auto_assert {[
+                     [%Tag{data: "%{", sequences: [:red]}],
+                     ["  foo: 1,"],
                      ["  ", %Tag{data: "bar:", sequences: [:red]}, " 2"],
-                     ["}"],
+                     [%Tag{data: "}", sequences: [:red]}],
                      []
                    ],
                    [
-                     ["%", %Tag{data: "MyStruct", sequences: [:green]}, "{"],
+                     [
+                       %Tag{data: "%", sequences: [:green]},
+                       %Tag{data: "MyStruct", sequences: [:green]},
+                       %Tag{data: "{", sequences: [:green]}
+                     ],
                      ["  foo: 1,"],
                      ["  ", %Tag{data: "baz:", sequences: [:green]}, " 2"],
-                     ["}"],
+                     [%Tag{data: "}", sequences: [:green]}],
                      []
                    ]} <-
                     format(
@@ -586,6 +629,51 @@ defmodule Mneme.DiffTest do
                     format(
                       "auto_assert create(User, email: \"user@example.org\")",
                       "auto_assert {:ok, %User{email: \"user@example.org\"}} <- create(User, email: \"user@example.org\")"
+                    )
+
+      auto_assert {[
+                     [
+                       "auto_assert %My.Qualified.Struct{",
+                       %Tag{data: "a: \"a\"", sequences: [:red]},
+                       ", ",
+                       %Tag{data: "b: \"b\"", sequences: [:red]},
+                       ", ",
+                       %Tag{data: "c: \"c\"", sequences: [:red]},
+                       ", ",
+                       %Tag{data: "d: \"d\"", sequences: [:red]},
+                       "} <- some_call()"
+                     ],
+                     []
+                   ],
+                   nil} <-
+                    format(
+                      """
+                      auto_assert %My.Qualified.Struct{a: "a", b: "b", c: "c", d: "d"} <- some_call()
+                      """,
+                      """
+                      auto_assert %My.Qualified.Struct{} <- some_call()
+                      """
+                    )
+
+      auto_assert {[
+                     [
+                       "auto_assert %My.Qualified.Struct{",
+                       %Tag{
+                         data: "a: \"a\", b: \"b\", c: \"c\", d: \"d\", e: \"e\"",
+                         sequences: [:red]
+                       },
+                       "} <- some_call()"
+                     ],
+                     []
+                   ],
+                   ["auto_assert %My.Qualified.Struct{} <- some_call()", []]} <-
+                    format(
+                      """
+                      auto_assert %My.Qualified.Struct{a: "a", b: "b", c: "c", d: "d", e: "e"} <- some_call()
+                      """,
+                      """
+                      auto_assert %My.Qualified.Struct{} <- some_call()
+                      """
                     )
     end
 

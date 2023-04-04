@@ -9,7 +9,9 @@ defmodule Mneme.Diff.AST do
   # https://github.com/doorgan/sourceror/blob/9cdebddd3b8894772528e4411235e57cad35014c/guides/sourceror_ast.md
   #
   # Differences:
-  # * Ignores comments
+  # * Ignores comments.
+  # * Simplifies struct ASTs. Instead of `{:%, [], [_struct, {:%{}, _, [kws...]}]}`,
+  #   which has an inner map node, use `{:%, [], [_struct, [kws...]]}`.
 
   require Sourceror
 
@@ -165,6 +167,15 @@ defmodule Mneme.Diff.AST do
       end
 
     {{:<<>>, :atom}, metadata, normalize_interpolation(segments, start_pos)}
+  end
+
+  defp normalize_node({:%, metadata, [name, {:%{}, map_meta, kws}]}) do
+    meta =
+      metadata
+      |> Keyword.put(:closing, map_meta[:closing])
+      |> normalize_metadata()
+
+    {:%, meta, [name, kws]}
   end
 
   defp normalize_node({form, metadata, args}) when is_atom(form) do

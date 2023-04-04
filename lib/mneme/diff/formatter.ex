@@ -124,7 +124,16 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp denormalize(:delimiter, _op, {:%, _, _}, _), do: []
+  defp denormalize(:delimiter, op, {:%, meta, [name, _]}, _) do
+    [struct_start, struct_end] = denormalize_delimiter(op, meta, 1, 1)
+    {_, {name_end_l, name_end_c}} = bounds(name)
+
+    [
+      struct_start,
+      {op, {{name_end_l, name_end_c}, {name_end_l, name_end_c + 1}}},
+      struct_end
+    ]
+  end
 
   defp denormalize(:delimiter, op, {:"[]", meta, _}, _) do
     denormalize_delimiter(op, meta, 1, 1)
@@ -252,11 +261,6 @@ defmodule Mneme.Diff.Formatter do
         s -> {edit, s}
       end)
     end)
-  end
-
-  defp bounds({:%, %{line: l, column: c}, [_, map_node]}) do
-    {_, end_bound} = map_node |> bounds()
-    {{l, c}, end_bound}
   end
 
   defp bounds({:%{}, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
