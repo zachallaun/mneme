@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.
   * Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
   * Don't display preceding comments in diffs ([#26](https://github.com/zachallaun/mneme/issues/26)).
+  * Fix a number of diffing errors related to structs.
 
 ### Notes
 
