@@ -1,5 +1,5 @@
 # Used by "mix format"
-locals_without_parens = [auto_assert: 1, auto_assert: 2]
+locals_without_parens = [auto_assert: :*, auto_assert_raise: :*]
 
 [
   inputs: [
