@@ -41,7 +41,9 @@ defmodule Mneme.Assertion do
   @doc """
   Builds a quoted expression that will run the assertion.
   """
-  def build(macro_ast, caller) do
+  def build(call, arg, caller) do
+    macro_ast = {call, Macro.Env.location(caller), [arg]}
+
     quote do
       Mneme.Assertion.new(
         unquote(Macro.escape(macro_ast)),

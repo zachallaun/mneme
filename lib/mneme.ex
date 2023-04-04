@@ -101,52 +101,8 @@ defmodule Mneme do
   end
 
   @doc """
-  Starts Mneme to run auto-assertions as they appear in your tests.
-
-  This will almost always be added to your `test/test_helper.exs`, just
-  below the call to `ExUnit.start()`:
-
-      # test/test_helper.exs
-      ExUnit.start()
-      Mneme.start()
-
-  ## Options
-
-    * `:restart` (boolean) - Restarts Mneme if it has previously been
-      started. This option enables certain IEx-based testing workflows
-      that allow tests to be run without a startup penalty. Defaults to
-      `false`.
-  """
-  def start(opts \\ []) do
-    ExUnit.configure(
-      formatters: [Mneme.Server.ExUnitFormatter],
-      default_formatter: ExUnit.CLIFormatter,
-      timeout: :infinity
-    )
-
-    Mneme.Options.configure()
-
-    if opts[:restart] && Process.whereis(Mneme.Supervisor) do
-      _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
-      {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
-    else
-      children = [
-        Mneme.Server
-      ]
-
-      opts = [
-        name: Mneme.Supervisor,
-        strategy: :one_for_one
-      ]
-
-      Supervisor.start_link(children, opts)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Generate or run an assertion.
+  Asserts its argument is a valid pattern match, generating the pattern
+  when needed.
 
   `auto_assert` generates assertions when tests run, issuing a terminal
   prompt before making any changes (unless configured otherwise).
@@ -204,12 +160,84 @@ defmodule Mneme do
 
           pid = auto_assert pid when is_pid(pid) <- self()
           pid # pid is the result of self()
-  """
-  defmacro auto_assert(body) do
-    ensure_in_test!(:auto_assert, __CALLER__)
 
-    code = {:auto_assert, Macro.Env.location(__CALLER__), [body]}
-    Mneme.Assertion.build(code, __CALLER__)
+  """
+  defmacro auto_assert(arg) do
+    ensure_in_test!(:auto_assert, __CALLER__)
+    Mneme.Assertion.build(:auto_assert, arg, __CALLER__)
+  end
+
+  @doc """
+  Asserts that an exception is raised during `function` execution,
+  generating the `exception` and `message` if needed.
+  """
+  defmacro auto_assert_raise(function) do
+    do_auto_assert_raise({function, nil, nil}, __CALLER__)
+  end
+
+  @doc """
+  See `auto_assert_raise/1`.
+  """
+  defmacro auto_assert_raise(exception, function) do
+    do_auto_assert_raise({function, exception, nil}, __CALLER__)
+  end
+
+  @doc """
+  See `auto_assert_raise/1`.
+  """
+  defmacro auto_assert_raise(exception, message, function) do
+    do_auto_assert_raise({function, exception, message}, __CALLER__)
+  end
+
+  defp do_auto_assert_raise(arg, caller) do
+    ensure_in_test!(:auto_assert_raise, caller)
+    Mneme.Assertion.build(:auto_assert_raise, arg, caller)
+  end
+
+  @doc """
+  Starts Mneme to run auto-assertions as they appear in your tests.
+
+  This will almost always be added to your `test/test_helper.exs`, just
+  below the call to `ExUnit.start()`:
+
+      # test/test_helper.exs
+      ExUnit.start()
+      Mneme.start()
+
+  ## Options
+
+    * `:restart` (boolean) - Restarts Mneme if it has previously been
+      started. This option enables certain IEx-based testing workflows
+      that allow tests to be run without a startup penalty. Defaults to
+      `false`.
+
+  """
+  def start(opts \\ []) do
+    ExUnit.configure(
+      formatters: [Mneme.Server.ExUnitFormatter],
+      default_formatter: ExUnit.CLIFormatter,
+      timeout: :infinity
+    )
+
+    Mneme.Options.configure()
+
+    if opts[:restart] && Process.whereis(Mneme.Supervisor) do
+      _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
+      {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
+    else
+      children = [
+        Mneme.Server
+      ]
+
+      opts = [
+        name: Mneme.Supervisor,
+        strategy: :one_for_one
+      ]
+
+      Supervisor.start_link(children, opts)
+    end
+
+    :ok
   end
 
   defp ensure_in_test!(call, caller) do
