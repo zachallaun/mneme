@@ -355,7 +355,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:auto_assert, :ex_unit, ast, expr, guard, value) do
-    check = build_call(:ex_unit, :auto_assert, ast, expr, nil, value)
+    check = build_call(:auto_assert, :ex_unit, ast, expr, nil, value)
 
     quote do
       unquote(check)
