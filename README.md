@@ -12,7 +12,7 @@ https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3
 
 [![Hex.pm](https://img.shields.io/hexpm/v/mneme.svg)](https://hex.pm/packages/mneme)
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
-[![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
+[![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
 Snapshot tests assert that some expression matches a reference value.
 It's like an ExUnit `assert`, except that the reference value is
