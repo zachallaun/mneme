@@ -82,8 +82,8 @@ defmodule Mneme.Patcher do
           {{:ok, Assertion.t()} | {:error, term()}, state}
   def patch!(%Project{} = project, %Assertion{} = assertion, %{} = opts) do
     {project, source} = load_source!(project, assertion.context.file)
-    {assertion, zipper} = prepare_assertion(assertion, source)
-    patch!(project, source, assertion, zipper, opts)
+    {assertion, node} = prepare_assertion(assertion, source)
+    patch!(project, source, assertion, node, opts)
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}
@@ -93,16 +93,12 @@ defmodule Mneme.Patcher do
     raise ArgumentError, "I told you!"
   end
 
-  defp patch!(project, source, assertion, zipper, opts) do
+  defp patch!(project, source, assertion, node, opts) do
     assertion = Assertion.generate_code(assertion, opts.target, opts.default_pattern)
 
     case prompt_change(assertion, opts) do
       :accept ->
-        ast =
-          zipper
-          |> Zipper.update(fn _ -> assertion.code end)
-          |> Zipper.root()
-
+        ast = replace_assertion_node(node, assertion.code)
         source = Source.update(source, :mneme, ast: ast)
 
         {{:ok, assertion}, Project.update(project, source)}
@@ -114,10 +110,10 @@ defmodule Mneme.Patcher do
         {{:error, :skip}, project}
 
       :prev ->
-        patch!(project, source, Assertion.prev(assertion), zipper, opts)
+        patch!(project, source, Assertion.prev(assertion), node, opts)
 
       :next ->
-        patch!(project, source, Assertion.next(assertion), zipper, opts)
+        patch!(project, source, Assertion.next(assertion), node, opts)
     end
   end
 
@@ -135,7 +131,18 @@ defmodule Mneme.Patcher do
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
-    {Assertion.put_rich_ast(assertion, Zipper.node(zipper)), zipper}
+    {rich_ast, comments} =
+      zipper
+      |> Zipper.node()
+      |> Sourceror.Comments.extract_comments()
+
+    {Assertion.put_rich_ast(assertion, rich_ast), {zipper, comments}}
+  end
+
+  defp replace_assertion_node({zipper, comments}, ast) do
+    zipper
+    |> Zipper.update(fn _ -> Sourceror.Comments.merge_comments(ast, comments) end)
+    |> Zipper.root()
   end
 
   defp format_node(node) do
