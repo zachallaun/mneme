@@ -43,17 +43,17 @@ defmodule Mneme.Assertion do
   """
   def build(macro_ast, caller) do
     quote do
-      Mneme.Assertion.run(
+      Mneme.Assertion.new(
         unquote(Macro.escape(macro_ast)),
         unquote(value_expr(macro_ast)),
-        unquote(assertion_context(caller)),
-        binding(),
-        __ENV__
+        Keyword.put(unquote(assertion_context(caller)), :binding, binding())
       )
+      |> Mneme.Assertion.run(__ENV__, Mneme.Server.started?())
     end
   end
 
-  defp assertion_context(caller) do
+  @doc false
+  def assertion_context(caller) do
     {test, _arity} = caller.function
 
     [
@@ -68,32 +68,45 @@ defmodule Mneme.Assertion do
   @doc """
   Run an auto-assertion, potentially patching the code.
   """
-  def run(macro_ast, value, context, binding, env) do
-    assertion =
-      new(
-        macro_ast,
-        value,
-        Keyword.put(context, :binding, binding)
-      )
+  def run(assertion, env, interactive? \\ true)
 
-    eval_binding = [{{:value, :mneme}, value} | binding]
-
+  def run(assertion, env, true) do
     case assertion.stage do
       :new ->
-        patch(assertion, eval_binding, env)
+        patch(assertion, env)
 
       :update ->
         {:ok, assertion} = Mneme.Server.register_assertion(assertion)
 
         try do
-          eval(assertion, eval_binding, env)
+          eval(assertion, env)
         rescue
           error in [ExUnit.AssertionError] ->
-            patch(assertion, eval_binding, env, error)
+            patch(assertion, env, error)
         end
     end
 
-    value
+    assertion.value
+  end
+
+  def run(assertion, env, false) do
+    case assertion.stage do
+      :new -> assertion_error!()
+      :update -> eval(assertion, env)
+    end
+  rescue
+    error ->
+      warn_non_interactive()
+      reraise error, __STACKTRACE__
+  end
+
+  defp warn_non_interactive do
+    [
+      [:yellow, "warning: ", :default_color],
+      "Mneme is running in non-interactive mode. Ensure that `Mneme.start()` is called before auto-assertions run."
+    ]
+    |> IO.ANSI.format()
+    |> IO.puts()
   end
 
   @doc """
@@ -111,10 +124,10 @@ defmodule Mneme.Assertion do
   defp get_stage({_, _, [{:<-, _, [_, _]}]}), do: :update
   defp get_stage(_ast), do: :new
 
-  defp patch(assertion, eval_binding, env, error \\ nil) do
+  defp patch(assertion, env, error \\ nil) do
     case Mneme.Server.patch_assertion(assertion) do
       {:ok, assertion} ->
-        eval(assertion, eval_binding, env)
+        eval(assertion, env)
 
       {:error, :skip} ->
         :ok
@@ -123,7 +136,7 @@ defmodule Mneme.Assertion do
         if error do
           reraise error, [stacktrace_entry(assertion)]
         else
-          raise Mneme.AssertionError, message: "No pattern present"
+          assertion_error!()
         end
 
       {:error, {:internal, error, stacktrace}} ->
@@ -133,6 +146,10 @@ defmodule Mneme.Assertion do
 
   defp stacktrace_entry(%{context: context}) do
     {context.module, context.test, 1, [file: context.file, line: context.line]}
+  end
+
+  defp assertion_error!(message \\ "No pattern present") do
+    raise Mneme.AssertionError, message: message
   end
 
   @doc """
@@ -311,7 +328,9 @@ defmodule Mneme.Assertion do
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
 
-  defp eval(assertion, binding, env) do
+  defp eval(%{value: value, context: context} = assertion, env) do
+    binding = [{{:value, :mneme}, value} | context.binding]
+
     assertion
     |> code_for_eval()
     |> Code.eval_quoted(binding, env)

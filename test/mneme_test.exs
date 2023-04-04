@@ -36,6 +36,42 @@ defmodule MnemeTest do
     end
   end
 
+  describe "non-interactive" do
+    import ExUnit.CaptureIO
+
+    test "existing correct assertions succeed" do
+      assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 1)), 1, context(__ENV__))
+
+      assert Mneme.Assertion.run(assertion, __ENV__, false)
+    end
+
+    test "existing incorrect assertions fail with an ExUnit.AssertionError" do
+      assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 2)), 2, context(__ENV__))
+
+      assert capture_io(fn ->
+               assert_raise ExUnit.AssertionError, fn ->
+                 Mneme.Assertion.run(assertion, __ENV__, false)
+               end
+             end) =~ "Mneme is running in non-interactive mode."
+    end
+
+    test "new assertions fail with a Mneme.AssertionError" do
+      assertion = Mneme.Assertion.new(quote(do: auto_assert(1)), 1, context(__ENV__))
+
+      assert capture_io(fn ->
+               assert_raise Mneme.AssertionError, fn ->
+                 Mneme.Assertion.run(assertion, __ENV__, false)
+               end
+             end) =~ "Mneme is running in non-interactive mode."
+    end
+
+    defp context(env) do
+      env
+      |> Mneme.Assertion.assertion_context()
+      |> Keyword.put(:binding, [])
+    end
+  end
+
   test "Mneme.Server doesn't blow up if something goes wrong" do
     error =
       assert_raise Mneme.InternalError, fn ->

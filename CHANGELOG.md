@@ -8,6 +8,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   * `auto_assert` now uses `<-` when comparing against falsy values instead of `==`. Support for comparisons using `==` has been removed.
 
+### Enhancements
+
+  * Existing auto-assertions will now run even when `Mneme.start()` is not called, but new auto-assertions will fail ([#32](https://github.com/zachallaun/mneme/issues/32)).
+
 ### Fixes
 
   * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.
@@ -15,7 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Notes
 
-  * Upgrade to >= Elixir v1.14.4 to fix a diff syntax highlighting bug related to escaped string interpolations ([#30](https://github.com/zachallaun/mneme)).
+  * Upgrade to >= Elixir v1.14.4 to fix a diff syntax highlighting bug related to escaped string interpolations ([#30](https://github.com/zachallaun/mneme/issues/30)).
 
 ## v0.2.7 (2023-03-29)
 

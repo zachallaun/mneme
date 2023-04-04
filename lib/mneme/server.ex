@@ -45,6 +45,11 @@ defmodule Mneme.Server do
         }
 
   @doc """
+  Returns `true` if the server has started.
+  """
+  def started?, do: !!GenServer.whereis(__MODULE__)
+
+  @doc """
   Start a Mneme server.
   """
   def start_link(opts) do
