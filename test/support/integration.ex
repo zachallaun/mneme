@@ -169,6 +169,9 @@ defmodule Mneme.Integration do
         {:auto_assert, meta, _} = quoted, %{acc: comments} = state ->
           {test_auto_assert(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
 
+        {:auto_assert_raise, meta, _} = quoted, %{acc: comments} = state ->
+          {test_auto_assert_raise(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
+
         {:assert, meta, args}, %{acc: comments} = state ->
           {test_auto_assert({:auto_assert, meta, args}),
            %{state | acc: meta[:leading_comments] ++ comments}}
@@ -196,15 +199,15 @@ defmodule Mneme.Integration do
     {call, meta, [expr]}
   end
 
-  defp test_auto_assert({call, meta, [{:==, _, [expr, _expected_value]}]}) do
-    {call, meta, [expr]}
-  end
-
   defp test_auto_assert({call, meta, [{:=, _, [_expected_pattern, expr]}]}) do
     {call, meta, [expr]}
   end
 
   defp test_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
+
+  defp test_auto_assert_raise({call, meta, args}) do
+    {call, meta, [List.last(args)]}
+  end
 
   defp expected_auto_assert({call, meta, [_current, expected]}) do
     {call, meta, [expected]}
