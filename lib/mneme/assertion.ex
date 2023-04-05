@@ -376,6 +376,14 @@ defmodule Mneme.Assertion do
     {:auto_assert_raise, meta(ast), [exception, message, value_expr(ast)]}
   end
 
+  defp build_call(:auto_assert_raise, :ex_unit, ast, {exception, nil}) do
+    {:assert_raise, meta(ast), [exception, value_expr(ast)]}
+  end
+
+  defp build_call(:auto_assert_raise, :ex_unit, ast, {exception, message}) do
+    {:assert_raise, meta(ast), [exception, escape_string(message), value_expr(ast)]}
+  end
+
   @doc false
   def code_for_eval(%Assertion{call: call, code: nil, macro_ast: ast, value: value}) do
     code_for_eval(call, ast, value)
