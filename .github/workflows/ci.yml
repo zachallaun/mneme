@@ -94,4 +94,10 @@ jobs:
 
       - run: mix deps.compile
 
+      # We aren't running integration tests on 1.14.3 due to differences in
+      # the formatter that occurred in 1.14.4
+      - run: mix test --exclude integration
+        if: ${{matrix.elixir == '1.14.3' }}
+
       - run: mix test
+        if: ${{matrix.elixir != '1.14.3' }}
