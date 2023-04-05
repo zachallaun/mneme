@@ -40,6 +40,17 @@ defmodule Mneme.Assertion do
 
   @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
 
+  @doc false
+  def new({call, _, _} = macro_ast, value, context) do
+    %Assertion{
+      call: call,
+      stage: get_stage(call, macro_ast),
+      macro_ast: macro_ast,
+      value: value,
+      context: Map.new(context)
+    }
+  end
+
   @doc """
   Builds a quoted expression that will run the assertion.
   """
@@ -105,34 +116,6 @@ defmodule Mneme.Assertion do
       reraise error, __STACKTRACE__
   end
 
-  defp warn_non_interactive do
-    [
-      [:yellow, "warning: ", :default_color],
-      "Mneme is running in non-interactive mode. Ensure that `Mneme.start()` is called before auto-assertions run."
-    ]
-    |> IO.ANSI.format()
-    |> IO.puts()
-  end
-
-  @doc """
-  Create an assertion struct.
-  """
-  def new({call, _, _} = macro_ast, value, context) do
-    %Assertion{
-      call: call,
-      stage: get_stage(call, macro_ast),
-      macro_ast: macro_ast,
-      value: value,
-      context: Map.new(context)
-    }
-  end
-
-  defp get_stage(:auto_assert, {_, _, [{:<-, _, [_, _]}]}), do: :update
-  defp get_stage(:auto_assert, _ast), do: :new
-
-  defp get_stage(:auto_assert_raise, {_, _, [_]}), do: :new
-  defp get_stage(:auto_assert_raise, _update), do: :update
-
   defp patch(assertion, env, error \\ nil) do
     result =
       case assertion do
@@ -159,6 +142,14 @@ defmodule Mneme.Assertion do
     end
   end
 
+  defp eval(%{value: value, context: context} = assertion, env) do
+    binding = [{{:value, :mneme}, value} | context.binding]
+
+    assertion
+    |> code_for_eval()
+    |> Code.eval_quoted(binding, env)
+  end
+
   defp stacktrace_entry(%{context: context}) do
     {context.module, context.test, 1, [file: context.file, line: context.line]}
   end
@@ -166,6 +157,21 @@ defmodule Mneme.Assertion do
   defp assertion_error!(message \\ "No pattern present") do
     raise Mneme.AssertionError, message: message
   end
+
+  defp warn_non_interactive do
+    [
+      [:yellow, "warning: ", :default_color],
+      "Mneme is running in non-interactive mode. Ensure that `Mneme.start()` is called before auto-assertions run."
+    ]
+    |> IO.ANSI.format()
+    |> IO.puts()
+  end
+
+  defp get_stage(:auto_assert, {_, _, [{:<-, _, [_, _]}]}), do: :update
+  defp get_stage(:auto_assert, _ast), do: :new
+
+  defp get_stage(:auto_assert_raise, {_, _, [_]}), do: :new
+  defp get_stage(:auto_assert_raise, _ast), do: :update
 
   @doc """
   Set the rich AST from Sourceror for the given assertion.
@@ -350,7 +356,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:auto_assert, :ex_unit, ast, expr, nil, _value) do
-    {:assert, meta(ast), [{:=, meta(value_expr(ast)), [unescape(expr), value_expr(ast)]}]}
+    {:assert, meta(ast), [{:=, meta(value_expr(ast)), [unescape_strings(expr), value_expr(ast)]}]}
   end
 
   defp build_call(:auto_assert, :ex_unit, ast, expr, guard, value) do
@@ -370,17 +376,6 @@ defmodule Mneme.Assertion do
     {:auto_assert_raise, meta(ast), [exception, message, value_expr(ast)]}
   end
 
-  defp meta({_, meta, _}), do: meta
-  defp meta(_), do: []
-
-  defp eval(%{value: value, context: context} = assertion, env) do
-    binding = [{{:value, :mneme}, value} | context.binding]
-
-    assertion
-    |> code_for_eval()
-    |> Code.eval_quoted(binding, env)
-  end
-
   @doc false
   def code_for_eval(%Assertion{call: call, code: nil, macro_ast: ast, value: value}) do
     code_for_eval(call, ast, value)
@@ -390,15 +385,26 @@ defmodule Mneme.Assertion do
     code_for_eval(call, code, value)
   end
 
-  # Only case it's a block is if the output target is :ex_unit, so we eval directly
-  def code_for_eval(:auto_assert, {:__block__, _, _} = code, _value), do: code
+  # Output target was :ex_unit and included a guard, so the outer
+  # expression is a block
+  def code_for_eval(:auto_assert, {:__block__, _, [{:assert, _, _} | _]} = code, _value), do: code
 
-  def code_for_eval(:auto_assert, {_, _, [{_, _, [expr, _]}]}, falsy)
+  # Output target was :ex_unit, so eval directly
+  def code_for_eval(:auto_assert, {:assert, _, _} = code, _value), do: code
+
+  # ExUnit assert arguments must evaluate to a truthy value, so we eval
+  # a comparison instead of pattern match
+  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy)
       when falsy in [nil, false] do
-    {:assert, [], [{:==, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
+    {:assert, [], [{:==, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 
-  def code_for_eval(:auto_assert, {_, _, [{_, _, [{:when, _, [expected, guard]}, _]}]}, _value) do
+  # ExUnit asserts don't support guards, so we split them out
+  def code_for_eval(
+        :auto_assert,
+        {:auto_assert, _, [{_, _, [{:when, _, [expected, guard]}, _]}]},
+        _value
+      ) do
     quote do
       value = unquote(assert_match(expected))
       assert unquote(guard)
@@ -439,7 +445,7 @@ defmodule Mneme.Assertion do
   end
 
   defp assert_match(expr) do
-    {:assert, [], [{:=, [], [unescape(expr), Macro.var(:value, :mneme)]}]}
+    {:assert, [], [{:=, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
@@ -469,8 +475,6 @@ defmodule Mneme.Assertion do
       end
     end
   end
-
-  defp unescape(expect_expr), do: unescape_strings(expect_expr)
 
   defp unescape_strings(expr) do
     Sourceror.prewalk(expr, fn
@@ -506,4 +510,7 @@ defmodule Mneme.Assertion do
 
     # |> String.replace("\"", "\\\"")
   end
+
+  defp meta({_, meta, _}), do: meta
+  defp meta(_), do: []
 end
