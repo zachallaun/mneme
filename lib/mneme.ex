@@ -11,10 +11,9 @@ defmodule Mneme do
 
   > #### Early days {: .info}
   >
-  > Mneme is in its infancy and has an intentionally minimal API
-  > consisting largely of a single macro. Please feel free to submit
-  > any feedback, bugs, or suggestions as [issues on Github](https://github.com/zachallaun/mneme).
-  > Thanks!
+  > Mneme is in its infancy and has an intentionally minimal API. Please
+  > feel free to submit any feedback, bugs, or suggestions as
+  > [issues on Github](https://github.com/zachallaun/mneme). Thanks!
 
   #{@mdoc}
 
@@ -105,6 +104,8 @@ defmodule Mneme do
   Asserts its argument is a valid pattern match, generating the pattern
   when needed.
 
+  ## Examples
+
   `auto_assert` generates assertions when tests run, issuing a terminal
   prompt before making any changes (unless configured otherwise).
 
@@ -171,23 +172,45 @@ defmodule Mneme do
   @doc """
   Asserts that an exception is raised during `function` execution,
   generating the `exception` and `message` if needed.
+
+  If the given function does not raise, the assertion will fail.
+
+  Like `auto_assert/1`, you will be prompted to automatically update
+  the assertion if the raised raised exception changes.
+
+  ## Examples
+
+      auto_assert_raise fn ->
+        some_call_expected_to_raise()
+      end
+
+      # after running the test and accepting changes
+      auto_assert_raise Some.Exception, fn ->
+        some_call_expected_to_raise()
+      end
+
+      # optionally include the message
+      auto_assert_raise Some.Exception, "perhaps with a message", fn ->
+        some_call_expected_to_raise()
+      end
+
   """
-  defmacro auto_assert_raise(function) do
-    do_auto_assert_raise([function], __CALLER__)
+  defmacro auto_assert_raise(exception, message, function) do
+    do_auto_assert_raise([exception, message, function], __CALLER__)
   end
 
   @doc """
-  See `auto_assert_raise/1`.
+  See `auto_assert_raise/3`.
   """
   defmacro auto_assert_raise(exception, function) do
     do_auto_assert_raise([exception, function], __CALLER__)
   end
 
   @doc """
-  See `auto_assert_raise/1`.
+  See `auto_assert_raise/3`.
   """
-  defmacro auto_assert_raise(exception, message, function) do
-    do_auto_assert_raise([exception, message, function], __CALLER__)
+  defmacro auto_assert_raise(function) do
+    do_auto_assert_raise([function], __CALLER__)
   end
 
   defp do_auto_assert_raise(args, caller) do
