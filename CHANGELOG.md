@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   * Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
   * Don't display preceding comments in diffs ([#26](https://github.com/zachallaun/mneme/issues/26)).
   * Fix a number of diffing errors related to structs.
+  * Fix a compatibility issue with Ecto ~> 3.9.4 ([#34](https://github.com/zachallaun/mneme/issues/34)).
 
 ### Notes
 

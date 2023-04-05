@@ -249,13 +249,13 @@ defmodule Mneme.Assertion.PatternBuilder do
     {Map.drop(struct, drop_fields), notes}
   end
 
-  # The Schema.__schema__(:autogenerate_fields) call was introduced after
-  # Ecto v3.9.4, so we rely on an undocumented call using :autogenerate
-  # for versions prior to that.
+  # The Schema.__schema__(:autogenerate_fields) call was introduced in
+  # Ecto v3.10.0, so we rely on an undocumented call using :autogenerate
+  # for versions prior.
   ecto_supports_autogenerate_fields? =
     with {:ok, charlist} <- :application.get_key(:ecto, :vsn),
          {:ok, version} <- Version.parse(List.to_string(charlist)) do
-      Version.compare(version, "3.9.4") == :gt
+      Version.match?(version, ">= 3.10.0")
     else
       _ -> false
     end
