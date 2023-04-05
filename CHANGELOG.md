@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Enhancements
 
+  * Add [`auto_assert_raise`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_raise/3).
   * Existing auto-assertions will now run even when `Mneme.start()` is not called, but new auto-assertions will fail ([#32](https://github.com/zachallaun/mneme/issues/32)).
   * Generate patterns for ranges will now use `..` and `..//` syntax instead of `%Range{}`.
 
