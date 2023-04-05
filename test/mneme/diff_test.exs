@@ -750,6 +750,61 @@ defmodule Mneme.DiffTest do
                    ]} <- format("1..10", "1..10//2")
     end
 
+    test "formats anonymous functions" do
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert_raise ",
+                       %Tag{data: "ArgumentError", sequences: [:green]},
+                       ", fn -> some_call() end"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert_raise fn -> some_call() end",
+                      "auto_assert_raise ArgumentError, fn -> some_call() end"
+                    )
+
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert_raise ",
+                       %Tag{data: "ArgumentError", sequences: [:green]},
+                       ", ",
+                       %Tag{data: "\"some message\"", sequences: [:green]},
+                       ", fn -> some_call() end"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert_raise fn -> some_call() end",
+                      "auto_assert_raise ArgumentError, \"some message\", fn -> some_call() end"
+                    )
+
+      auto_assert {[
+                     [
+                       "auto_assert_raise",
+                       %Tag{data: " ArgumentError", sequences: [:red]},
+                       ", fn -> ",
+                       %Tag{data: ":bad", sequences: [:red]},
+                       " end"
+                     ]
+                   ],
+                   [
+                     [
+                       "auto_assert_raise ",
+                       %Tag{data: "Some.", sequences: [:green]},
+                       %Tag{data: "Other", sequences: [:green]},
+                       %Tag{data: ".Exception", sequences: [:green]},
+                       ", fn -> ",
+                       %Tag{data: ":good", sequences: [:green]},
+                       " end"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert_raise ArgumentError, fn -> :bad end",
+                      "auto_assert_raise Some.Other.Exception, fn -> :good end"
+                    )
+    end
+
     # TODO: This could possibly be improved.
     test "regression: unnecessary novel nodes" do
       auto_assert {[
