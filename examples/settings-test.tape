@@ -1,6 +1,7 @@
-Output examples/demo.gif
-Output examples/demo.mp4
-# Output examples/demo.webm
+# This can be used to test the settings used in `demo.tape`,
+# which takes much longer to record.
+
+Output examples/settings-test.mp4
 
 Set Shell zsh
 Set FontSize 20
@@ -20,38 +21,16 @@ Set WindowBarSize 40
 Hide
 Type "setopt interactivecomments" Enter
 Type "cd examples/demo_project && clear" Enter
-Type "MIX_ENV=test mix deps.get && clear" Enter
-Type "MIX_ENV=test mix deps.compile --force && clear" Enter
-Type "MIX_ENV=test mix compile && clear" Enter
-Sleep 5s
-Type "clear" Enter
 Show
 
 # Recording
 
 Type "# Mneme is a snapshot testing library" Sleep 300ms Enter Sleep 1s
-Type "# It introduces a new assertion macro: auto_assert" Sleep 300ms Enter Sleep 1s
-Type "# When a new auto-assertion is found, Mneme generates a pattern for you" Sleep 300ms Enter Sleep 1s
-Type "# Let's see what it looks like..." Sleep 300ms Enter Sleep 1s
 Type "clear && mix test --only first_example" Sleep 1.5s Enter
 Sleep 4s
 
 Type "y" Sleep 2s Enter
 Sleep 2s
-
-Type "y" Sleep 2s Enter
-Sleep 3s
-
-Type "# We accepted both patterns and the test was updated automatically" Sleep 300ms Enter Sleep 1s
-Type "# You're also prompted if something changes and a pattern doesn't match" Sleep 300ms Enter Sleep 1s
-Type "clear && mix test --only second_example" Sleep 1.5s Enter
-Sleep 4s
-
-Type "y" Sleep 2s Enter
-Sleep 3s
-
-Type "# Testing with Mneme can be really interactive and fun!" Sleep 300ms Enter Sleep 1s
-Type "# Give it a try and please share any feedback you have!" Sleep 5s
 
 # VHS documentation
 #
