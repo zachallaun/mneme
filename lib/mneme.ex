@@ -74,6 +74,8 @@ defmodule Mneme do
   #{Mneme.Options.docs()}
   """
 
+  @ex_unit_default_receive_timeout 100
+
   @doc """
   Sets up Mneme configuration for this module and imports auto-assertion
   macros.
@@ -223,7 +225,7 @@ defmodule Mneme do
   @doc """
   Pattern-generating variant of `ExUnit.Assertions.assert_receive/3`.
 
-  `timeout` is in milliseconds and defaults to `100`.
+  `timeout` is in milliseconds and defaults to `#{@ex_unit_default_receive_timeout}`.
   """
   defmacro auto_assert_receive(pattern, timeout) when is_integer(timeout) and timeout >= 0 do
     build_assertion(:auto_assert_receive, [pattern, timeout], __CALLER__)
@@ -320,4 +322,7 @@ defmodule Mneme do
 
     :ok
   end
+
+  @doc false
+  def __receive_timeout__, do: @ex_unit_default_receive_timeout
 end

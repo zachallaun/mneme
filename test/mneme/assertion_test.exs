@@ -91,6 +91,63 @@ defmodule Mneme.AssertionTest do
     end
   end
 
+  describe "auto_assert_receive" do
+    test "without arguments" do
+      ast = quote(do: auto_assert_receive())
+      inbox = [{:message, "data"}]
+
+      auto_assert [
+                    mneme: "auto_assert_receive {:message, \"data\"}",
+                    ex_unit: "assert_receive {:message, \"data\"}",
+                    eval: "assert_receive {:message, \"data\"}, 0"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "without arguments, with a guard" do
+      ast = quote(do: auto_assert_receive())
+      inbox = [{:from, self()}]
+
+      auto_assert [
+                    mneme: "auto_assert_receive {:from, pid} when is_pid(pid)",
+                    ex_unit: "assert_receive {:from, pid} when is_pid(pid)",
+                    eval: "assert_receive {:from, pid} when is_pid(pid), 0"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "with existing pattern" do
+      ast = quote(do: auto_assert_receive({:some, :message}))
+      inbox = [{:other, :message}]
+
+      auto_assert [
+                    mneme: "auto_assert_receive {:other, :message}",
+                    ex_unit: "assert_receive {:other, :message}",
+                    eval: "assert_receive {:other, :message}, 0"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "with existing pattern, with a guard" do
+      ast = quote(do: auto_assert_receive({:some, :message}))
+      inbox = [{:from, self()}]
+
+      auto_assert [
+                    mneme: "auto_assert_receive {:from, pid} when is_pid(pid)",
+                    ex_unit: "assert_receive {:from, pid} when is_pid(pid)",
+                    eval: "assert_receive {:from, pid} when is_pid(pid), 0"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "with existing pattern and timeout" do
+      ast = quote(do: auto_assert_receive({:some, :message}, 200))
+      inbox = [{:other, :message}]
+
+      auto_assert [
+                    mneme: "auto_assert_receive {:other, :message}, 200",
+                    ex_unit: "assert_receive {:other, :message}, 200",
+                    eval: "assert_receive {:other, :message}, 0"
+                  ] <- targets(ast, inbox)
+    end
+  end
+
   defp targets(ast, value, context \\ %{}) do
     assertion =
       Assertion.new(ast, value, context)
@@ -98,7 +155,7 @@ defmodule Mneme.AssertionTest do
       |> Assertion.generate_code(:mneme)
 
     [
-      mneme: assertion |> Assertion.to_code(:mneme) |> Sourceror.to_string(@format_opts),
+      mneme: assertion.code |> Sourceror.to_string(@format_opts),
       ex_unit: assertion |> Assertion.to_code(:ex_unit) |> Sourceror.to_string(@format_opts),
       eval: assertion |> Assertion.code_for_eval() |> Sourceror.to_string(@format_opts)
     ]

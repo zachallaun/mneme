@@ -5,7 +5,7 @@ defmodule Mneme.Assertion do
   alias Mneme.Assertion.PatternBuilder
 
   defstruct [
-    :call,
+    :kind,
     :stage,
     :value,
     :macro_ast,
@@ -17,7 +17,7 @@ defmodule Mneme.Assertion do
   ]
 
   @type t :: %Assertion{
-          call: :auto_assert | :auto_assert_raise,
+          kind: kind,
           stage: :new | :update,
           value: term(),
           macro_ast: Macro.t(),
@@ -27,6 +27,14 @@ defmodule Mneme.Assertion do
           pattern_idx: non_neg_integer(),
           context: context
         }
+
+  @type kind ::
+          :auto_assert
+          | :auto_assert_raise
+          | :auto_assert_receive
+          | :auto_assert_received
+
+  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
 
   @type context :: %{
           file: String.t(),
@@ -38,25 +46,25 @@ defmodule Mneme.Assertion do
           foo: integer()
         }
 
-  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
+  @type target :: :mneme | :ex_unit
 
   @doc false
-  def new({call, _, _} = macro_ast, value, context) do
+  def new({kind, _, _} = macro_ast, value, ctx) do
     %Assertion{
-      call: call,
-      stage: get_stage(call, macro_ast),
+      kind: kind,
+      stage: get_stage(kind, macro_ast),
       macro_ast: macro_ast,
       value: value,
-      context: Map.new(context)
+      context: Map.new(ctx)
     }
   end
 
   @doc """
   Builds a quoted expression that will run the assertion.
   """
-  @spec build(atom(), [Macro.t()], Macro.Env.t()) :: Macro.t()
-  def build(call, args, caller) do
-    macro_ast = {call, Macro.Env.location(caller), args}
+  @spec build(atom(), [term()], Macro.Env.t()) :: Macro.t()
+  def build(kind, args, caller) do
+    macro_ast = {kind, Macro.Env.location(caller), args}
 
     quote do
       Mneme.Assertion.new(
@@ -119,7 +127,7 @@ defmodule Mneme.Assertion do
   defp patch(assertion, env, error \\ nil) do
     result =
       case assertion do
-        %{call: :auto_assert_raise, value: nil} -> {:ok, assertion}
+        %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
         _ -> Mneme.Server.patch_assertion(assertion)
       end
 
@@ -142,16 +150,16 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp eval(%{value: value, context: context} = assertion, env) do
-    binding = [{{:value, :mneme}, value} | context.binding]
+  defp eval(%{value: value, context: ctx} = assertion, env) do
+    binding = [{{:value, :mneme}, value} | ctx.binding]
 
     assertion
     |> code_for_eval()
     |> Code.eval_quoted(binding, env)
   end
 
-  defp stacktrace_entry(%{context: context}) do
-    {context.module, context.test, 1, [file: context.file, line: context.line]}
+  defp stacktrace_entry(%{context: ctx}) do
+    {ctx.module, ctx.test, 1, [file: ctx.file, line: ctx.line]}
   end
 
   defp assertion_error!(message \\ "No pattern present") do
@@ -173,6 +181,12 @@ defmodule Mneme.Assertion do
   defp get_stage(:auto_assert_raise, {_, _, [_]}), do: :new
   defp get_stage(:auto_assert_raise, _ast), do: :update
 
+  defp get_stage(:auto_assert_receive, {_, _, []}), do: :new
+  defp get_stage(:auto_assert_receive, _ast), do: :update
+
+  defp get_stage(:auto_assert_received, {_, _, []}), do: :new
+  defp get_stage(:auto_assert_received, _ast), do: :update
+
   @doc """
   Set the rich AST from Sourceror for the given assertion.
   """
@@ -189,15 +203,8 @@ defmodule Mneme.Assertion do
     raise ArgumentError, "cannot generate code until `:rich_ast` has been set"
   end
 
-  def generate_code(%Assertion{call: call, patterns: nil} = assertion, target, default_pattern) do
-    {patterns, pattern_idx} =
-      case call do
-        :auto_assert ->
-          build_and_select_pattern(assertion, default_pattern)
-
-        :auto_assert_raise ->
-          build_and_select_raise(assertion, default_pattern)
-      end
+  def generate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
+    {patterns, pattern_idx} = build_and_select(assertion, default_pattern)
 
     assertion
     |> Map.merge(%{
@@ -209,6 +216,29 @@ defmodule Mneme.Assertion do
 
   def generate_code(%Assertion{} = assertion, target, _) do
     %{assertion | code: assertion |> to_code(target) |> escape_strings()}
+  end
+
+  defp build_and_select(%{kind: kind} = assertion, default_pattern) do
+    case kind do
+      :auto_assert -> build_and_select_pattern(assertion, default_pattern)
+      :auto_assert_raise -> build_and_select_raise(assertion, default_pattern)
+      :auto_assert_receive -> build_and_select_receive(assertion, default_pattern)
+      :auto_assert_received -> build_and_select_receive(assertion, default_pattern)
+    end
+  end
+
+  defp build_and_select_receive(%{value: [_ | _] = messages, context: ctx}, default_pattern) do
+    patterns =
+      messages
+      |> Enum.map(&PatternBuilder.to_patterns(&1, ctx))
+      |> Enum.map(fn patterns ->
+        case default_pattern do
+          :first -> List.first(patterns)
+          _ -> List.last(patterns)
+        end
+      end)
+
+    {patterns, 0}
   end
 
   defp build_and_select_raise(%{value: %exception{} = e, macro_ast: macro_ast}, default) do
@@ -312,9 +342,9 @@ defmodule Mneme.Assertion do
   @doc """
   Check whether the assertion struct represents the given AST node.
   """
-  def same?(%Assertion{call: call, context: %{line: line}}, node) do
+  def same?(%Assertion{kind: kind, context: %{line: line}}, node) do
     case node do
-      {^call, meta, _} -> meta[:line] == line
+      {^kind, meta, _} -> meta[:line] == line
       _ -> false
     end
   end
@@ -322,45 +352,60 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{call: :auto_assert, rich_ast: ast, value: value} = assertion, target) do
-    {expr, guard, _} = pattern(assertion)
-    build_call(:auto_assert, target, ast, block_with_line(expr, meta(ast)), guard, value)
+  def to_code(%Assertion{kind: :auto_assert_raise} = assertion, target) do
+    {expr, _, _} = pattern(assertion)
+    build_call(target, assertion, {expr, nil})
   end
 
-  def to_code(%Assertion{call: :auto_assert_raise, rich_ast: ast} = assertion, target) do
-    {expr, _, _} = pattern(assertion)
-    build_call(:auto_assert_raise, target, ast, expr)
+  def to_code(%Assertion{rich_ast: ast} = assertion, target) do
+    {expr, guard, _} = pattern(assertion)
+    build_call(target, assertion, {block_with_line(expr, meta(ast)), guard})
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this
   # PR being merged: https://github.com/elixir-lang/elixir/pull/12389
-  defp block_with_line({call, meta, args}, parent_meta) do
-    {call, Keyword.put(meta, :line, parent_meta[:line]), args}
+  defp block_with_line({kind, meta, args}, parent_meta) do
+    {kind, Keyword.put(meta, :line, parent_meta[:line]), args}
   end
 
   defp block_with_line(value, parent_meta) do
     {:__block__, [line: parent_meta[:line]], [value]}
   end
 
-  defp build_call(:auto_assert, :mneme, ast, expr, nil, _value) do
-    {:auto_assert, meta(ast), [{:<-, meta(value_expr(ast)), [expr, value_expr(ast)]}]}
-  end
-
-  defp build_call(:auto_assert, :mneme, ast, expr, guard, _value) do
+  defp build_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
     {:auto_assert, meta(ast),
-     [{:<-, meta(value_expr(ast)), [{:when, [], [expr, guard]}, value_expr(ast)]}]}
+     [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
   end
 
-  defp build_call(:auto_assert, :ex_unit, ast, expr, nil, falsy) when falsy in [false, nil] do
+  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, nil}, _}) do
+    {:auto_assert_raise, meta(ast), [exception, value_expr(ast)]}
+  end
+
+  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, msg}, _}) do
+    {:auto_assert_raise, meta(ast), [exception, msg, value_expr(ast)]}
+  end
+
+  defp build_call(:mneme, %{kind: :auto_assert_receive, rich_ast: ast}, pattern) do
+    args =
+      case ast do
+        {_, _, [_old_pattern, timeout]} -> [maybe_when(pattern), timeout]
+        _ -> [maybe_when(pattern)]
+      end
+
+    {:auto_assert_receive, meta(ast), args}
+  end
+
+  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil})
+       when falsy in [false, nil] do
     {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
-  defp build_call(:auto_assert, :ex_unit, ast, expr, nil, _value) do
+  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast}, {expr, nil}) do
     {:assert, meta(ast), [{:=, meta(value_expr(ast)), [unescape_strings(expr), value_expr(ast)]}]}
   end
 
-  defp build_call(:auto_assert, :ex_unit, ast, expr, guard, value) do
-    check = build_call(:auto_assert, :ex_unit, ast, expr, nil, value)
+  defp build_call(:ex_unit, %{kind: :auto_assert} = assertion, {expr, guard}) do
+    check = build_call(:ex_unit, assertion, {expr, nil})
 
     quote do
       unquote(check)
@@ -368,29 +413,34 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp build_call(:auto_assert_raise, :mneme, ast, {exception, nil}) do
-    {:auto_assert_raise, meta(ast), [exception, value_expr(ast)]}
-  end
-
-  defp build_call(:auto_assert_raise, :mneme, ast, {exception, message}) do
-    {:auto_assert_raise, meta(ast), [exception, message, value_expr(ast)]}
-  end
-
-  defp build_call(:auto_assert_raise, :ex_unit, ast, {exception, nil}) do
+  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, nil}, _}) do
     {:assert_raise, meta(ast), [exception, value_expr(ast)]}
   end
 
-  defp build_call(:auto_assert_raise, :ex_unit, ast, {exception, message}) do
-    {:assert_raise, meta(ast), [exception, escape_string(message), value_expr(ast)]}
+  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, msg}, _}) do
+    {:assert_raise, meta(ast), [exception, escape_string(msg), value_expr(ast)]}
   end
+
+  defp build_call(:ex_unit, %{kind: :auto_assert_receive, rich_ast: ast}, pattern) do
+    args =
+      case ast do
+        {_, _, [_old_pattern, timeout]} -> [maybe_when(pattern), timeout]
+        _ -> [maybe_when(pattern)]
+      end
+
+    {:assert_receive, meta(ast), args}
+  end
+
+  defp maybe_when({expr, nil}), do: expr
+  defp maybe_when({expr, guard}), do: {:when, [], [expr, guard]}
 
   @doc false
-  def code_for_eval(%Assertion{call: call, code: nil, macro_ast: ast, value: value}) do
-    code_for_eval(call, ast, value)
+  def code_for_eval(%Assertion{kind: kind, code: nil, macro_ast: ast, value: value}) do
+    code_for_eval(kind, ast, value)
   end
 
-  def code_for_eval(%Assertion{call: call, code: code, value: value}) do
-    code_for_eval(call, code, value)
+  def code_for_eval(%Assertion{kind: kind, code: code, value: value}) do
+    code_for_eval(kind, code, value)
   end
 
   # Output target was :ex_unit and included a guard, so the outer
@@ -399,6 +449,8 @@ defmodule Mneme.Assertion do
 
   # Output target was :ex_unit, so eval directly
   def code_for_eval(:auto_assert, {:assert, _, _} = code, _value), do: code
+  def code_for_eval(:auto_assert_raise, {:assert_raise, _, _} = code, _value), do: code
+  def code_for_eval(:auto_assert_receive, {:assert_receive, _, _} = code, _value), do: code
 
   # ExUnit assert arguments must evaluate to a truthy value, so we eval
   # a comparison instead of pattern match
@@ -408,11 +460,7 @@ defmodule Mneme.Assertion do
   end
 
   # ExUnit asserts don't support guards, so we split them out
-  def code_for_eval(
-        :auto_assert,
-        {:auto_assert, _, [{_, _, [{:when, _, [expected, guard]}, _]}]},
-        _value
-      ) do
+  def code_for_eval(:auto_assert, {_, _, [{_, _, [{:when, _, [expected, guard]}, _]}]}, _value) do
     quote do
       value = unquote(assert_match(expected))
       assert unquote(guard)
@@ -452,6 +500,14 @@ defmodule Mneme.Assertion do
     end
   end
 
+  def code_for_eval(:auto_assert_receive, {_, _, [pattern | _]}, _) do
+    # We always set 0 timeout here since we've already waited in order
+    # to generate patterns
+    quote do
+      assert_receive unquote(pattern), 0
+    end
+  end
+
   defp assert_match(expr) do
     {:assert, [], [{:=, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
@@ -471,6 +527,25 @@ defmodule Mneme.Assertion do
 
   defp value_eval_expr({:auto_assert_raise, _, _} = expr) do
     expr |> value_expr() |> raised_exception()
+  end
+
+  defp value_eval_expr({:auto_assert_receive, _, [_, timeout]}), do: messages_received(timeout)
+
+  defp value_eval_expr({:auto_assert_receive, _, _}) do
+    messages_received(Mneme.__receive_timeout__())
+  end
+
+  defp value_eval_expr({:auto_assert_received, _, _}), do: messages_received()
+
+  defp messages_received do
+    quote(do: self() |> Process.info(:messages) |> elem(1))
+  end
+
+  defp messages_received(timeout) do
+    quote do
+      :timer.sleep(unquote(timeout))
+      self() |> Process.info(:messages) |> elem(1)
+    end
   end
 
   defp raised_exception(fun) do
