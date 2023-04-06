@@ -4,7 +4,7 @@ defmodule Mneme.MixProject do
   @app :mneme
   @source_url "https://github.com/zachallaun/mneme"
 
-  def version, do: "0.2.7"
+  def version, do: "0.3.0-rc.0"
 
   def project do
     [
