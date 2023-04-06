@@ -101,8 +101,7 @@ defmodule Mneme do
   end
 
   @doc """
-  Asserts its argument is a valid pattern match, generating the pattern
-  when needed.
+  Pattern-generating variant of `ExUnit.Assertions.assert/1`.
 
   ## Examples
 
@@ -164,14 +163,12 @@ defmodule Mneme do
           pid # pid is the result of self()
 
   """
-  defmacro auto_assert(arg) do
-    ensure_in_test!(:auto_assert, __CALLER__)
-    Mneme.Assertion.build(:auto_assert, [arg], __CALLER__)
+  defmacro auto_assert(expression) do
+    build_assertion(:auto_assert, [expression], __CALLER__)
   end
 
   @doc """
-  Asserts that an exception is raised during `function` execution,
-  generating the `exception` and `message` if needed.
+  Pattern-generating variant of `ExUnit.Assertions.assert_raise/3`.
 
   If the given function does not raise, the assertion will fail.
 
@@ -206,26 +203,76 @@ defmodule Mneme do
 
   """
   defmacro auto_assert_raise(exception, message, function) do
-    do_auto_assert_raise([exception, message, function], __CALLER__)
+    build_assertion(:auto_assert_raise, [exception, message, function], __CALLER__)
   end
 
   @doc """
   See `auto_assert_raise/3`.
   """
   defmacro auto_assert_raise(exception, function) do
-    do_auto_assert_raise([exception, function], __CALLER__)
+    build_assertion(:auto_assert_raise, [exception, function], __CALLER__)
   end
 
   @doc """
   See `auto_assert_raise/3`.
   """
   defmacro auto_assert_raise(function) do
-    do_auto_assert_raise([function], __CALLER__)
+    build_assertion(:auto_assert_raise, [function], __CALLER__)
   end
 
-  defp do_auto_assert_raise(args, caller) do
-    ensure_in_test!(:auto_assert_raise, caller)
-    Mneme.Assertion.build(:auto_assert_raise, args, caller)
+  @doc """
+  Pattern-generating variant of `ExUnit.Assertions.assert_receive/3`.
+
+  `timeout` is in milliseconds and defaults to `100`.
+  """
+  defmacro auto_assert_receive(pattern, timeout) when is_integer(timeout) and timeout >= 0 do
+    build_assertion(:auto_assert_receive, [pattern, timeout], __CALLER__)
+  end
+
+  @doc """
+  See `auto_assert_receive/2`.
+  """
+  defmacro auto_assert_receive(pattern) do
+    build_assertion(:auto_assert_receive, [pattern], __CALLER__)
+  end
+
+  @doc """
+  See `auto_assert_receive/2`.
+  """
+  defmacro auto_assert_receive do
+    build_assertion(:auto_assert_receive, [], __CALLER__)
+  end
+
+  @doc """
+  Pattern-generating variant of `ExUnit.Assertions.assert_received/2`.
+
+  Similar to `auto_assert_receive/2`, except that the timeout is set to
+  0, so the expected message must already be in the current process'
+  mailbox.
+  """
+  defmacro auto_assert_received(pattern) do
+    build_assertion(:auto_assert_received, [pattern], __CALLER__)
+  end
+
+  @doc """
+  See `auto_assert_received/1`.
+  """
+  defmacro auto_assert_received do
+    build_assertion(:auto_assert_received, [], __CALLER__)
+  end
+
+  defp build_assertion(call, args, caller) do
+    ensure_in_test!(call, caller)
+    Mneme.Assertion.build(call, args, caller)
+  end
+
+  defp ensure_in_test!(call, caller) do
+    with {fun_name, 1} <- caller.function,
+         "test " <> _ <- to_string(fun_name) do
+      :ok
+    else
+      _ -> raise Mneme.CompileError, message: "#{call} can only be used inside of a test"
+    end
   end
 
   @doc """
@@ -272,14 +319,5 @@ defmodule Mneme do
     end
 
     :ok
-  end
-
-  defp ensure_in_test!(call, caller) do
-    with {fun_name, 1} <- caller.function,
-         "test " <> _ <- to_string(fun_name) do
-      :ok
-    else
-      _ -> raise Mneme.CompileError, message: "#{call} can only be used inside of a test"
-    end
   end
 end
