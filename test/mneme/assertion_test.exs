@@ -148,6 +148,52 @@ defmodule Mneme.AssertionTest do
     end
   end
 
+  describe "auto_assert_received" do
+    test "without arguments" do
+      ast = quote(do: auto_assert_received())
+      inbox = [{:message, "data"}]
+
+      auto_assert [
+                    mneme: "auto_assert_received {:message, \"data\"}",
+                    ex_unit: "assert_received {:message, \"data\"}",
+                    eval: "assert_received {:message, \"data\"}"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "without arguments, with a guard" do
+      ast = quote(do: auto_assert_received())
+      inbox = [{:from, self()}]
+
+      auto_assert [
+                    mneme: "auto_assert_received {:from, pid} when is_pid(pid)",
+                    ex_unit: "assert_received {:from, pid} when is_pid(pid)",
+                    eval: "assert_received {:from, pid} when is_pid(pid)"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "with existing pattern" do
+      ast = quote(do: auto_assert_received({:some, :message}))
+      inbox = [{:other, :message}]
+
+      auto_assert [
+                    mneme: "auto_assert_received {:other, :message}",
+                    ex_unit: "assert_received {:other, :message}",
+                    eval: "assert_received {:other, :message}"
+                  ] <- targets(ast, inbox)
+    end
+
+    test "with existing pattern, with a guard" do
+      ast = quote(do: auto_assert_received({:some, :message}))
+      inbox = [{:from, self()}]
+
+      auto_assert [
+                    mneme: "auto_assert_received {:from, pid} when is_pid(pid)",
+                    ex_unit: "assert_received {:from, pid} when is_pid(pid)",
+                    eval: "assert_received {:from, pid} when is_pid(pid)"
+                  ] <- targets(ast, inbox)
+    end
+  end
+
   defp targets(ast, value, context \\ %{}) do
     assertion =
       Assertion.new(ast, value, context)

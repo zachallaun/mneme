@@ -398,6 +398,10 @@ defmodule Mneme.Assertion do
     {:auto_assert_receive, meta, args}
   end
 
+  defp build_call(:mneme, %{kind: :auto_assert_received, rich_ast: ast}, pattern) do
+    {:auto_assert_received, Keyword.delete(meta(ast), :closing), [maybe_when(pattern)]}
+  end
+
   defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil})
        when falsy in [false, nil] do
     {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
@@ -432,6 +436,10 @@ defmodule Mneme.Assertion do
       end
 
     {:assert_receive, meta(ast), args}
+  end
+
+  defp build_call(:ex_unit, %{kind: :auto_assert_received, rich_ast: ast}, pattern) do
+    {:assert_received, Keyword.delete(meta(ast), :closing), [maybe_when(pattern)]}
   end
 
   defp maybe_when({expr, nil}), do: expr
@@ -510,6 +518,18 @@ defmodule Mneme.Assertion do
     # to generate patterns
     quote do
       assert_receive unquote(pattern), 0
+    end
+  end
+
+  def code_for_eval(:auto_assert_received, _ast, []) do
+    quote do
+      raise Mneme.AssertionError, message: "no messages available in process inbox"
+    end
+  end
+
+  def code_for_eval(:auto_assert_received, {_, _, [pattern]}, _) do
+    quote do
+      assert_received unquote(pattern)
     end
   end
 

@@ -175,6 +175,9 @@ defmodule Mneme.Integration do
         {:auto_assert_receive, meta, _} = quoted, %{acc: comments} = state ->
           {test_auto_assert_receive(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
 
+        {:auto_assert_received, meta, _} = quoted, %{acc: comments} = state ->
+          {test_auto_assert_receive(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
+
         {:assert, meta, args} = quoted, %{acc: comments} = state ->
           case meta[:leading_comments] do
             [%{text: "# auto_assert"}] ->
