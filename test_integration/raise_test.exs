@@ -19,6 +19,12 @@ defmodule Mneme.Integration.RaiseTest do
         error!("message")
       end
     end
+
+    test "raises if no exception is raised by function" do
+      assert_raise Mneme.AssertionError, fn ->
+        auto_assert_raise fn -> :foo end
+      end
+    end
   end
 
   defp error!(s \\ "message") do

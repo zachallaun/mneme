@@ -472,15 +472,10 @@ defmodule Mneme.Assertion do
     assert_match(expected)
   end
 
-  def code_for_eval(:auto_assert_raise, {_, _, [exception, message, _]}, nil) do
+  def code_for_eval(:auto_assert_raise, _ast, nil) do
     quote do
-      assert_raise unquote(exception), unquote(message), fn -> :ok end
-    end
-  end
-
-  def code_for_eval(:auto_assert_raise, {_, _, [exception, _]}, nil) do
-    quote do
-      assert_raise unquote(exception), fn -> :ok end
+      raise Mneme.AssertionError,
+        message: "expected function to raise an exception, but none was raised"
     end
   end
 
