@@ -128,6 +128,8 @@ defmodule Mneme.Assertion do
     result =
       case assertion do
         %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
+        %{kind: :auto_assert_receive, value: []} -> {:ok, assertion}
+        %{kind: :auto_assert_received, value: []} -> {:ok, assertion}
         _ -> Mneme.Server.patch_assertion(assertion)
       end
 
@@ -386,13 +388,14 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:mneme, %{kind: :auto_assert_receive, rich_ast: ast}, pattern) do
-    args =
+    {meta, args} =
       case ast do
-        {_, _, [_old_pattern, timeout]} -> [maybe_when(pattern), timeout]
-        _ -> [maybe_when(pattern)]
+        {_, _, [_old_pattern, timeout]} -> {meta(ast), [maybe_when(pattern), timeout]}
+        {_, _, []} -> {Keyword.delete(meta(ast), :closing), [maybe_when(pattern)]}
+        _ -> {meta(ast), [maybe_when(pattern)]}
       end
 
-    {:auto_assert_receive, meta(ast), args}
+    {:auto_assert_receive, meta, args}
   end
 
   defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil})
@@ -495,6 +498,13 @@ defmodule Mneme.Assertion do
     end
   end
 
+  def code_for_eval(:auto_assert_receive, _ast, []) do
+    quote do
+      raise Mneme.AssertionError,
+        message: "did not receive any messages within the timeout period"
+    end
+  end
+
   def code_for_eval(:auto_assert_receive, {_, _, [pattern | _]}, _) do
     # We always set 0 timeout here since we've already waited in order
     # to generate patterns
@@ -538,8 +548,11 @@ defmodule Mneme.Assertion do
 
   defp messages_received(timeout) do
     quote do
-      :timer.sleep(unquote(timeout))
-      self() |> Process.info(:messages) |> elem(1)
+      ref = :erlang.start_timer(unquote(timeout), self(), :ok)
+
+      receive do
+        {_, ^ref, _} -> elem(Process.info(self(), :messages), 1)
+      end
     end
   end
 

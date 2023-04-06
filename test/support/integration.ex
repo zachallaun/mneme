@@ -172,23 +172,24 @@ defmodule Mneme.Integration do
         {:auto_assert_raise, meta, _} = quoted, %{acc: comments} = state ->
           {test_auto_assert_raise(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
 
-        {:assert, meta, args}, %{acc: comments} = state ->
-          {test_auto_assert({:auto_assert, meta, args}),
-           %{state | acc: meta[:leading_comments] ++ comments}}
+        {:auto_assert_receive, meta, _} = quoted, %{acc: comments} = state ->
+          {test_auto_assert_receive(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
+
+        {:assert, meta, args} = quoted, %{acc: comments} = state ->
+          case meta[:leading_comments] do
+            [%{text: "# auto_assert"}] ->
+              {test_auto_assert({:auto_assert, meta, args}),
+               %{state | acc: meta[:leading_comments] ++ comments}}
+
+            _ ->
+              {quoted, state}
+          end
 
         quoted, state ->
           {quoted, state}
       end)
 
     {test_ast, input_string_from_comments(comments)}
-  end
-
-  defp build_expected_ast(ast) do
-    Sourceror.prewalk(ast, fn
-      {:auto_assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
-      {:assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
-      quoted, state -> {quoted, state}
-    end)
   end
 
   defp test_auto_assert({call, meta, [current, _expected]}) do
@@ -205,8 +206,16 @@ defmodule Mneme.Integration do
 
   defp test_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
 
-  defp test_auto_assert_raise({call, meta, args}) do
-    {call, meta, [List.last(args)]}
+  defp test_auto_assert_raise({call, meta, args}), do: {call, meta, [List.last(args)]}
+
+  defp test_auto_assert_receive({call, meta, _}), do: {call, meta, []}
+
+  defp build_expected_ast(ast) do
+    Sourceror.prewalk(ast, fn
+      {:auto_assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
+      {:assert, _, _} = quoted, state -> {expected_auto_assert(quoted), state}
+      quoted, state -> {quoted, state}
+    end)
   end
 
   defp expected_auto_assert({call, meta, [_current, expected]}) do

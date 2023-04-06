@@ -15,6 +15,7 @@ defmodule Mneme.Integration.OptionsTest do
 
   @mneme target: :ex_unit, action: :accept
   test "should rewrite to an ExUnit assertion" do
+    # auto_assert
     assert 2 = 1 + 1
   end
 
@@ -22,23 +23,28 @@ defmodule Mneme.Integration.OptionsTest do
     @mneme_describe target: :ex_unit, action: :accept
 
     test "should rewrite to ExUnit assertion 1" do
+      # auto_assert
       assert 2 = 1 + 1
     end
 
     test "should rewrite to ExUnit assertion 2" do
+      # auto_assert
       assert 4 = 2 + 2
     end
 
     test "should rewrite to ExUnit assertion with pin" do
       me = self()
+      # auto_assert
       assert ^me = Function.identity(me)
     end
 
     test "should rewrite to ExUnit assertion keeping the same pattern" do
+      # auto_assert
       assert %{foo: 1} <- %{foo: 1}, %{foo: 1} = %{foo: 1}
     end
 
     test "should rewrite falsy values as == comparisons" do
+      # auto_assert
       assert nil <- Function.identity(nil), Function.identity(nil) == nil
     end
   end
