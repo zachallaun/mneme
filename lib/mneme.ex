@@ -226,6 +226,26 @@ defmodule Mneme do
   Pattern-generating variant of `ExUnit.Assertions.assert_receive/3`.
 
   `timeout` is in milliseconds and defaults to `#{@ex_unit_default_receive_timeout}`.
+
+  ## Examples
+
+      Process.send_after(self(), {:some, :message}, 50)
+
+      auto_assert_receive()
+
+      # after running the test, messages appearing within 100ms
+      # will be available as options
+      auto_assert_receive {:some, :message}
+
+  A custom timeout can be specified as a second argument.
+
+      Process.send_after(self(), {:some, :message}, 150)
+
+      auto_assert_receive nil, 300
+
+      # messages appearing within 300ms will now appear as options
+      auto_assert_receive {:some, :message}, 300
+
   """
   defmacro auto_assert_receive(pattern, timeout) when is_integer(timeout) and timeout >= 0 do
     build_assertion(:auto_assert_receive, [pattern, timeout], __CALLER__)
@@ -251,6 +271,17 @@ defmodule Mneme do
   Similar to `auto_assert_receive/2`, except that the timeout is set to
   0, so the expected message must already be in the current process'
   mailbox.
+
+  ## Examples
+
+      send(self(), {:some, :message})
+
+      auto_assert_received()
+
+      # after running the test, messages in the current process
+      # inbox will be available as options
+      auto_assert_receive {:some, :message}
+
   """
   defmacro auto_assert_received(pattern) do
     build_assertion(:auto_assert_received, [pattern], __CALLER__)
