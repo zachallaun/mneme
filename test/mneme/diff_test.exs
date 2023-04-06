@@ -805,6 +805,23 @@ defmodule Mneme.DiffTest do
                     )
     end
 
+    test "formats captured functiosn" do
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert_raise ",
+                       %Tag{data: "Some.Exception", sequences: [:green]},
+                       ", ",
+                       %Tag{data: "\"with a message\"", sequences: [:green]},
+                       ", &foo/0"
+                     ]
+                   ]} <-
+                    format(
+                      "auto_assert_raise &foo/0",
+                      "auto_assert_raise Some.Exception, \"with a message\", &foo/0"
+                    )
+    end
+
     # TODO: This could possibly be improved.
     test "regression: unnecessary novel nodes" do
       auto_assert {[

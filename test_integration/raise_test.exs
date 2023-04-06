@@ -6,8 +6,11 @@ defmodule Mneme.Integration.RaiseTest do
     test "defaults to no message" do
       # y
       auto_assert_raise ArgumentError, fn ->
-        error!("message")
+        error!()
       end
+
+      # y
+      auto_assert_raise ArgumentError, &error!/0
     end
 
     test "can also match a message" do
@@ -18,7 +21,7 @@ defmodule Mneme.Integration.RaiseTest do
     end
   end
 
-  defp error!(s) do
+  defp error!(s \\ "message") do
     raise ArgumentError, s
   end
 end

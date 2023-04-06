@@ -180,6 +180,9 @@ defmodule Mneme do
 
   ## Examples
 
+  You can pass an anonymous function that takes no arguments and is
+  expected to raise an exception.
+
       auto_assert_raise fn ->
         some_call_expected_to_raise()
       end
@@ -193,6 +196,13 @@ defmodule Mneme do
       auto_assert_raise Some.Exception, "perhaps with a message", fn ->
         some_call_expected_to_raise()
       end
+
+  A captured function of arity zero can also be used.
+
+      auto_assert_raise &some_call_expected_to_raise/0
+
+      # after running the test and accepting changes
+      auto_assert_raise Some.Exception, &some_call_expected_to_raise/0
 
   """
   defmacro auto_assert_raise(exception, message, function) do
