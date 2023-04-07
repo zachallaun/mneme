@@ -22,7 +22,8 @@ defmodule Mneme.Integration.RaiseTest do
 
     test "raises if no exception is raised by function" do
       assert_raise Mneme.AssertionError, fn ->
-        auto_assert_raise fn -> :foo end
+        # ignore
+        auto_assert_raise ArgumentError, fn -> :foo end
       end
     end
   end

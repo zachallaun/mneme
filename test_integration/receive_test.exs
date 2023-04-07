@@ -64,7 +64,8 @@ defmodule Mneme.Integration.ReceiveTest do
       Process.send_after(self(), {:one, :message}, 10)
 
       assert_raise Mneme.AssertionError, fn ->
-        auto_assert_received()
+        # ignore
+        auto_assert_received {:one, :message}
       end
     end
 

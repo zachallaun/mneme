@@ -164,54 +164,66 @@ defmodule Mneme.Integration do
   defp expected_exit_code(source), do: source.private[:mneme][:expected_exit_code]
 
   defp build_test_ast_and_input(ast) do
-    {test_ast, comments} =
-      Sourceror.prewalk(ast, [], fn
-        {:auto_assert, meta, _} = quoted, %{acc: comments} = state ->
-          {test_auto_assert(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
-
-        {:auto_assert_raise, meta, _} = quoted, %{acc: comments} = state ->
-          {test_auto_assert_raise(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
-
-        {:auto_assert_receive, meta, _} = quoted, %{acc: comments} = state ->
-          {test_auto_assert_receive(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
-
-        {:auto_assert_received, meta, _} = quoted, %{acc: comments} = state ->
-          {test_auto_assert_receive(quoted), %{state | acc: meta[:leading_comments] ++ comments}}
-
-        {:assert, meta, args} = quoted, %{acc: comments} = state ->
-          case meta[:leading_comments] do
-            [%{text: "# auto_assert"}] ->
-              {test_auto_assert({:auto_assert, meta, args}),
-               %{state | acc: meta[:leading_comments] ++ comments}}
-
-            _ ->
-              {quoted, state}
-          end
-
-        quoted, state ->
-          {quoted, state}
-      end)
-
-    {test_ast, input_string_from_comments(comments)}
+    {test_ast, nested_comments} = Sourceror.prewalk(ast, [], &transform_test_assertion/2)
+    {test_ast, nested_comments |> List.flatten() |> input_string_from_comments()}
   end
 
-  defp test_auto_assert({call, meta, [current, _expected]}) do
+  defp transform_test_assertion({_, meta, _} = quoted, state) do
+    state = Map.update!(state, :acc, &[meta[:leading_comments] || [] | &1])
+
+    if ignore_transform?(meta) do
+      {quoted, state}
+    else
+      {transform(quoted), state}
+    end
+  end
+
+  defp transform_test_assertion(quoted, state), do: {quoted, state}
+
+  defp ignore_transform?(meta) do
+    Enum.any?(meta[:leading_comments] || [], fn
+      %{text: "# ignore"} -> true
+      _ -> false
+    end)
+  end
+
+  defp transform({:auto_assert, _, _} = quoted) do
+    transform_auto_assert(quoted)
+  end
+
+  # last argument is the function expected to raise
+  defp transform({:auto_assert_raise, meta, args}) do
+    {:auto_assert_raise, meta, [List.last(args)]}
+  end
+
+  defp transform({assert_receive, meta, _})
+       when assert_receive in [:auto_assert_receive, :auto_assert_received] do
+    {assert_receive, meta, []}
+  end
+
+  defp transform({:assert, meta, args} = quoted) do
+    if Enum.any?(meta[:leading_comments] || [], &(&1.text == "# auto_assert")) do
+      transform_auto_assert({:auto_assert, meta, args})
+    else
+      quoted
+    end
+  end
+
+  defp transform(quoted), do: quoted
+
+  defp transform_auto_assert({call, meta, [current, _expected]}) do
     {call, meta, [current]}
   end
 
-  defp test_auto_assert({call, meta, [{:<-, _, [_expected_pattern, expr]}]}) do
+  defp transform_auto_assert({call, meta, [{:<-, _, [_expected_pattern, expr]}]}) do
     {call, meta, [expr]}
   end
 
-  defp test_auto_assert({call, meta, [{:=, _, [_expected_pattern, expr]}]}) do
+  defp transform_auto_assert({call, meta, [{:=, _, [_expected_pattern, expr]}]}) do
     {call, meta, [expr]}
   end
 
-  defp test_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
-
-  defp test_auto_assert_raise({call, meta, args}), do: {call, meta, [List.last(args)]}
-
-  defp test_auto_assert_receive({call, meta, _}), do: {call, meta, []}
+  defp transform_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
 
   defp build_expected_ast(ast) do
     Sourceror.prewalk(ast, fn
@@ -227,16 +239,22 @@ defmodule Mneme.Integration do
 
   defp expected_auto_assert({_call, _meta, [_expr]} = quoted), do: quoted
 
-  @input_re ~r/#\s?(.+)/
+  # Extracts only single character input. For example, a comment of
+  # "# j y" will end up as "j\ny\n". A comment of "# something y" will
+  # end up as "y\n".
   defp input_string_from_comments(comments) do
     comments
     |> Enum.sort_by(& &1.line)
-    |> Enum.flat_map(fn %{text: text} ->
-      case(Regex.run(@input_re, text)) do
-        [_, input] -> input |> String.split() |> Enum.map(&[&1, "\n"])
-        _ -> []
-      end
+    |> Stream.flat_map(fn
+      %{text: "# " <> input} -> String.split(input)
+      _ -> []
     end)
+    |> Stream.filter(fn
+      <<_::utf8>> -> true
+      _ -> false
+    end)
+    |> Stream.map(&[&1, "\n"])
+    |> Enum.to_list()
     |> IO.iodata_to_binary()
   end
 
