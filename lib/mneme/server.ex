@@ -179,13 +179,11 @@ defmodule Mneme.Server do
     %Assertion{context: %{module: module, test: test}} = assertion
     opts = state.opts[{module, test}]
 
-    case opts.target do
-      :mneme ->
-        GenServer.reply(from, {:ok, assertion})
-        state
-
-      :ex_unit ->
-        %{state | to_patch: [{assertion, from} | state.to_patch]}
+    if opts.force_update || opts.target == :ex_unit do
+      %{state | to_patch: [{assertion, from} | state.to_patch]}
+    else
+      GenServer.reply(from, {:ok, assertion})
+      state
     end
   end
 

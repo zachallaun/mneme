@@ -12,7 +12,7 @@ defmodule Mneme.Prompter.Terminal do
   @empty_bullet_char "○"
   @info_char "🛈"
   @arrow_left_char "❮"
-  @arrow_right_car "❯"
+  @arrow_right_char "❯"
 
   @box_horizontal "─"
   @box_vertical "│"
@@ -30,11 +30,11 @@ defmodule Mneme.Prompter.Terminal do
     notes = Assertion.notes(assertion)
 
     [
-      format_header(assertion),
+      format_header(assertion, opts),
       "\n",
       format_diff(diff, opts),
       format_notes(notes),
-      format_input(assertion),
+      format_input(assertion, opts),
       "\n"
     ]
   end
@@ -98,7 +98,7 @@ defmodule Mneme.Prompter.Terminal do
     task = Task.async(Mneme.Diff, :format, [left, right])
 
     case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {:ok, {nil, nil}}} -> nil
+      {:ok, {:ok, {nil, nil}}} -> {Owl.Data.lines(left), Owl.Data.lines(right)}
       {:ok, {:ok, {nil, ins}}} -> {Owl.Data.lines(left), ins}
       {:ok, {:ok, {del, nil}}} -> {del, Owl.Data.lines(right)}
       {:ok, {:ok, {del, ins}}} -> {del, ins}
@@ -207,16 +207,26 @@ defmodule Mneme.Prompter.Terminal do
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp format_header(assertion) do
-    %{stage: stage, context: %{module: module, test: test}} = assertion
+  defp format_header(assertion, opts) do
+    %{context: %{module: module, test: test}} = assertion
+    overrides = Mneme.Options.overrides(opts)
+
+    stage =
+      case assertion.stage do
+        :new -> tag("[Mneme] New", :cyan)
+        :update -> tag("[Mneme] Update", :yellow)
+      end
 
     [
-      format_stage(stage),
-      tag([" ", @bullet_char, " "], :faint),
+      stage,
+      tag([" ", @middle_dot_char, " "], :faint),
       to_string(test),
-      " (",
-      inspect(module),
-      ")\n",
+      [" (", inspect(module), ")"],
+      if(overrides == [],
+        do: [],
+        else: tag([" ", @middle_dot_char, " ", inspect(overrides)], :faint)
+      ),
+      "\n",
       format_file(assertion),
       "\n"
     ]
@@ -226,9 +236,6 @@ defmodule Mneme.Prompter.Terminal do
     path = Path.relative_to_cwd(file)
     tag([path, ":", to_string(line)], :faint)
   end
-
-  defp format_stage(:new), do: tag("[Mneme] New", :cyan)
-  defp format_stage(:update), do: tag("[Mneme] Changed", :yellow)
 
   defp format_notes([]), do: []
 
@@ -243,12 +250,12 @@ defmodule Mneme.Prompter.Terminal do
     |> tag(:faint)
   end
 
-  defp format_input(%{stage: stage} = assertion) do
+  defp format_input(%{stage: stage} = assertion, opts) do
     nav = Assertion.pattern_index(assertion)
 
     [
       "\n",
-      format_explanation(stage),
+      format_explanation(stage, opts),
       "\n",
       tag("> ", :faint),
       "\n",
@@ -270,17 +277,31 @@ defmodule Mneme.Prompter.Terminal do
 
   defp format_nav_options({index, count}) do
     dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
-    tag(["#{@arrow_left_char} j ", dots, " k #{@arrow_right_car}"], :faint)
+
+    [
+      tag(@arrow_left_char, :faint),
+      " j ",
+      tag(dots, :faint),
+      " k ",
+      tag(@arrow_right_char, :faint)
+    ]
   end
 
-  defp format_explanation(:new) do
+  defp format_explanation(:new, _opts) do
     "Accept new assertion?"
   end
 
-  defp format_explanation(:update) do
+  defp format_explanation(:update, %{force_update: true}) do
     [
-      tag("Value has changed! ", :yellow),
-      "Update pattern?"
+      tag("Value may have changed.", :yellow),
+      " Update pattern?"
+    ]
+  end
+
+  defp format_explanation(:update, _opts) do
+    [
+      tag("Value has changed!", :yellow),
+      " Update pattern?"
     ]
   end
 

@@ -9,46 +9,54 @@ defmodule Mneme.Options do
       type: {:in, [:prompt, :accept, :reject]},
       default: :prompt,
       doc: """
-      The action to be taken when an auto-assertion updates. Actions are one of
-      `:prompt`, `:accept`, or `:reject`. If `CI=true` is set in environment
-      variables, the action will _always_ be `:reject`.
+      The action to be taken when an auto-assertion updates. Actions are
+      one of `:prompt`, `:accept`, or `:reject`. If `CI=true` is set in
+      environment variables, the action will _always_ be `:reject`.
       """
     ],
     default_pattern: [
       type: {:in, [:infer, :first, :last]},
       default: :infer,
       doc: """
-      The default pattern to be selected if prompted to update an assertion.
-      Can be one of `:infer`, `:first`, or `:last`.
+      The default pattern to be selected if prompted to update an
+      assertion. Can be one of `:infer`, `:first`, or `:last`.
       """
     ],
     diff: [
       type: {:in, [:text, :semantic]},
       default: :semantic,
       doc: """
-      Controls the diff engine used to display changes when an auto-assertion
-      updates. If `:semantic`, uses a custom diff engine to highlight only
-      meaningful changes in the value. If `:text`, uses the Myers Difference
-      algorithm to highlight all changes in text.
+      Controls the diff engine used to display changes when an auto-
+      assertion updates. If `:semantic`, uses a custom diff engine to
+      highlight only meaningful changes in the value. If `:text`, uses
+      the Myers Difference algorithm to highlight all changes in text.
       """
     ],
     diff_style: [
       type: {:in, [:side_by_side, :stacked]},
       default: :side_by_side,
       doc: """
-      Controls how diffs are rendered when the `:diff` option is set to `:semantic`.
-      If `:side_by_side`, old and new code will be rendered side-by-side if the
-      terminal has sufficient space. If `:stacked`, old and new code will be
-      rendered one on top of the other.
+      Controls how diffs are rendered when the `:diff` option is set to
+      `:semantic`. If `:side_by_side`, old and new code will be rendered
+      side-by-side if the terminal has sufficient space. If `:stacked`,
+      old and new code will be rendered one on top of the other.
       """
     ],
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,
       doc: """
-      The target output for auto-assertions. If `:mneme`, the expression will
-      remain an auto-assertion. If `:ex_unit`, the expression will be rewritten
-      as an ExUnit assertion.
+      The target output for auto-assertions. If `:mneme`, the expression
+      will remain an auto-assertion. If `:ex_unit`, the expression will
+      be rewritten as an ExUnit assertion.
+      """
+    ],
+    force_update: [
+      type: :boolean,
+      default: false,
+      doc: """
+      Setting to `true` will force auto-assertions to update even when
+      they would otherwise succeed.
       """
     ]
   ]
@@ -118,6 +126,28 @@ defmodule Mneme.Options do
   end
 
   @doc """
+  Returns a filtered list of options that differ from their defaults.
+
+  ## Examples
+
+      iex> Mneme.Options.overrides(%{default_pattern: :infer, force_update: true})
+      [force_update: true]
+
+  """
+  def overrides(opts) do
+    sorted_opts =
+      opts
+      |> Keyword.new()
+      |> Enum.sort_by(&elem(&1, 0))
+
+    for {key, value} <- sorted_opts,
+        attrs = @options_schema.schema[key],
+        value != attrs[:default] do
+      {key, value}
+    end
+  end
+
+  @doc """
   Fetch all valid Mneme options from the current test tags and environment.
   """
   def options(test_tags \\ %{}) do
@@ -169,10 +199,7 @@ defmodule Mneme.Options do
 
   defp drop_opts(opts, key_or_keys), do: Keyword.drop(opts, List.wrap(key_or_keys))
 
-  @doc """
-  Collect all registered Mneme attributes from the given tags, in order of precedence.
-  """
-  def collect_attributes(%{registered: %{} = attrs}) do
+  defp collect_attributes(%{registered: %{} = attrs}) do
     %{}
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
@@ -180,7 +207,7 @@ defmodule Mneme.Options do
     |> collect_attributes([:persistent_term.get(@config_cache)])
   end
 
-  def collect_attributes(_), do: %{}
+  defp collect_attributes(_), do: %{}
 
   defp collect_attributes(acc, lower_priority) do
     new =

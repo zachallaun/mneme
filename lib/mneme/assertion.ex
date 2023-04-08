@@ -100,10 +100,10 @@ defmodule Mneme.Assertion do
         patch(assertion, env)
 
       :update ->
-        {:ok, assertion} = Mneme.Server.register_assertion(assertion)
-
         try do
-          eval(assertion, env)
+          assertion
+          |> Mneme.Server.register_assertion()
+          |> handle_assertion(assertion, env)
         rescue
           error in [ExUnit.AssertionError] ->
             patch(assertion, env, error)
@@ -124,32 +124,27 @@ defmodule Mneme.Assertion do
       reraise error, __STACKTRACE__
   end
 
-  defp patch(assertion, env, error \\ nil) do
-    result =
-      case assertion do
-        %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
-        %{kind: :auto_assert_receive, value: []} -> {:ok, assertion}
-        %{kind: :auto_assert_received, value: []} -> {:ok, assertion}
-        _ -> Mneme.Server.patch_assertion(assertion)
-      end
-
-    case result do
-      {:ok, assertion} ->
-        eval(assertion, env)
-
-      {:error, :skip} ->
-        :ok
-
-      {:error, :no_pattern} ->
-        if error do
-          reraise error, [stacktrace_entry(assertion)]
-        else
-          assertion_error!()
-        end
-
-      {:error, {:internal, error, stacktrace}} ->
-        raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
+  defp patch(assertion, env, existing_error \\ nil) do
+    case assertion do
+      %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
+      %{kind: :auto_assert_receive, value: []} -> {:ok, assertion}
+      %{kind: :auto_assert_received, value: []} -> {:ok, assertion}
+      _ -> Mneme.Server.patch_assertion(assertion)
     end
+    |> handle_assertion(assertion, env, existing_error)
+  end
+
+  defp handle_assertion(result, assertion, env, existing_error \\ nil)
+  defp handle_assertion({:ok, assertion}, _, env, _), do: eval(assertion, env)
+  defp handle_assertion({:error, :skip}, _, _, _), do: :ok
+  defp handle_assertion({:error, :no_pattern}, _, _, nil), do: assertion_error!()
+
+  defp handle_assertion({:error, :no_pattern}, assertion, _, error) do
+    reraise error, [stacktrace_entry(assertion)]
+  end
+
+  defp handle_assertion({:error, {:internal, error, stacktrace}}, _, _, _) do
+    raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
   end
 
   defp eval(%{value: value, context: ctx} = assertion, env) do

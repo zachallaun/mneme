@@ -7,7 +7,7 @@ defmodule Mneme.Prompter.TerminalTest do
   describe "message/3" do
     test "new assertion" do
       auto_assert """
-                  [Mneme] New ● example test (ExampleTest)
+                  [Mneme] New · example test (ExampleTest) · [diff: :text, diff_style: :stacked]
                   example_test.ex:1
 
                    - auto_assert :something
@@ -19,7 +19,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <- message(mock_assertion())
 
       auto_assert """
-                  [Mneme] New ● example test (ExampleTest)
+                  [Mneme] New · example test (ExampleTest) · [diff_style: :stacked]
                   example_test.ex:1
 
                   ──────────────────────────────────────────────────
@@ -34,7 +34,7 @@ defmodule Mneme.Prompter.TerminalTest do
                   """ <- message(mock_assertion(), %{diff: :semantic})
 
       auto_assert """
-                  [Mneme] New ● example test (ExampleTest)
+                  [Mneme] New · example test (ExampleTest)
                   example_test.ex:1
 
                   ─old─────────────────────────────────────────────┬─new─────────────────────────────────────────────
@@ -56,7 +56,7 @@ defmodule Mneme.Prompter.TerminalTest do
       assertion = Map.update!(mock_assertion(), :patterns, &(&1 ++ [nil, nil]))
 
       auto_assert """
-                  [Mneme] New ● example test (ExampleTest)
+                  [Mneme] New · example test (ExampleTest) · [diff: :text, diff_style: :stacked]
                   example_test.ex:1
 
                    - auto_assert :something
@@ -72,7 +72,7 @@ defmodule Mneme.Prompter.TerminalTest do
       assertion = Map.put(mock_assertion(), :stage, :update)
 
       auto_assert """
-                  [Mneme] Changed ● example test (ExampleTest)
+                  [Mneme] Update · example test (ExampleTest) · [diff: :text, diff_style: :stacked]
                   example_test.ex:1
 
                    - auto_assert :something
