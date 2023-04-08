@@ -31,7 +31,13 @@ defmodule Mneme.Server do
     opts: %{},
     to_register: [],
     to_patch: [],
-    skipped: 0
+    stats: %{
+      counter: 0,
+      new: 0,
+      updated: 0,
+      skipped: 0,
+      rejected: 0
+    }
   ]
 
   @type t :: %__MODULE__{
@@ -41,7 +47,13 @@ defmodule Mneme.Server do
           opts: %{{mod :: module(), test :: atom()} => map()},
           to_register: [{any(), from :: pid()}],
           to_patch: [{any(), from :: pid()}],
-          skipped: pos_integer()
+          stats: %{
+            counter: non_neg_integer(),
+            new: non_neg_integer(),
+            updated: non_neg_integer(),
+            skipped: non_neg_integer(),
+            rejected: non_neg_integer()
+          }
         }
 
   @doc """
@@ -125,15 +137,17 @@ defmodule Mneme.Server do
      {:continue, :process_next}}
   end
 
-  def handle_call({:formatter, {:suite_finished, _}}, _from, %{skipped: skipped} = state) do
+  def handle_call({:formatter, {:suite_finished, _}}, _from, %{stats: stats} = state) do
     case Patcher.finalize!(state.patch_state) do
       :ok -> :ok
       {:error, {:not_saved, files}} -> ensure_exit_with_error!(:not_saved, files)
     end
 
-    if skipped > 0 do
-      ensure_exit_with_error!(:skipped, skipped)
+    if stats.skipped > 0 do
+      ensure_exit_with_error!()
     end
+
+    print_summary(state.stats)
 
     {:reply, :ok, flush_io(state)}
   end
@@ -161,14 +175,19 @@ defmodule Mneme.Server do
   end
 
   defp do_patch_assertion(state, {assertion, from}) do
+    {state, counter} = inc_and_return_stat(state, :counter)
+
     %Assertion{context: %{module: module, test: test}} = assertion
     opts = state.opts[{module, test}]
 
-    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, opts)
+    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter, opts)
     GenServer.reply(from, reply)
 
-    case reply do
-      {:error, :skip} -> Map.update!(state, :skipped, &(&1 + 1))
+    case {reply, assertion.stage} do
+      {{:ok, _}, :new} -> inc_stat(state, :new)
+      {{:ok, _}, :update} -> inc_stat(state, :updated)
+      {{:error, :skipped}, _} -> inc_stat(state, :skipped)
+      {{:error, :rejected}, _} -> inc_stat(state, :rejected)
       _ -> state
     end
     |> Map.put(:patch_state, patch_state)
@@ -225,16 +244,6 @@ defmodule Mneme.Server do
   defp current_module?(%{current_module: mod}, mod), do: true
   defp current_module?(_state, _mod), do: false
 
-  defp ensure_exit_with_error!(reason, arg)
-
-  defp ensure_exit_with_error!(:skipped, skipped) do
-    ensure_exit_with_error!(fn ->
-      message = if skipped == 1, do: "1 assertion skipped", else: "#{skipped} assertions skipped"
-
-      IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
-    end)
-  end
-
   defp ensure_exit_with_error!(:not_saved, files) do
     ensure_exit_with_error!(fn ->
       message = [
@@ -242,11 +251,11 @@ defmodule Mneme.Server do
         Enum.map(files, &["  * ", &1, "\n"])
       ]
 
-      IO.puts(["\n", IO.ANSI.format([:red, "[Mneme] ", message])])
+      print_error(message)
     end)
   end
 
-  defp ensure_exit_with_error!(fun) when is_function(fun, 0) do
+  defp ensure_exit_with_error!(fun \\ fn -> :ok end) when is_function(fun, 0) do
     System.at_exit(fn _ ->
       fun.()
 
@@ -256,5 +265,41 @@ defmodule Mneme.Server do
 
       exit({:shutdown, exit_status})
     end)
+  end
+
+  defp inc_stat(state, stat) do
+    Map.update!(state, :stats, fn stats ->
+      Map.update!(stats, stat, &(&1 + 1))
+    end)
+  end
+
+  defp inc_and_return_stat(state, stat) do
+    state = inc_stat(state, stat)
+    {state, state.stats[stat]}
+  end
+
+  defp print_summary(%{counter: 0}), do: :ok
+
+  defp print_summary(stats) do
+    formatted =
+      for stat <- [:new, :updated, :rejected, :skipped],
+          stats[stat] != 0 do
+        format_stat(stat, stats[stat])
+      end
+
+    case formatted do
+      [] -> :ok
+      _ -> Owl.IO.puts(["\n[Mneme] ", Enum.intersperse(formatted, ", ")])
+    end
+  end
+
+  defp format_stat(:new, n), do: Owl.Data.tag(["#{n} new"], :green)
+  defp format_stat(:updated, n), do: Owl.Data.tag(["#{n} updated"], :green)
+  defp format_stat(:rejected, n), do: Owl.Data.tag(["#{n} rejected"], :red)
+  defp format_stat(:skipped, n), do: Owl.Data.tag(["#{n} skipped"], :yellow)
+
+  defp print_error(message) do
+    ["\n", Owl.Data.tag(["[Mneme] ", message], :red)]
+    |> Owl.IO.puts()
   end
 end

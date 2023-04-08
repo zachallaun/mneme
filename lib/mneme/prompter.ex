@@ -7,5 +7,5 @@ defmodule Mneme.Prompter do
   @type diff :: %{left: String.t(), right: String.t()}
   @type options :: map()
 
-  @callback prompt!(Mneme.Assertion.t(), diff, options) :: response
+  @callback prompt!(Mneme.Assertion.t(), counter :: non_neg_integer(), diff, options) :: response
 end

@@ -20,17 +20,17 @@ defmodule Mneme.Prompter.Terminal do
   @box_cross_up "┴"
 
   @impl true
-  def prompt!(%Assertion{} = assertion, diff, opts) do
-    Owl.IO.puts(["\n", message(assertion, diff, opts)])
+  def prompt!(%Assertion{} = assertion, counter, diff, opts) do
+    Owl.IO.puts(["\n", message(assertion, counter, diff, opts)])
     input()
   end
 
   @doc false
-  def message(%Assertion{} = assertion, diff, opts) do
+  def message(%Assertion{} = assertion, counter, diff, opts) do
     notes = Assertion.notes(assertion)
 
     [
-      format_header(assertion, opts),
+      format_header(assertion, counter, opts),
       "\n",
       format_diff(diff, opts),
       format_notes(notes),
@@ -196,25 +196,25 @@ defmodule Mneme.Prompter.Terminal do
     width = terminal_width(opts)
 
     if largest_side * 2 <= width do
-      div(width, 2) - 1
+      div(width, 2)
     end
   end
 
   defp diff_side_by_side(%{diff_style: :stacked}, _), do: nil
 
   defp terminal_width(%{terminal_width: width}) when is_integer(width), do: width
-  defp terminal_width(_opts), do: Owl.IO.columns() || 98
+  defp terminal_width(_opts), do: (Owl.IO.columns() || 99) - 1
 
   defp eof_newline(code), do: String.trim_trailing(code) <> "\n"
 
-  defp format_header(assertion, opts) do
+  defp format_header(assertion, counter, opts) do
     %{context: %{module: module, test: test}} = assertion
     overrides = Mneme.Options.overrides(opts)
 
     stage =
       case assertion.stage do
-        :new -> tag("[Mneme] New", :cyan)
-        :update -> tag("[Mneme] Update", :yellow)
+        :new -> tag("[#{counter}] New", :cyan)
+        :update -> tag("[#{counter}] Update", :yellow)
       end
 
     [

@@ -136,10 +136,10 @@ defmodule Mneme.Assertion do
 
   defp handle_assertion(result, assertion, env, existing_error \\ nil)
   defp handle_assertion({:ok, assertion}, _, env, _), do: eval(assertion, env)
-  defp handle_assertion({:error, :skip}, _, _, _), do: :ok
-  defp handle_assertion({:error, :no_pattern}, _, _, nil), do: assertion_error!()
+  defp handle_assertion({:error, :skipped}, _, _, _), do: :ok
+  defp handle_assertion({:error, :rejected}, _, _, nil), do: assertion_error!()
 
-  defp handle_assertion({:error, :no_pattern}, assertion, _, error) do
+  defp handle_assertion({:error, :rejected}, assertion, _, error) do
     reraise error, [stacktrace_entry(assertion)]
   end
 
