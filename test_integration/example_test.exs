@@ -1,4 +1,4 @@
-# exit:2
+# exit: 2
 defmodule Mneme.Integration.ExampleTest do
   use ExUnit.Case
   use Mneme

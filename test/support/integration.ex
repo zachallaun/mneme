@@ -28,26 +28,32 @@ defmodule Mneme.Integration do
     for source <- Project.sources(project) do
       module = source |> Source.modules() |> List.last()
       "Elixir." <> module_name = to_string(module)
+      test_data = source.private[:mneme_integration]
 
-      quote do
-        defmodule unquote(module) do
-          use ExUnit.Case, async: true
+      if Version.match?(System.version(), test_data[:version]) do
+        quote do
+          defmodule unquote(module) do
+            use ExUnit.Case, async: true
 
-          @tag :tmp_dir
-          @tag :integration
-          test unquote(module_name), %{tmp_dir: tmp_dir} do
-            data = %{
-              path: unquote(Source.path(source)),
-              tmp_dir: tmp_dir,
-              test_input: unquote(test_input(source)),
-              test_code: unquote(test_code(source)),
-              expected_code: unquote(expected_code(source)),
-              expected_exit_code: unquote(expected_exit_code(source))
-            }
-
-            Mneme.Integration.run_test(data)
+            @tag :tmp_dir
+            @tag :integration
+            test unquote(module_name), %{tmp_dir: tmp_dir} do
+              unquote(test_data)
+              |> Map.new()
+              |> Map.merge(%{path: unquote(Source.path(source)), tmp_dir: tmp_dir})
+              |> Mneme.Integration.run_test()
+            end
           end
         end
+      else
+        [
+          :yellow,
+          "\nwarning: skipping #{module_name}, version requirement not met: #{test_data[:version]}"
+        ]
+        |> IO.ANSI.format()
+        |> IO.puts()
+
+        []
       end
     end
   end
@@ -145,23 +151,19 @@ defmodule Mneme.Integration do
     expected_ast = build_expected_ast(ast)
     expected_code = source |> Source.update(:mneme, ast: expected_ast) |> Source.code()
 
-    expected_exit_code = get_exit_code(ast)
+    %{exit_code: exit_code, version: version} = module_metadata(ast)
 
     source =
-      Source.put_private(source, :mneme,
+      Source.put_private(source, :mneme_integration,
         test_input: test_input,
-        test_code: test_code,
-        expected_code: expected_code,
-        expected_exit_code: expected_exit_code
+        test_code: eof_newline(test_code),
+        expected_code: eof_newline(expected_code),
+        expected_exit_code: exit_code,
+        version: version
       )
 
     Project.update(project, source)
   end
-
-  defp test_code(source), do: source.private[:mneme][:test_code] |> eof_newline()
-  defp test_input(source), do: source.private[:mneme][:test_input]
-  defp expected_code(source), do: source.private[:mneme][:expected_code] |> eof_newline()
-  defp expected_exit_code(source), do: source.private[:mneme][:expected_exit_code]
 
   defp build_test_ast_and_input(ast) do
     {test_ast, nested_comments} = Sourceror.prewalk(ast, [], &transform_test_assertion/2)
@@ -258,14 +260,22 @@ defmodule Mneme.Integration do
     |> IO.iodata_to_binary()
   end
 
-  defp get_exit_code({:defmodule, meta, _args}) do
-    with [%{text: comment} | _] <- meta[:leading_comments],
-         [_, exit_code_str] <- Regex.run(~r/.*exit:(\d).*/, comment),
-         {exit_code, ""} <- Integer.parse(exit_code_str) do
-      exit_code
-    else
-      _ -> 0
-    end
+  defp module_metadata({:defmodule, meta, _}) do
+    meta[:leading_comments]
+    |> Enum.flat_map(fn
+      %{text: "# exit: " <> exit_code} ->
+        {exit_code, ""} = Integer.parse(exit_code)
+        [{:exit_code, exit_code}]
+
+      %{text: "# version: " <> version_spec} ->
+        [{:version, version_spec}]
+
+      _ ->
+        []
+    end)
+    |> Map.new()
+    |> Map.put_new(:exit_code, 0)
+    |> Map.put_new(:version, System.version())
   end
 
   defp diff(header, expected, actual) do

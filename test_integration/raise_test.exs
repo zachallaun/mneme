@@ -1,3 +1,4 @@
+# version: >= 1.14.4
 defmodule Mneme.Integration.RaiseTest do
   use ExUnit.Case
   use Mneme

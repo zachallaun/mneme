@@ -1,4 +1,4 @@
-# exit:2
+# exit: 2
 defmodule Mneme.Integration.FileChangedTest do
   use ExUnit.Case
   use Mneme
