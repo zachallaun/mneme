@@ -29,11 +29,12 @@ Show
 
 # Recording
 
-Type "# Mneme is a snapshot testing library" Sleep 300ms Enter Sleep 1s
-Type "# It introduces a new assertion macro: auto_assert" Sleep 300ms Enter Sleep 1s
-Type "# When a new auto-assertion is found, Mneme generates a pattern for you" Sleep 300ms Enter Sleep 1s
-Type "# Let's see what it looks like..." Sleep 300ms Enter Sleep 1s
-Type "clear && mix test --only first_example" Sleep 1.5s Enter
+Type "# Mneme is a snapshot testing library for Elixir." Sleep 300ms Enter Sleep 1s
+Type "# It adds a handful of new assertions, like auto_assert." Sleep 300ms Enter Sleep 1s
+Type "# When a new auto-assertion is found, Mneme generates a pattern for you." Sleep 300ms Enter Sleep 1s
+Type "# Let's see what happens..." Sleep 300ms Enter Sleep 1s
+Type "clear" Sleep 1.5s Enter Sleep 500ms
+Type "mix test --only first_example" Sleep 300ms Enter
 Sleep 4s
 
 Type "y" Sleep 2s Enter
@@ -43,8 +44,9 @@ Type "y" Sleep 2s Enter
 Sleep 3s
 
 Type "# We accepted both patterns and the test was updated automatically" Sleep 300ms Enter Sleep 1s
-Type "# You're also prompted if something changes and a pattern doesn't match" Sleep 300ms Enter Sleep 1s
-Type "clear && mix test --only second_example" Sleep 1.5s Enter
+Type "# You're also prompted if something changes and a pattern doesn't match anymore" Sleep 300ms Enter Sleep 1s
+Type "clear" Sleep 1.5s Enter Sleep 500ms
+Type "mix test --only second_example" Sleep 300ms Enter
 Sleep 4s
 
 Type "y" Sleep 2s Enter

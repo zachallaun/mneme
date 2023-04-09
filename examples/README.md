@@ -1,6 +1,6 @@
 # Mneme Examples
 
-This directory contains examples and demos of Mneme usage.
+This folder contains examples and demos of Mneme usage.
 
 ## Tour Mneme
 
@@ -9,19 +9,18 @@ It uses `Mix.install/1` to install the latest version of Mneme and run an exampl
 
 ## Recording demos
 
-Demo GIFs/videos are recorded using [VHS](https://github.com/charmbracelet/vhs).
-Version 0.3.1 is currently required, which as of this writing, is still in development.
+Demos are recorded using [VHS](https://github.com/charmbracelet/vhs) (>= 0.4.0).
 VHS relies on [ttyd](https://github.com/tsl0922/ttyd) and [ffmpeg](https://ffmpeg.org/) being installed and available on your `PATH`.
 
-To install the main branch of VHS:
+To install:
 
 ```sh
-$ go install github.com/charmbracelet/vhs@main
+$ go install github.com/charmbracelet/vhs@latest
 ```
 
 Demos can be re-recorded from the root of this project by running:
 
 ```sh
 $ vhs < examples/demo.tape
-# will output examples/demo.gif, examples/demo.mp4, etc.
+# updates examples/demo.gif and examples/demo.mp4
 ```

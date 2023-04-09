@@ -2,30 +2,39 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.3.0-rc.0
-
-### Breaking changes
-
-  * `auto_assert` now uses `<-` when comparing against falsy values instead of `==`. Support for comparisons using `==` has been removed.
+## v0.3.0-rc.1
 
 ### Enhancements
 
-  * Add [`auto_assert_receive`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_receive/2) and [`auto_assert_received`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_received/1).
-  * Add [`auto_assert_raise`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_raise/3).
-  * Existing auto-assertions will now run even when `Mneme.start()` is not called, but new auto-assertions will fail ([#32](https://github.com/zachallaun/mneme/issues/32)).
-  * Generate patterns for ranges will now use `..` and `..//` syntax instead of `%Range{}`.
+  * [Core] Add a `:force_update` option that forces re-generating assertion patterns even when they succeed. See the [Options documentation](https://hexdocs.pm/mneme/Mneme.html#module-options) for more info.
+  * [CLI] Prompts will now show options that were overridden from the defaults.
+  * [CLI] Mneme now prints a one-line summary of new, updated, rejected, and skipped assertions at the end of the test run.
+
+## v0.3.0-rc.0
+
+It is now recommended to use Elixir v1.14.4 or later.
+
+### Breaking changes
+
+  * [Core] `auto_assert` now uses `<-` when comparing against falsy values instead of `==`. Support for comparisons using `==` has been removed.
+
+### Enhancements
+
+  * [Core] Add three new auto-assertions:
+    * [`auto_assert_raise`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_raise/3)
+    * [`auto_assert_receive`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_receive/2)
+    * [`auto_assert_received`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_received/1)
+  * [Core] Existing auto-assertions will now run when `Mneme.start()` is not called, but new or failing auto-assertions will fail without prompting ([#32](https://github.com/zachallaun/mneme/issues/32)).
+  * [Core] Pattern generation improvements:
+    * Ranges now use range syntax like `1..10` and `1..10//2` instead of generating a `%Range{}` struct.
 
 ### Fixes
 
-  * Fix a configuration precedence bug that caused options set in application config to always override options local to the test module, describe block, or test.
-  * Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
-  * Don't display preceding comments in diffs ([#26](https://github.com/zachallaun/mneme/issues/26)).
-  * Fix a number of diffing errors related to structs.
-  * Fix a compatibility issue with Ecto ~> 3.9.4 ([#34](https://github.com/zachallaun/mneme/issues/34)).
-
-### Notes
-
-  * Upgrade to Elixir v1.14.4 or later to fix a diff syntax highlighting bug related to escaped string interpolations ([#30](https://github.com/zachallaun/mneme/issues/30)).
+  * [Core] Fix a configuration precedence bug that caused options set in application config to always override module, describe, or test options.
+  * [Core] Fix a compatibility issue with Ecto ~> 3.9.4 ([#34](https://github.com/zachallaun/mneme/issues/34)).
+  * [CLI] Fix a confusing diff result that could occur with some binary operations ([#11](https://github.com/zachallaun/mneme/issues/11)).
+  * [CLI] Preceding comments are no longer shown in diffs ([#26](https://github.com/zachallaun/mneme/issues/26)).
+  * [CLI] Fix a number of diffing errors related to structs.
 
 ## v0.2.7 (2023-03-29)
 
