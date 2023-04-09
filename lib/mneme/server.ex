@@ -128,28 +128,21 @@ defmodule Mneme.Server do
     {:reply, :ok, state, {:continue, :process_next}}
   end
 
-  def handle_call(
-        {:formatter, {:module_finished, %{name: mod}}},
-        _from,
-        %{current_module: mod} = state
-      ) do
-    {:reply, :ok, state |> flush_io() |> Map.put(:current_module, nil),
-     {:continue, :process_next}}
+  def handle_call({:formatter, {:module_finished, %{name: mod}}}, _from, state) do
+    if state.current_module == mod do
+      state =
+        state
+        |> Map.put(:current_module, nil)
+        |> flush_io()
+
+      {:reply, :ok, state, {:continue, :process_next}}
+    else
+      {:reply, :ok, state}
+    end
   end
 
-  def handle_call({:formatter, {:suite_finished, _}}, _from, %{stats: stats} = state) do
-    case Patcher.finalize!(state.patch_state) do
-      :ok -> :ok
-      {:error, {:not_saved, files}} -> ensure_exit_with_error!(:not_saved, files)
-    end
-
-    if stats.skipped > 0 do
-      ensure_exit_with_error!()
-    end
-
-    print_summary(state.stats)
-
-    {:reply, :ok, flush_io(state)}
+  def handle_call({:formatter, {:suite_finished, _}}, _from, state) do
+    {:reply, :ok, state |> finalize() |> flush_io()}
   end
 
   def handle_call({:formatter, _msg}, _from, %{current_module: nil} = state) do
@@ -244,6 +237,21 @@ defmodule Mneme.Server do
   defp current_module?(%{current_module: mod}, mod), do: true
   defp current_module?(_state, _mod), do: false
 
+  defp finalize(%{stats: stats} = state) do
+    case Patcher.finalize!(state.patch_state) do
+      :ok -> :ok
+      {:error, {:not_saved, files}} -> ensure_exit_with_error!(:not_saved, files)
+    end
+
+    if stats.skipped > 0 do
+      ensure_exit_with_error!()
+    end
+
+    print_summary(stats)
+
+    state
+  end
+
   defp ensure_exit_with_error!(:not_saved, files) do
     ensure_exit_with_error!(fn ->
       message = [
@@ -251,13 +259,14 @@ defmodule Mneme.Server do
         Enum.map(files, &["  * ", &1, "\n"])
       ]
 
-      print_error(message)
+      ["\n", Owl.Data.tag(["[Mneme] ", message], :red)]
+      |> Owl.IO.puts()
     end)
   end
 
-  defp ensure_exit_with_error!(fun \\ fn -> :ok end) when is_function(fun, 0) do
+  defp ensure_exit_with_error!(fun \\ nil) do
     System.at_exit(fn _ ->
-      fun.()
+      fun && fun.()
 
       exit_status =
         ExUnit.configuration()
@@ -295,9 +304,4 @@ defmodule Mneme.Server do
   defp format_stat(:updated, n), do: Owl.Data.tag(["#{n} updated"], :green)
   defp format_stat(:rejected, n), do: Owl.Data.tag(["#{n} rejected"], :red)
   defp format_stat(:skipped, n), do: Owl.Data.tag(["#{n} skipped"], :yellow)
-
-  defp print_error(message) do
-    ["\n", Owl.Data.tag(["[Mneme] ", message], :red)]
-    |> Owl.IO.puts()
-  end
 end
