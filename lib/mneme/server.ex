@@ -278,8 +278,6 @@ defmodule Mneme.Server do
     {state, state.stats[stat]}
   end
 
-  defp print_summary(%{counter: 0}), do: :ok
-
   defp print_summary(stats) do
     formatted =
       for stat <- [:new, :updated, :rejected, :skipped],
@@ -289,7 +287,7 @@ defmodule Mneme.Server do
 
     case formatted do
       [] -> :ok
-      _ -> Owl.IO.puts(["\n[Mneme] ", Enum.intersperse(formatted, ", ")])
+      _ -> Owl.IO.puts(["\n\n[Mneme Assertions] ", Enum.intersperse(formatted, ", ")])
     end
   end
 
