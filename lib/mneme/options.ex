@@ -42,6 +42,16 @@ defmodule Mneme.Options do
       old and new code will be rendered one on top of the other.
       """
     ],
+    force_update: [
+      type: :boolean,
+      default: false,
+      doc: """
+      Setting to `true` will force auto-assertions to update even when
+      they would otherwise succeed. This can be especially helpful when
+      adding new keys to maps or structs since a pattern like `%{}`
+      would not normally prompt as the match still succeeds.
+      """
+    ],
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,
@@ -49,14 +59,6 @@ defmodule Mneme.Options do
       The target output for auto-assertions. If `:mneme`, the expression
       will remain an auto-assertion. If `:ex_unit`, the expression will
       be rewritten as an ExUnit assertion.
-      """
-    ],
-    force_update: [
-      type: :boolean,
-      default: false,
-      doc: """
-      Setting to `true` will force auto-assertions to update even when
-      they would otherwise succeed.
       """
     ]
   ]
