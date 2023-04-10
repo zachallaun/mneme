@@ -2,15 +2,7 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.3.0-rc.1
-
-### Enhancements
-
-  * [Core] Add a `:force_update` option that forces re-generating assertion patterns even when they succeed. See the [Options documentation](https://hexdocs.pm/mneme/Mneme.html#module-options) for more info.
-  * [CLI] Prompts will now show options that were overridden from the defaults.
-  * [CLI] Mneme now prints a one-line summary at the end of the test run.
-
-## v0.3.0-rc.0
+## v0.3.0 (2023-04-10)
 
 It is now recommended to use Elixir v1.14.4 or later.
 
@@ -24,9 +16,12 @@ It is now recommended to use Elixir v1.14.4 or later.
     * [`auto_assert_raise`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_raise/3)
     * [`auto_assert_receive`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_receive/2)
     * [`auto_assert_received`](https://hexdocs.pm/mneme/Mneme.html#auto_assert_received/1)
+  * [Core] Add a `:force_update` option that forces re-generating assertion patterns even when they succeed. See the [Options documentation](https://hexdocs.pm/mneme/Mneme.html#module-options) for more info.
   * [Core] Existing auto-assertions will now run when `Mneme.start()` is not called, but new or failing auto-assertions will fail without prompting ([#32](https://github.com/zachallaun/mneme/issues/32)).
   * [Core] Pattern generation improvements:
     * Ranges now use range syntax like `1..10` and `1..10//2` instead of generating a `%Range{}` struct.
+  * [CLI] Prompts will now show options that were overridden from the defaults.
+  * [CLI] Mneme now prints a one-line summary at the end of the test run.
 
 ### Fixes
 
