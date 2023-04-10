@@ -90,6 +90,7 @@ defmodule Mneme do
           auto_assert ...
         end
       end
+
   """
   defmacro __using__(opts) do
     quote do
