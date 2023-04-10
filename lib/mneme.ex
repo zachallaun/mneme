@@ -19,20 +19,17 @@ defmodule Mneme do
 
   ## Configuration
 
-  Certain behavior can be configured globally using application config
-  or locally in test modules either at the module, describe-block, or
-  test level.
-
-  To configure Mneme globally, you can set `:defaults` for the `:mneme`
-  application:
+  Mneme can be configured globally in your application config, usually
+  `config/test.exs`.
 
       config :mneme,
         defaults: [
-          diff: :semantic
+          default_pattern: :last
         ]
 
-  These defaults can be overriden in test modules at various levels
-  either as options to `use Mneme` or as module attributes.
+  Configuration can also be set at the module level with `use Mneme`,
+  in a `describe` block with `@mneme_describe` or for an individual test
+  using `@mneme`.
 
       defmodule MyTest do
         use ExUnit.Case
@@ -63,7 +60,7 @@ defmodule Mneme do
   Configuration that is "closer to the test" will override more general
   configuration:
 
-      @mneme > @mneme_describe > opts to use Mneme > :mneme app config
+      @mneme > @mneme_describe > use Mneme > config :mneme
 
   The exception to this is the `CI` environment variable, which causes
   all updates to be rejected. See the "Continuous Integration" section

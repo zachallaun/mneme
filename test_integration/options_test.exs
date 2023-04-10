@@ -62,7 +62,12 @@ defmodule Mneme.Integration.OptionsTest do
   end
 
   @mneme action: :accept, default_pattern: :last, force_update: true
-  test "should force an update for a passing assertion" do
+  test "should force an update for a passing assertion (1)" do
+    auto_assert %{} <- %{foo: :bar}, %{foo: :bar} <- %{foo: :bar}
+  end
+
+  @mneme [:force_update, action: :accept, default_pattern: :last]
+  test "should force an update for a passing assertion (2)" do
     auto_assert %{} <- %{foo: :bar}, %{foo: :bar} <- %{foo: :bar}
   end
 end

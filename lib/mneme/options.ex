@@ -213,10 +213,15 @@ defmodule Mneme.Options do
 
   defp collect_attributes(acc, lower_priority) do
     new =
-      for kw <- lower_priority,
-          {k, v} <- kw,
-          reduce: %{} do
-        acc -> Map.update(acc, k, [v], &[v | &1])
+      for attrs <- lower_priority, kv <- List.wrap(attrs), reduce: %{} do
+        acc ->
+          {k, v} =
+            case kv do
+              {k, v} -> {k, v}
+              k when is_atom(k) -> {k, true}
+            end
+
+          Map.update(acc, k, [v], &[v | &1])
       end
       |> Enum.map(fn {k, vs} -> {k, Enum.reverse(vs)} end)
       |> Map.new()
