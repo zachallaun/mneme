@@ -65,6 +65,7 @@ defmodule Mneme.MixProject do
 
   defp preferred_cli_env do
     [
+      coveralls: :test,
       t: :test
     ]
   end
