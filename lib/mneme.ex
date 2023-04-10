@@ -11,9 +11,9 @@ defmodule Mneme do
 
   > #### Early days {: .info}
   >
-  > Mneme is in its infancy and has an intentionally minimal API. Please
-  > feel free to submit any feedback, bugs, or suggestions as
-  > [issues on Github](https://github.com/zachallaun/mneme). Thanks!
+  > Mneme is fairly new. Please feel free to submit any feedback, bugs,
+  > or suggestions as issues [on Github](https://github.com/zachallaun/mneme/issues).
+  > Thanks!
 
   #{@mdoc}
 
