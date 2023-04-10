@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   * [Core] Add a `:force_update` option that forces re-generating assertion patterns even when they succeed. See the [Options documentation](https://hexdocs.pm/mneme/Mneme.html#module-options) for more info.
   * [CLI] Prompts will now show options that were overridden from the defaults.
-  * [CLI] Mneme now prints a one-line summary of new, updated, rejected, and skipped assertions at the end of the test run.
+  * [CLI] Mneme now prints a one-line summary at the end of the test run.
 
 ## v0.3.0-rc.0
 

@@ -36,7 +36,8 @@ defmodule Mneme.Server do
       new: 0,
       updated: 0,
       skipped: 0,
-      rejected: 0
+      rejected: 0,
+      wip: 0
     }
   ]
 
@@ -52,7 +53,8 @@ defmodule Mneme.Server do
             new: non_neg_integer(),
             updated: non_neg_integer(),
             skipped: non_neg_integer(),
-            rejected: non_neg_integer()
+            rejected: non_neg_integer(),
+            wip: non_neg_integer()
           }
         }
 
@@ -123,7 +125,12 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter, {:test_started, test}}, _from, state) do
     %{module: module, name: test_name, tags: tags} = test
-    state = put_in(state.opts[{module, test_name}], Options.options(tags))
+    opts = Options.options(tags)
+
+    state =
+      state
+      |> Map.update!(:opts, &Map.put(&1, {module, test_name}, opts))
+      |> inc_stat(:wip, if: opts[:wip])
 
     {:reply, :ok, state, {:continue, :process_next}}
   end
@@ -276,11 +283,15 @@ defmodule Mneme.Server do
     end)
   end
 
-  defp inc_stat(state, stat) do
+  defp inc_stat(state, stat, opts \\ [if: true])
+
+  defp inc_stat(state, stat, if: true) do
     Map.update!(state, :stats, fn stats ->
       Map.update!(stats, stat, &(&1 + 1))
     end)
   end
+
+  defp inc_stat(state, _, if: false), do: state
 
   defp inc_and_return_stat(state, stat) do
     state = inc_stat(state, stat)
@@ -289,19 +300,22 @@ defmodule Mneme.Server do
 
   defp print_summary(stats) do
     formatted =
-      for stat <- [:new, :updated, :rejected, :skipped],
+      for stat <- [:new, :updated, :rejected, :skipped, :wip],
           stats[stat] != 0 do
         format_stat(stat, stats[stat])
       end
 
-    case formatted do
-      [] -> :ok
-      _ -> Owl.IO.puts(["\n\n[Mneme Assertions] ", Enum.intersperse(formatted, ", ")])
+    unless formatted == [] do
+      Owl.IO.puts([
+        "\n\n[Mneme] ",
+        Enum.intersperse(formatted, ", ")
+      ])
     end
   end
 
-  defp format_stat(:new, n), do: Owl.Data.tag(["#{n} new"], :green)
-  defp format_stat(:updated, n), do: Owl.Data.tag(["#{n} updated"], :green)
-  defp format_stat(:rejected, n), do: Owl.Data.tag(["#{n} rejected"], :red)
-  defp format_stat(:skipped, n), do: Owl.Data.tag(["#{n} skipped"], :yellow)
+  defp format_stat(:new, n), do: Owl.Data.tag("#{n} new", :green)
+  defp format_stat(:updated, n), do: Owl.Data.tag("#{n} updated", :green)
+  defp format_stat(:rejected, n), do: Owl.Data.tag("#{n} rejected", :red)
+  defp format_stat(:skipped, n), do: Owl.Data.tag("#{n} skipped", :yellow)
+  defp format_stat(:wip, n), do: Owl.Data.tag("#{n} wip", :magenta)
 end

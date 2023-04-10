@@ -68,6 +68,17 @@ defmodule Mneme.Options do
       type: :atom,
       default: Mneme.Prompter.Terminal,
       doc: "Module implementing the `Mneme.Prompter` behaviour."
+    ],
+    wip: [
+      type: :boolean,
+      default: false,
+      doc: """
+      Marks tests as work-in-progress. A count of work-in-progress tests
+      is reported when the test run ends. This may be used as an
+      alternative to `@tag :skip` in cases where it is useful to know
+      the current behavior of some functionality that is being worked on
+      or is actively changing.
+      """
     ]
   ]
 
