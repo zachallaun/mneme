@@ -8,7 +8,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   @doc """
   Builds pattern expressions from a runtime value.
   """
-  @spec to_patterns(term(), Assertion.context()) :: [Assertion.pattern(), ...]
+  @spec to_patterns(term(), Assertion.context()) :: [Pattern.t(), ...]
   def to_patterns(value, context) do
     patterns = do_to_patterns(value, context)
 
