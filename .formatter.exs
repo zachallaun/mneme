@@ -10,7 +10,8 @@ locals_without_parens = [
     "{mix,.formatter}.exs",
     "{config,lib}/**/*.{ex,exs}",
     "test/**/*.{ex,exs}",
-    "test_integration/**/*.{ex,exs}"
+    "test_integration/**/*.{ex,exs}",
+    "examples/*.{ex,exs}"
   ],
   locals_without_parens: locals_without_parens,
   export: [locals_without_parens: locals_without_parens]

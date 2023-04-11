@@ -11,55 +11,83 @@ Application.put_env(:mneme, :dry_run, true)
 ExUnit.start(seed: 0)
 Mneme.start()
 
-defmodule ExampleTest do
+defmodule HTTPParserTest do
   use ExUnit.Case
   use Mneme
 
-  describe "Mneme generates patterns" do
-    test "for simple data types" do
-      auto_assert 123
+  describe "request/1" do
+    alias HTTPParserNoDuplicateHeaders, as: HTTPParser
 
-      auto_assert "abc"
+    test "parses a request with only a start line" do
+      auto_assert HTTPParser.request("GET /path HTTP/1.1\n")
 
-      auto_assert :abc
+      auto_assert HTTPParser.request("MALFORMED\n")
     end
 
-    test "for lists" do
-      auto_assert [1, 2, 3]
+    test "parses a request with headers" do
+      auto_assert HTTPParser.request("""
+                  GET /path HTTP/1.1
+                  Host: localhost:4000
+                  Accept: text/html
+                  """)
     end
 
-    test "for maps" do
-      # not what you expected? use j/k to cycle to a more complex value
-      auto_assert Map.put(%{first_name: "Jane"}, :last_name, "Doe")
+    test "parses a request with headers and a body" do
+      auto_assert HTTPParser.request("""
+                  GET /path HTTP/1.1
+                  Host: www.example.org
 
-      value = [%{foo: 1, bar: 2}, %{baz: 3, buzz: %{cool: :stuff}}]
-      auto_assert value
+                  some data
+                  """)
     end
+  end
+end
 
-    test "using guards if needed" do
-      auto_assert self()
+defmodule HTTPParserNoDuplicateHeaders do
+  # This module parses an HTTP request but does not handle duplicate headers.
 
-      auto_assert make_ref()
-    end
+  @doc """
+  Returns one of:
 
-    test "using the value of any expression" do
-      auto_assert drop_evens(1..10)
+      {:ok,
+       %{
+         method: "METHOD",
+         path: "/path",
+         version: "HTTP/1.1",
+         headers: %{
+           "Host" => "..."
+         }
+       },
+       "rest of data"}
 
-      auto_assert drop_evens([])
+  or
 
-      auto_assert drop_evens([:a, :b, 2, :c])
-    end
+      {:error, "where failure occurred"}
 
-    test "using pinned variables if possible" do
-      me = self()
-
-      auto_assert self()
+  """
+  def request(data) do
+    with [start_line, rest] <- String.split(data, "\n", parts: 2),
+         [method, path, version] <- String.split(start_line),
+         {:ok, headers, rest} <- parse_headers(rest) do
+      {:ok, %{method: method, path: path, version: version, headers: headers}, rest}
+    else
+      {:error, _} = error -> error
+      _ -> {:error, data}
     end
   end
 
-  defp drop_evens(enum) do
-    even? = fn n -> is_integer(n) && Integer.mod(n, 2) == 0 end
-    Enum.reject(enum, even?)
+  defp parse_headers(data, headers \\ %{})
+
+  defp parse_headers("\n" <> rest, headers), do: {:ok, headers, rest}
+  defp parse_headers("", headers), do: {:ok, headers, ""}
+
+  defp parse_headers(data, headers) do
+    with [header, rest] <- String.split(data, "\n", parts: 2),
+         [key, value] <- String.split(header, ":", parts: 2) do
+      parse_headers(rest, Map.put(headers, String.trim(key), String.trim(value)))
+    else
+      _ -> {:error, data}
+    end
   end
 end
 
