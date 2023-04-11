@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
   alias Mneme.Assertion
+  alias Mneme.Utils
 
   @doc """
   Builds pattern expressions from a runtime value.
@@ -40,20 +41,21 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
-    block =
-      cond do
-        !String.printable?(string) ->
-          {:<<>>, [], String.to_charlist(string)}
+    newlines = Utils.occurrences(string, ?\n)
 
-        String.contains?(string, "\n") ->
-          {:__block__, with_meta([delimiter: ~S(""")], context),
-           [string |> escape() |> format_for_heredoc()]}
+    cond do
+      !String.printable?(string) ->
+        [{{:<<>>, [], String.to_charlist(string)}, nil, []}]
 
-        true ->
-          {:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]}
-      end
+      newlines >= 2 ->
+        [heredoc_pattern(string, context), string_pattern(string, context)]
 
-    [{block, nil, []}]
+      newlines >= 1 ->
+        [string_pattern(string, context), heredoc_pattern(string, context)]
+
+      true ->
+        [string_pattern(string, context)]
+    end
   end
 
   defp do_to_patterns([], _), do: [{[], nil, []}]
@@ -122,14 +124,6 @@ defmodule Mneme.Assertion.PatternBuilder do
     |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
     |> to_patterns(context)
     |> transform_patterns(&struct_pattern(struct, &1, &2, extra_notes), context)
-  end
-
-  defp format_for_heredoc(string) when is_binary(string) do
-    if String.ends_with?(string, "\n") do
-      string
-    else
-      string <> "\\\n"
-    end
   end
 
   defp enum_to_patterns(values, context) do
@@ -269,6 +263,28 @@ defmodule Mneme.Assertion.PatternBuilder do
       :autogenerate
       |> schema.__schema__()
       |> Enum.flat_map(&elem(&1, 0))
+    end
+  end
+
+  defp string_pattern(string, context) do
+    block = {:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]}
+
+    {block, nil, []}
+  end
+
+  defp heredoc_pattern(string, context) do
+    block =
+      {:__block__, with_meta([delimiter: ~S(""")], context),
+       [string |> escape() |> format_for_heredoc()]}
+
+    {block, nil, []}
+  end
+
+  defp format_for_heredoc(string) when is_binary(string) do
+    if String.ends_with?(string, "\n") do
+      string
+    else
+      string <> "\\\n"
     end
   end
 

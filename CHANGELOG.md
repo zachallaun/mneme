@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Enhancements
+
+  * [Core] Pattern generation improvements:
+    * Multi-line strings will now generate both a heredoc and a single-line option.
+
 ## v0.3.0 (2023-04-10)
 
 It is now recommended to use Elixir v1.14.4 or later.

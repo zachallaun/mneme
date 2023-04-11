@@ -3,6 +3,7 @@ defmodule Mneme.Diff.Formatter do
 
   alias Mneme.Diff
   alias Mneme.Diff.Zipper
+  alias Mneme.Utils
 
   @re_newline ~r/\n|\r\n/
 
@@ -247,7 +248,7 @@ defmodule Mneme.Diff.Formatter do
         {edit, s}, {l, c, c_start} ->
           c2 =
             if del == ~s(") do
-              c + String.length(s) + occurrences(s, ?")
+              c + String.length(s) + Utils.occurrences(s, ?")
             else
               c + String.length(s)
             end
@@ -295,7 +296,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:string, %{line: l, column: c, delimiter: ~s(")}, string}) do
-    offset = 2 + String.length(string) + occurrences(string, ?")
+    offset = 2 + String.length(string) + Utils.occurrences(string, ?")
     {{l, c}, {l, c + offset}}
   end
 
@@ -309,7 +310,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:charlist, %{line: l, column: c, delimiter: "'"}, string}) do
-    offset = 2 + String.length(string) + occurrences(string, ?')
+    offset = 2 + String.length(string) + Utils.occurrences(string, ?')
     {{l, c}, {l, c + offset}}
   end
 
@@ -400,9 +401,4 @@ defmodule Mneme.Diff.Formatter do
 
   defp tag(data, {:ins, :highlight}), do: Owl.Data.tag(data, [:bright, :green, :underline])
   defp tag(data, {:del, :highlight}), do: Owl.Data.tag(data, [:bright, :red, :underline])
-
-  defp occurrences(string, char, acc \\ 0)
-  defp occurrences(<<char, rest::binary>>, char, acc), do: occurrences(rest, char, acc + 1)
-  defp occurrences(<<_, rest::binary>>, char, acc), do: occurrences(rest, char, acc)
-  defp occurrences(<<>>, _char, acc), do: acc
 end
