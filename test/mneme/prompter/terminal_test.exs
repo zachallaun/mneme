@@ -104,7 +104,7 @@ defmodule Mneme.Prompter.TerminalTest do
     %Mneme.Assertion{
       stage: :new,
       pattern_idx: 0,
-      patterns: [{nil, nil, []}],
+      patterns: [Mneme.Assertion.Pattern.new(nil)],
       context: %{
         file: "example_test.ex",
         line: 1,

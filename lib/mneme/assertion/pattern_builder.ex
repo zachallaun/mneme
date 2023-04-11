@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
   alias Mneme.Assertion
+  alias Mneme.Assertion.Pattern
   alias Mneme.Utils
 
   @doc """
@@ -12,7 +13,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     patterns = do_to_patterns(value, context)
 
     case fetch_pinned(value, context) do
-      {:ok, pin} -> [{pin, nil, []} | patterns]
+      {:ok, pin} -> [Pattern.new(pin) | patterns]
       :error -> patterns
     end
   end
@@ -31,13 +32,13 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp fetch_pinned(_, _), do: :error
 
   defp do_to_patterns(int, context) when is_integer(int) do
-    pattern = {{:__block__, with_meta([token: inspect(int)], context), [int]}, nil, []}
-    [pattern]
+    {:__block__, with_meta([token: inspect(int)], context), [int]}
+    |> Pattern.new()
+    |> List.wrap()
   end
 
-  defp do_to_patterns(value, _context)
-       when is_atom(value) or is_float(value) do
-    [{value, nil, []}]
+  defp do_to_patterns(value, _context) when is_atom(value) or is_float(value) do
+    [Pattern.new(value)]
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
@@ -45,7 +46,7 @@ defmodule Mneme.Assertion.PatternBuilder do
 
     cond do
       !String.printable?(string) ->
-        [{{:<<>>, [], String.to_charlist(string)}, nil, []}]
+        [Pattern.new({:<<>>, [], String.to_charlist(string)})]
 
       newlines >= 2 ->
         [heredoc_pattern(string, context), string_pattern(string, context)]
@@ -58,13 +59,13 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp do_to_patterns([], _), do: [{[], nil, []}]
+  defp do_to_patterns([], _), do: [Pattern.new([])]
 
   defp do_to_patterns(list, context) when is_list(list) do
     patterns = enum_to_patterns(list, context)
 
     if List.ascii_printable?(list) do
-      patterns ++ [{list, nil, []}]
+      patterns ++ [Pattern.new(list)]
     else
       patterns
     end
@@ -74,20 +75,19 @@ defmodule Mneme.Assertion.PatternBuilder do
     tuple
     |> Tuple.to_list()
     |> enum_to_patterns(context)
-    |> transform_patterns(&tuple_pattern/2, context)
+    |> Enum.map(&to_tuple_pattern(&1, context))
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
     defp do_to_patterns(value, context) when unquote(guard)(value) do
-      guard_non_serializable(unquote(var_name), unquote(guard), value, context)
+      [guard_pattern(unquote(var_name), unquote(guard), value, context)]
     end
   end
 
   for module <- [Range, Regex, DateTime, NaiveDateTime, Date, Time] do
     defp do_to_patterns(%unquote(module){} = value, context) do
       {call, meta, args} = value |> inspect() |> Code.string_to_quoted!()
-      pattern = {{call, with_meta(meta, context), args}, nil, []}
-      [pattern]
+      [Pattern.new({call, with_meta(meta, context), args})]
     end
   end
 
@@ -105,16 +105,16 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(%{} = map, context) when map_size(map) == 0 do
-    [map_pattern(context)]
+    [map_pattern([], context)]
   end
 
   defp do_to_patterns(%{} = map, context) do
     patterns =
       map
       |> enum_to_patterns(context)
-      |> transform_patterns(&map_pattern/2, context)
+      |> Enum.map(&to_map_pattern(&1, context))
 
-    [map_pattern(context) | patterns]
+    [map_pattern([], context) | patterns]
   end
 
   defp struct_to_patterns(struct, map, context, extra_notes) do
@@ -123,7 +123,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     map
     |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
     |> to_patterns(context)
-    |> transform_patterns(&struct_pattern(struct, &1, &2, extra_notes), context)
+    |> Enum.map(&to_struct_pattern(struct, &1, context, extra_notes))
   end
 
   defp enum_to_patterns(values, context) do
@@ -163,48 +163,47 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   defp combine_patterns(patterns, context) do
     {exprs, {guard, notes}} =
-      Enum.map_reduce(patterns, {nil, []}, fn {expr, g1, n1}, {g2, n2} ->
-        {expr, {combine_guards(g1, g2, context), n1 ++ n2}}
-      end)
+      Enum.map_reduce(
+        patterns,
+        {nil, []},
+        fn %Pattern{expr: expr, guard: g1, notes: n1}, {g2, n2} ->
+          {expr, {combine_guards(g1, g2, context), n1 ++ n2}}
+        end
+      )
 
-    {exprs, guard, notes}
+    Pattern.new(exprs, guard: guard, notes: notes)
   end
 
   defp combine_guards(nil, guard, _context), do: guard
   defp combine_guards(guard, nil, _context), do: guard
   defp combine_guards(g1, g2, context), do: {:and, with_meta(context), [g2, g1]}
 
-  defp guard_non_serializable(name, guard, value, context) do
+  defp guard_pattern(name, guard, value, context) do
     var = make_var(name, context)
 
-    pattern =
-      {var, {guard, with_meta(context), [var]},
-       ["Using guard for non-serializable value `#{inspect(value)}`"]}
-
-    [pattern]
+    Pattern.new(var,
+      guard: {guard, with_meta(context), [var]},
+      notes: ["Using guard for non-serializable value `#{inspect(value)}`"]
+    )
   end
 
   defp make_var(name, context) do
     {name, with_meta(context), nil}
   end
 
-  defp transform_patterns(patterns, transform, context) do
-    Enum.map(patterns, &transform.(&1, context))
+  defp to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
+    %{pattern | expr: {e1, e2}}
   end
 
-  defp tuple_pattern({[e1, e2], guard, notes}, _context) do
-    {{e1, e2}, guard, notes}
+  defp to_tuple_pattern(%Pattern{expr: exprs} = pattern, context) do
+    %{pattern | expr: {:{}, with_meta(context), exprs}}
   end
 
-  defp tuple_pattern({exprs, guard, notes}, context) do
-    {{:{}, with_meta(context), exprs}, guard, notes}
+  defp to_map_pattern(%Pattern{expr: tuples} = pattern, context) do
+    %{pattern | expr: map_pattern(tuples, context).expr}
   end
 
-  defp map_pattern({tuples, guard, notes} \\ {[], nil, []}, context) do
-    {{:%{}, with_meta(context), tuples}, guard, notes}
-  end
-
-  defp struct_pattern(struct, {map_expr, guard, notes}, context, extra_notes) do
+  defp to_struct_pattern(struct, map_pattern, context, extra_notes) do
     {aliased, _} =
       context
       |> Map.get(:aliases, [])
@@ -212,8 +211,8 @@ defmodule Mneme.Assertion.PatternBuilder do
 
     aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
 
-    {{:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_expr]}, guard,
-     extra_notes ++ notes}
+    {:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_pattern.expr]}
+    |> Pattern.new(guard: map_pattern.guard, notes: extra_notes ++ map_pattern.notes)
   end
 
   defp ecto_schema?(module) do
@@ -266,18 +265,19 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp string_pattern(string, context) do
-    block = {:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]}
+  defp map_pattern(tuples, context) do
+    Pattern.new({:%{}, with_meta(context), tuples})
+  end
 
-    {block, nil, []}
+  defp string_pattern(string, context) do
+    Pattern.new({:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]})
   end
 
   defp heredoc_pattern(string, context) do
-    block =
+    Pattern.new(
       {:__block__, with_meta([delimiter: ~S(""")], context),
        [string |> escape() |> format_for_heredoc()]}
-
-    {block, nil, []}
+    )
   end
 
   defp format_for_heredoc(string) when is_binary(string) do

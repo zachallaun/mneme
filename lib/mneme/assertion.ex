@@ -2,6 +2,7 @@ defmodule Mneme.Assertion do
   @moduledoc false
 
   alias __MODULE__
+  alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
 
   defstruct [
@@ -23,7 +24,7 @@ defmodule Mneme.Assertion do
           macro_ast: Macro.t(),
           rich_ast: Macro.t(),
           code: Macro.t(),
-          patterns: [pattern],
+          patterns: [Pattern.t()],
           pattern_idx: non_neg_integer(),
           context: context
         }
@@ -33,8 +34,6 @@ defmodule Mneme.Assertion do
           | :auto_assert_raise
           | :auto_assert_receive
           | :auto_assert_received
-
-  @type pattern :: {match :: Macro.t(), guard :: Macro.t() | nil, notes :: [String.t()]}
 
   @type context :: %{
           file: String.t(),
@@ -239,7 +238,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_and_select_raise(%{value: %exception{} = e, macro_ast: macro_ast}, default) do
-    patterns = [{{exception, nil}, nil, []}, {{exception, Exception.message(e)}, nil, []}]
+    patterns = [Pattern.new({exception, nil}), Pattern.new({exception, Exception.message(e)})]
 
     case {default, macro_ast} do
       {:infer, {_, _, [_, _, _]}} -> {patterns, 1}
@@ -273,12 +272,8 @@ defmodule Mneme.Assertion do
       |> Enum.map(&simplify_expr/1)
 
     PatternBuilder.to_patterns(value, assertion.context)
-    |> Enum.split_while(fn
-      {pattern_expr, pattern_guard, _} ->
-        !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
-
-      _ ->
-        true
+    |> Enum.split_while(fn %Pattern{expr: pattern_expr, guard: pattern_guard} ->
+      !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
     end)
     |> case do
       {patterns, []} -> {patterns, 0}
@@ -332,11 +327,6 @@ defmodule Mneme.Assertion do
   def pattern(%Assertion{pattern_idx: idx, patterns: patterns}), do: Enum.at(patterns, idx)
 
   @doc """
-  Returns any notes associated with the current pattern.
-  """
-  def notes(%Assertion{} = assertion), do: assertion |> pattern() |> elem(2)
-
-  @doc """
   Check whether the assertion struct represents the given AST node.
   """
   def same?(%Assertion{kind: kind, context: %{line: line}}, node) do
@@ -350,12 +340,12 @@ defmodule Mneme.Assertion do
   Generates assertion code for the given target.
   """
   def to_code(%Assertion{kind: :auto_assert_raise} = assertion, target) do
-    {expr, _, _} = pattern(assertion)
+    %Pattern{expr: expr} = pattern(assertion)
     build_call(target, assertion, {expr, nil})
   end
 
   def to_code(%Assertion{rich_ast: ast} = assertion, target) do
-    {expr, guard, _} = pattern(assertion)
+    %Pattern{expr: expr, guard: guard} = pattern(assertion)
     build_call(target, assertion, {block_with_line(expr, meta(ast)), guard})
   end
 
@@ -613,8 +603,6 @@ defmodule Mneme.Assertion do
     string
     |> String.replace("\n", "\\n")
     |> String.replace("\#{", "\\\#{")
-
-    # |> String.replace("\"", "\\\"")
   end
 
   defp meta({_, meta, _}), do: meta

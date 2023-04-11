@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
   use ExUnit.Case, async: true
   use Mneme
 
+  alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
 
   {_formatter, opts} = Mix.Tasks.Format.formatter_for_file(__ENV__.file)
@@ -24,10 +25,10 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       auto_assert ["{1, \"string\", :atom}"] <- to_pattern_strings({1, "string", :atom})
       auto_assert ["{{:nested}, {\"tuples\"}}"] <- to_pattern_strings({{:nested}, {"tuples"}})
 
-      auto_assert [{{:two, :elements}, nil, []}] <-
+      auto_assert [%Pattern{expr: {:two, :elements}}] <-
                     PatternBuilder.to_patterns({:two, :elements}, %{binding: []})
 
-      auto_assert [{{:{}, [line: nil], [:more, :than, :two, :elements]}, nil, []}] <-
+      auto_assert [%Pattern{expr: {:{}, [line: nil], [:more, :than, :two, :elements]}}] <-
                     PatternBuilder.to_patterns({:more, :than, :two, :elements}, %{binding: []})
     end
 
@@ -120,8 +121,8 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     value
     |> PatternBuilder.to_patterns(context)
     |> Enum.map(fn
-      {expr, nil, _} -> expr
-      {expr, guard, _} -> {:when, [], [guard, expr]}
+      %Pattern{guard: nil, expr: expr} -> expr
+      %Pattern{guard: guard, expr: expr} -> {:when, [], [guard, expr]}
     end)
     |> Enum.map(&Sourceror.to_string(&1, @format_opts))
   end

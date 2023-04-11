@@ -27,7 +27,7 @@ defmodule Mneme.Prompter.Terminal do
 
   @doc false
   def message(%Assertion{} = assertion, counter, diff, opts) do
-    notes = Assertion.notes(assertion)
+    notes = Assertion.pattern(assertion).notes
 
     [
       format_header(assertion, counter, opts),
