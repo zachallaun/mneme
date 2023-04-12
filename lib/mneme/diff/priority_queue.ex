@@ -36,18 +36,17 @@ defmodule Mneme.Diff.PriorityQueue do
   """
   @spec pop(t) :: {:ok, term(), t} | :error
   def pop(pqueue) do
-    case :gb_trees.take_smallest(pqueue) do
-      {priority, queue, pqueue} ->
-        {{:value, value}, queue} = :queue.out(queue)
+    if :gb_trees.is_empty(pqueue) do
+      :error
+    else
+      {priority, queue, pqueue} = :gb_trees.take_smallest(pqueue)
+      {{:value, value}, queue} = :queue.out(queue)
 
-        if :queue.is_empty(queue) do
-          {:ok, value, pqueue}
-        else
-          {:ok, value, :gb_trees.insert(priority, queue, pqueue)}
-        end
-
-      :empty ->
-        :error
+      if :queue.is_empty(queue) do
+        {:ok, value, pqueue}
+      else
+        {:ok, value, :gb_trees.insert(priority, queue, pqueue)}
+      end
     end
   end
 end
