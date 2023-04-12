@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   * [Core] Pattern generation improvements:
     * Multi-line strings will now generate both a heredoc and a single-line option.
+  * [Core] Remove dependency on `libgraph`.
 
 ## v0.3.0 (2023-04-10)
 

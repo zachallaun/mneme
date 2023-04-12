@@ -1,10 +1,10 @@
-# Derived from bitwalker/libgraph:
-# https://github.com/bitwalker/libgraph/blob/main/lib/graph/pathfinding.ex
-
 defmodule Mneme.Diff.Pathfinding do
   @moduledoc false
 
-  alias Mneme.Diff.PriorityQueue, as: PQueue
+  # Originally derived from libgraph:
+  # https://github.com/bitwalker/libgraph/blob/main/lib/graph/pathfinding.ex
+
+  alias Mneme.Diff.PriorityQueue
 
   @doc """
   Finds the shortest path between `v` and a target vertex.
@@ -21,15 +21,14 @@ defmodule Mneme.Diff.Pathfinding do
   def lazy_a_star(v, vertex_identifier, next_fun, hfun) do
     v_id = vertex_identifier.(v)
     known = %{v_id => v}
-    tree = Graph.new(vertex_identifier: &Function.identity/1) |> Graph.add_vertex(v_id)
-    q = PQueue.new()
+    q = PriorityQueue.new()
 
     with {:cont, vs_out} <- next_fun.(v) do
       {vs_out, known} = push_known(known, vs_out, vertex_identifier)
 
       q
       |> push_vertices(known, v_id, vs_out, hfun)
-      |> do_lazy_bfs(known, tree, vertex_identifier, next_fun, hfun)
+      |> do_lazy_bfs(known, %{}, vertex_identifier, next_fun, hfun)
       |> case do
         {:ok, known, path} -> for(id <- path, do: Map.get(known, id))
         :error -> nil
@@ -42,29 +41,25 @@ defmodule Mneme.Diff.Pathfinding do
 
   ## Private
 
-  defp do_lazy_bfs(q, known, tree, vertex_identifier, next_fun, hfun) do
-    case PQueue.pop(q) do
+  defp do_lazy_bfs(q, known, history, vertex_identifier, next_fun, hfun) do
+    case PriorityQueue.pop(q) do
       {:ok, {v1_id, v2_id, acc_cost}, q} ->
         v2 = Map.fetch!(known, v2_id)
 
         case next_fun.(v2) do
           :halt ->
-            {:ok, known, construct_path(v1_id, tree, [v2_id])}
+            {:ok, known, construct_path(history, v1_id, [v2_id])}
 
           {:cont, vs_out} ->
-            if Map.has_key?(tree.vertices, v2_id) do
-              do_lazy_bfs(q, known, tree, vertex_identifier, next_fun, hfun)
+            if Map.has_key?(history, v2_id) do
+              do_lazy_bfs(q, known, history, vertex_identifier, next_fun, hfun)
             else
               {v2_out, known} = push_known(known, vs_out, vertex_identifier)
-
-              tree =
-                tree
-                |> Graph.add_vertex(v2_id)
-                |> Graph.add_edge(v2_id, v1_id)
+              history = Map.put(history, v2_id, v1_id)
 
               q
               |> push_vertices(known, v2_id, v2_out, hfun, acc_cost)
-              |> do_lazy_bfs(known, tree, vertex_identifier, next_fun, hfun)
+              |> do_lazy_bfs(known, history, vertex_identifier, next_fun, hfun)
             end
         end
 
@@ -85,16 +80,16 @@ defmodule Mneme.Diff.Pathfinding do
       edge_cost = acc_cost + cost
       q_cost = edge_cost + hfun.(Map.get(known, v2_id))
 
-      PQueue.push(q, {v_id, v2_id, edge_cost}, q_cost)
+      PriorityQueue.push(q, {v_id, v2_id, edge_cost}, q_cost)
     end)
   end
 
-  defp construct_path(v_id, %Graph{out_edges: oe} = tree, path) do
+  defp construct_path(history, v_id, path) do
     path = [v_id | path]
 
-    case oe |> Map.get(v_id, MapSet.new()) |> MapSet.to_list() do
-      [] -> path
-      [next_id] -> construct_path(next_id, tree, path)
+    case history do
+      %{^v_id => next_id} -> construct_path(history, next_id, path)
+      _ -> path
     end
   end
 end
