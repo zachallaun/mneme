@@ -5,6 +5,14 @@ defmodule Mneme.Diff.Formatter do
   alias Mneme.Diff.Zipper
   alias Mneme.Utils
 
+  @type fmt_instruction :: {op, bounds}
+
+  @type op :: :ins | :del | {:ins, :highlight} | {:del, :highlight}
+
+  @type bounds :: {start_bound :: bound, end_bound :: bound}
+
+  @type bound :: {line :: pos_integer(), column :: pos_integer()}
+
   @re_newline ~r/\n|\r\n/
 
   @doc """
@@ -14,8 +22,8 @@ defmodule Mneme.Diff.Formatter do
   def highlight_lines(code, instructions) do
     lines = code |> Owl.Data.lines() |> Enum.reverse()
     [last_line | earlier_lines] = lines
-    hl_instructions = denormalize_all(instructions)
-    highlighted = highlight(hl_instructions, length(lines), last_line, earlier_lines)
+    fmt_instructions = to_fmt_instructions(instructions)
+    highlighted = highlight(fmt_instructions, length(lines), last_line, earlier_lines)
 
     Enum.map(highlighted, fn
       list when is_list(list) ->
@@ -24,6 +32,15 @@ defmodule Mneme.Diff.Formatter do
       line ->
         line
     end)
+  end
+
+  @spec fmt(op, bounds) :: fmt_instruction
+  defp fmt(op, {{l1, c1}, {l2, c2}} = bounds) when l2 >= l1 and c2 >= c1 do
+    {op, bounds}
+  end
+
+  defp fmt(_op, bounds) do
+    raise ArgumentError, "invalid bounds: #{inspect(bounds)}"
   end
 
   defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
@@ -72,31 +89,32 @@ defmodule Mneme.Diff.Formatter do
     highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc])
   end
 
-  defp denormalize_all(instructions) do
+  @spec to_fmt_instructions([Diff.instruction()]) :: [fmt_instruction]
+  defp to_fmt_instructions(instructions) do
     instructions
     |> Enum.flat_map(fn
       {op, kind, zipper} ->
-        denormalize(kind, op, Zipper.node(zipper), zipper)
+        to_fmt_instructions(kind, op, Zipper.node(zipper), zipper)
 
       {op, :node, zipper, edit_script} ->
-        denormalize_with_edit_script(op, Zipper.node(zipper), edit_script)
+        edit_script_to_fmt_instructions(op, Zipper.node(zipper), edit_script)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
   end
 
-  defp denormalize(:node, op, {:{}, tuple_meta, [left, right]} = node, _) do
+  defp to_fmt_instructions(:node, op, {:{}, tuple_meta, [left, right]} = node, _) do
     case tuple_meta do
       %{closing: _} ->
-        [{op, bounds(node)}]
+        [fmt(op, bounds(node))]
 
       _ ->
-        {lc1, _} = bounds(left)
-        {_, lc2} = bounds(right)
-        [{op, {lc1, lc2}}]
+        {start_bound, _} = bounds(left)
+        {_, end_bound} = bounds(right)
+        [fmt(op, {start_bound, end_bound})]
     end
   end
 
-  defp denormalize(:node, op, {:var, meta, var}, zipper) do
+  defp to_fmt_instructions(:node, op, {:var, meta, var}, zipper) do
     var_bounds = bounds({:var, meta, var})
     {{l, c}, {l2, c2}} = var_bounds
 
@@ -104,67 +122,67 @@ defmodule Mneme.Diff.Formatter do
       {:__aliases__, _, _} ->
         case Zipper.right(zipper) do
           nil ->
-            [{op, {{l, c - 1}, {l2, c2}}}]
+            [fmt(op, {{l, c - 1}, {l2, c2}})]
 
           _ ->
-            [{op, {{l, c}, {l2, c2 + 1}}}]
+            [fmt(op, {{l, c}, {l2, c2 + 1}})]
         end
 
       _ ->
-        [{op, var_bounds}]
+        [fmt(op, var_bounds)]
     end
   end
 
-  defp denormalize(:node, _op, [], _zipper), do: []
+  defp to_fmt_instructions(:node, _op, [], _zipper), do: []
 
-  defp denormalize(:node, op, node, _zipper) do
+  defp to_fmt_instructions(:node, op, node, _zipper) do
     if bounds = bounds(node) do
-      [{op, bounds}]
+      [fmt(op, bounds)]
     else
       []
     end
   end
 
-  defp denormalize(:delimiter, op, {:%, meta, [name, _]}, _) do
-    [struct_start, struct_end] = denormalize_delimiter(op, meta, 1, 1)
+  defp to_fmt_instructions(:delimiter, op, {:%, meta, [name, _]}, _) do
+    [struct_start, struct_end] = delimiter_to_fmt_instructions(op, meta, 1, 1)
     {_, {name_end_l, name_end_c}} = bounds(name)
 
     [
       struct_start,
-      {op, {{name_end_l, name_end_c}, {name_end_l, name_end_c + 1}}},
+      fmt(op, {{name_end_l, name_end_c}, {name_end_l, name_end_c + 1}}),
       struct_end
     ]
   end
 
-  defp denormalize(:delimiter, op, {:.., %{line: l, column: c}, [_, _]}, _) do
-    [{op, {{l, c}, {l, c + 2}}}]
+  defp to_fmt_instructions(:delimiter, op, {:.., %{line: l, column: c}, [_, _]}, _) do
+    [fmt(op, {{l, c}, {l, c + 2}})]
   end
 
-  defp denormalize(:delimiter, op, {:"..//", %{line: l, column: c}, [_, range_end, _]}, _) do
+  defp to_fmt_instructions(:delimiter, op, {:"..//", %{line: l, column: c}, [_, range_end, _]}, _) do
     {_, {l2, c2}} = bounds(range_end)
 
-    [{op, {{l, c}, {l, c + 2}}}, {op, {{l2, c2}, {l2, c2 + 2}}}]
+    [fmt(op, {{l, c}, {l, c + 2}}), fmt(op, {{l2, c2}, {l2, c2 + 2}})]
   end
 
-  defp denormalize(:delimiter, op, {:"[]", meta, _}, _) do
-    denormalize_delimiter(op, meta, 1, 1)
+  defp to_fmt_instructions(:delimiter, op, {:"[]", meta, _}, _) do
+    delimiter_to_fmt_instructions(op, meta, 1, 1)
   end
 
-  defp denormalize(:delimiter, op, {:{}, meta, _}, _) do
-    denormalize_delimiter(op, meta, 1, 1)
+  defp to_fmt_instructions(:delimiter, op, {:{}, meta, _}, _) do
+    delimiter_to_fmt_instructions(op, meta, 1, 1)
   end
 
-  defp denormalize(:delimiter, op, {:%{}, meta, _}, zipper) do
+  defp to_fmt_instructions(:delimiter, op, {:%{}, meta, _}, zipper) do
     case zipper |> Zipper.up() |> Zipper.node() do
       {:%, %{line: l, column: c}, _} ->
-        [{op, {{l, c}, {l, c + 1}}} | denormalize_delimiter(op, meta, 1, 1)]
+        [fmt(op, {{l, c}, {l, c + 1}}) | delimiter_to_fmt_instructions(op, meta, 1, 1)]
 
       _ ->
-        denormalize_delimiter(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
+        delimiter_to_fmt_instructions(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
     end
   end
 
-  defp denormalize(
+  defp to_fmt_instructions(
          :delimiter,
          op,
          {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _},
@@ -172,10 +190,10 @@ defmodule Mneme.Diff.Formatter do
        )
        when is_atom(call) do
     len = Macro.inspect_atom(:remote_call, call) |> String.length()
-    [{op, {{l, c}, {l, c + len + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+    [fmt(op, {{l, c}, {l, c + len + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp denormalize(
+  defp to_fmt_instructions(
          :delimiter,
          op,
          {call, %{line: l, column: c}, _},
@@ -183,53 +201,54 @@ defmodule Mneme.Diff.Formatter do
        )
        when is_atom(call) do
     len = Macro.inspect_atom(:remote_call, call) |> String.length()
-    [{op, {{l, c}, {l, c + len}}}]
+    [fmt(op, {{l, c}, {l, c + len}})]
   end
 
-  defp denormalize(
+  defp to_fmt_instructions(
          :delimiter,
          op,
          {{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _},
          _
        ) do
     {_, {l, c}} = bounds(right)
-    [{op, {{l, c}, {l, c + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+    [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp denormalize(
+  defp to_fmt_instructions(
          :delimiter,
          op,
          {{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _},
          _
        ) do
     {_, {l, c}} = bounds(var)
-    [{op, {{l, c}, {l, c + 1}}}, {op, {{l2, c2}, {l2, c2 + 1}}}]
+    [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
   # Dot call delimiter with no parens, nothing to highlight
-  defp denormalize(:delimiter, _op, {{:., _, _}, _, _}, _), do: []
+  defp to_fmt_instructions(:delimiter, _op, {{:., _, _}, _, _}, _), do: []
 
-  defp denormalize(:delimiter, op, {atom, %{line: l, column: c}, _}, _) when is_atom(atom) do
+  defp to_fmt_instructions(:delimiter, op, {atom, %{line: l, column: c}, _}, _)
+       when is_atom(atom) do
     len = Macro.inspect_atom(:remote_call, atom) |> String.length()
-    [{op, {{l, c}, {l, c + len}}}]
+    [fmt(op, {{l, c}, {l, c + len}})]
   end
 
   # list literals and 2-tuples are structural only in the AST and cannot
   # be highlighted
-  defp denormalize(:delimiter, _op, list, _) when is_list(list), do: []
-  defp denormalize(:delimiter, _op, {_, _}, _), do: []
+  defp to_fmt_instructions(:delimiter, _op, list, _) when is_list(list), do: []
+  defp to_fmt_instructions(:delimiter, _op, {_, _}, _), do: []
 
-  defp denormalize_delimiter(op, meta, start_len, end_len) do
+  defp delimiter_to_fmt_instructions(op, meta, start_len, end_len) do
     case meta do
       %{line: l, column: c, closing: %{line: l2, column: c2}} ->
-        [{op, {{l, c}, {l, c + start_len}}}, {op, {{l2, c2}, {l2, c2 + end_len}}}]
+        [fmt(op, {{l, c}, {l, c + start_len}}), fmt(op, {{l2, c2}, {l2, c2 + end_len}})]
 
       _ ->
         []
     end
   end
 
-  defp denormalize_with_edit_script(op, {_, meta, _}, edit_script) do
+  defp edit_script_to_fmt_instructions(op, {_, meta, _}, edit_script) do
     %{line: l_start, column: c_start, delimiter: del} = meta
 
     {l, c} =
@@ -254,11 +273,12 @@ defmodule Mneme.Diff.Formatter do
             end
 
           op = if edit == :eq, do: op, else: {op, :highlight}
-          {[{op, {{l, c}, {l, c2}}}], {l, c2, c_start}}
+
+          {[fmt(op, {{l, c}, {l, c2}})], {l, c2, c_start}}
       end)
 
-    del_start = [{op, {{l_start, c_start}, {l_start, c_start + String.length(del)}}}]
-    del_end = [{op, {{l_end, c_end}, {l_end, c_end + String.length(del)}}}]
+    del_start = [fmt(op, {{l_start, c_start}, {l_start, c_start + String.length(del)}})]
+    del_end = [fmt(op, {{l_end, c_end}, {l_end, c_end + String.length(del)}})]
     del_start ++ ops ++ del_end
   end
 
@@ -273,6 +293,9 @@ defmodule Mneme.Diff.Formatter do
       end)
     end)
   end
+
+  @spec bounds(term()) :: bounds | nil
+  defp bounds(node)
 
   defp bounds({:%{}, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
     {{l, c - 1}, {l2, c2 + 1}}
