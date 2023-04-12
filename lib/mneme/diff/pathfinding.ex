@@ -4,6 +4,8 @@
 defmodule Mneme.Diff.Pathfinding do
   @moduledoc false
 
+  alias Mneme.Diff.PriorityQueue, as: PQueue
+
   @doc """
   Finds the shortest path between `v` and a target vertex.
 
@@ -20,7 +22,7 @@ defmodule Mneme.Diff.Pathfinding do
     v_id = vertex_identifier.(v)
     known = %{v_id => v}
     tree = Graph.new(vertex_identifier: &Function.identity/1) |> Graph.add_vertex(v_id)
-    q = PriorityQueue.new()
+    q = PQueue.new()
 
     with {:cont, vs_out} <- next_fun.(v) do
       {vs_out, known} = push_known(known, vs_out, vertex_identifier)
@@ -41,8 +43,8 @@ defmodule Mneme.Diff.Pathfinding do
   ## Private
 
   defp do_lazy_bfs(q, known, tree, vertex_identifier, next_fun, hfun) do
-    case PriorityQueue.pop(q) do
-      {{:value, {v1_id, v2_id, acc_cost}}, q} ->
+    case PQueue.pop(q) do
+      {:ok, {v1_id, v2_id, acc_cost}, q} ->
         v2 = Map.fetch!(known, v2_id)
 
         case next_fun.(v2) do
@@ -66,7 +68,7 @@ defmodule Mneme.Diff.Pathfinding do
             end
         end
 
-      {:empty, _} ->
+      :error ->
         :error
     end
   end
@@ -83,7 +85,7 @@ defmodule Mneme.Diff.Pathfinding do
       edge_cost = acc_cost + cost
       q_cost = edge_cost + hfun.(Map.get(known, v2_id))
 
-      PriorityQueue.push(q, {v_id, v2_id, edge_cost}, q_cost)
+      PQueue.push(q, {v_id, v2_id, edge_cost}, q_cost)
     end)
   end
 
