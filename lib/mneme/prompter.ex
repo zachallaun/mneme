@@ -1,7 +1,8 @@
 defmodule Mneme.Prompter do
-  # Behaviour controlling how to prompt acceptance or rejection of an
-  # assertion patch. This behaviour may become public in the future.
   @moduledoc false
+
+  # This module defines a behaviour and utilities for prompting a user
+  # when an assertion should be updated.
 
   @type response :: :accept | :reject | :skip | :prev | :next
   @type diff :: %{left: String.t(), right: String.t()}
