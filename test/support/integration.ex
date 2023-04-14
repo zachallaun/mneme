@@ -40,7 +40,7 @@ defmodule Mneme.Integration do
             test unquote(module_name), %{tmp_dir: tmp_dir} do
               unquote(test_data)
               |> Map.new()
-              |> Map.merge(%{path: unquote(Source.path(source)), tmp_dir: tmp_dir})
+              |> Map.put(:tmp_dir, tmp_dir)
               |> Mneme.Integration.run_test()
             end
           end
@@ -67,9 +67,15 @@ defmodule Mneme.Integration do
 
     test_command = """
     echo "#{test.test_input}" | \
-      CI=false \
-      mix test #{file_path} --seed 0 \
+      CI=false mix test #{file_path} --seed 0 \
     """
+
+    test_command =
+      if Application.get_env(:mneme, :export_integration_coverage) do
+        test_command <> "--cover --export-coverage #{test.name}"
+      else
+        test_command
+      end
 
     task = Task.async(System, :shell, [test_command])
 
@@ -155,6 +161,8 @@ defmodule Mneme.Integration do
 
     source =
       Source.put_private(source, :mneme_integration,
+        name: source |> Source.path() |> Path.rootname() |> Path.basename(),
+        path: Source.path(source),
         test_input: test_input,
         test_code: eof_newline(test_code),
         expected_code: eof_newline(expected_code),

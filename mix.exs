@@ -15,7 +15,7 @@ defmodule Mneme.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
-      test_coverage: [tool: ExCoveralls],
+      test_coverage: [tool: ExCoveralls, import_cover: "cover"],
       aliases: aliases(),
       preferred_cli_env: preferred_cli_env(),
 
@@ -42,8 +42,12 @@ defmodule Mneme.MixProject do
       {:sourceror, "~> 0.12"},
       {:rewrite, "~> 0.6.0"},
 
-      # Development
-      {:excoveralls, "~> 0.15", only: :test},
+      # Development / Test
+      {:excoveralls,
+       github: "zachallaun/excoveralls", ref: "import-coverdata-improvements", only: :test},
+      # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
+      # is merged:
+      # {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9.4", only: :test},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
@@ -58,14 +62,21 @@ defmodule Mneme.MixProject do
 
   defp aliases do
     [
-      t: "coveralls"
+      coveralls: [
+        &export_integration_coverage/1,
+        "coveralls --import-cover cover"
+      ],
+      "coveralls.html": [
+        &export_integration_coverage/1,
+        "coveralls.html --import-cover cover"
+      ]
     ]
   end
 
   defp preferred_cli_env do
     [
       coveralls: :test,
-      t: :test
+      "coveralls.html": :test
     ]
   end
 
@@ -110,5 +121,9 @@ defmodule Mneme.MixProject do
         :no_return
       ]
     ]
+  end
+
+  defp export_integration_coverage(_) do
+    Application.put_env(:mneme, :export_integration_coverage, true)
   end
 end
