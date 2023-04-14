@@ -74,11 +74,11 @@ defmodule Mneme do
   @ex_unit_default_receive_timeout 100
 
   @doc """
-  Sets up Mneme configuration for this module and imports auto-assertion
-  macros.
+  Sets up Mneme configuration for the calling module and imports Mneme's
+  assertion macros.
 
-  This macro accepts all options described in the "Configuration"
-  section above.
+  This call accepts all options described in the "Configuration" section
+  above.
 
   ## Example
 
@@ -92,6 +92,7 @@ defmodule Mneme do
       end
 
   """
+  @doc section: :setup
   defmacro __using__(opts) do
     quote do
       import Mneme, only: :macros
@@ -163,6 +164,7 @@ defmodule Mneme do
           pid # pid is the result of self()
 
   """
+  @doc section: :assertion
   defmacro auto_assert(expression) do
     build_assertion(:auto_assert, [expression], __CALLER__)
   end
@@ -202,6 +204,8 @@ defmodule Mneme do
       auto_assert_raise Some.Exception, &some_call_expected_to_raise/0
 
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_raise(exception, message, function) do
     build_assertion(:auto_assert_raise, [exception, message, function], __CALLER__)
   end
@@ -209,6 +213,8 @@ defmodule Mneme do
   @doc """
   See `auto_assert_raise/3`.
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_raise(exception, function) do
     build_assertion(:auto_assert_raise, [exception, function], __CALLER__)
   end
@@ -216,6 +222,8 @@ defmodule Mneme do
   @doc """
   See `auto_assert_raise/3`.
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_raise(function) do
     build_assertion(:auto_assert_raise, [function], __CALLER__)
   end
@@ -245,6 +253,8 @@ defmodule Mneme do
       auto_assert_receive {:some, :message}, 300
 
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_receive(pattern, timeout) when is_integer(timeout) and timeout >= 0 do
     build_assertion(:auto_assert_receive, [pattern, timeout], __CALLER__)
   end
@@ -252,6 +262,8 @@ defmodule Mneme do
   @doc """
   See `auto_assert_receive/2`.
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_receive(pattern) do
     build_assertion(:auto_assert_receive, [pattern], __CALLER__)
   end
@@ -259,6 +271,8 @@ defmodule Mneme do
   @doc """
   See `auto_assert_receive/2`.
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_receive do
     build_assertion(:auto_assert_receive, [], __CALLER__)
   end
@@ -281,6 +295,8 @@ defmodule Mneme do
       auto_assert_receive {:some, :message}
 
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_received(pattern) do
     build_assertion(:auto_assert_received, [pattern], __CALLER__)
   end
@@ -288,6 +304,8 @@ defmodule Mneme do
   @doc """
   See `auto_assert_received/1`.
   """
+  @doc section: :assertion
+  @doc since: "0.3.0"
   defmacro auto_assert_received do
     build_assertion(:auto_assert_received, [], __CALLER__)
   end
@@ -324,6 +342,7 @@ defmodule Mneme do
       `false`.
 
   """
+  @doc section: :setup
   def start(opts \\ []) do
     ExUnit.configure(
       formatters: [Mneme.Server.ExUnitFormatter],

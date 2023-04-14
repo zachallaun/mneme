@@ -103,6 +103,10 @@ defmodule Mneme.MixProject do
         "Editor Setup": [
           "guides/vscode_setup.md"
         ]
+      ],
+      groups_for_docs: [
+        Setup: &(&1[:section] == :setup),
+        Assertions: &(&1[:section] == :assertion)
       ]
     ]
   end
