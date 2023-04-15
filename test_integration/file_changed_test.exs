@@ -7,6 +7,6 @@ defmodule Mneme.Integration.FileChangedTest do
     # y
     auto_assert "foo" <> "bar"
 
-    File.write!(__ENV__.file, "#", [:append])
+    File.write!(__ENV__.file, Mneme.Integration.safe_source_modification(), [:append])
   end
 end

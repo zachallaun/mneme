@@ -58,6 +58,12 @@ defmodule Mneme.Integration do
     end
   end
 
+  @doc """
+  A string that can be prepended or appended to an Elixir integration
+  test file to update the file contents during testing.
+  """
+  def safe_source_modification, do: "\n#mneme_integration_modification\n"
+
   @doc false
   def run_test(test) do
     debug_setup(System.get_env("DBG"), test)
@@ -92,9 +98,8 @@ defmodule Mneme.Integration do
     code_after_test =
       file_path
       |> File.read!()
-      # This allows us to modify the test file in-place without the
-      # `code_after_test == test.expected_code` check failing
-      |> String.trim_trailing("#")
+      |> String.trim_leading(safe_source_modification())
+      |> String.trim_trailing(safe_source_modification())
 
     errors =
       [
