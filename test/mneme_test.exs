@@ -2,6 +2,14 @@ defmodule MnemeTest do
   use ExUnit.Case, async: true
   use Mneme
 
+  describe "start/1" do
+    test "raises if already started without using the :restart option" do
+      auto_assert_raise RuntimeError, ~r"Mneme has already started", fn ->
+        Mneme.start()
+      end
+    end
+  end
+
   describe "auto_assert/1" do
     test "raises at compile-time if called outside of a test" do
       code = """

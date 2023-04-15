@@ -344,6 +344,45 @@ defmodule Mneme do
   """
   @doc section: :setup
   def start(opts \\ []) do
+    supervisor = Process.whereis(Mneme.Supervisor)
+    restart? = Keyword.get(opts, :restart, false)
+
+    cond do
+      !supervisor ->
+        configure!()
+        start_server!()
+
+      supervisor && restart? ->
+        configure!()
+        restart_server!()
+
+      true ->
+        raise RuntimeError,
+              "Mneme has already started. Ensure that `:restart` is used if rerunning tests without restarting the application: `Mneme.start(restart: true)`"
+    end
+
+    :ok
+  end
+
+  defp start_server! do
+    children = [
+      Mneme.Server
+    ]
+
+    opts = [
+      name: Mneme.Supervisor,
+      strategy: :one_for_one
+    ]
+
+    {:ok, _pid} = Supervisor.start_link(children, opts)
+  end
+
+  defp restart_server! do
+    _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
+    {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
+  end
+
+  defp configure! do
     ExUnit.configure(
       formatters: [Mneme.Server.ExUnitFormatter],
       default_formatter: ExUnit.CLIFormatter,
@@ -351,24 +390,6 @@ defmodule Mneme do
     )
 
     Mneme.Options.configure()
-
-    if opts[:restart] && Process.whereis(Mneme.Supervisor) do
-      _ = Supervisor.terminate_child(Mneme.Supervisor, Mneme.Server)
-      {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
-    else
-      children = [
-        Mneme.Server
-      ]
-
-      opts = [
-        name: Mneme.Supervisor,
-        strategy: :one_for_one
-      ]
-
-      Supervisor.start_link(children, opts)
-    end
-
-    :ok
   end
 
   @doc false
