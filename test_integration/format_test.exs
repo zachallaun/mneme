@@ -3,28 +3,19 @@ defmodule Mneme.Integration.FormatTest do
   use Mneme
 
   describe "multi-line strings" do
-    test "with 2 or more newlines should be formatted as heredocs by default" do
+    test "are formated with double quotes by default" do
       # y
+      auto_assert "foo\nbar\n" <- "foo\nbar\n"
+
+      # k y
       auto_assert """
                   foo
                   bar
                   """ <- "foo\nbar\n"
-
-      # k y
-      auto_assert "foo\nbar\n" <- "foo\nbar\n"
-
-      # y
-      auto_assert "foo\nbar" <- "foo\nbar"
-
-      # k y
-      auto_assert """
-                  foo
-                  bar\
-                  """ <- "foo\nbar"
     end
 
     test "should format nested as heredocs" do
-      # y
+      # k y
       auto_assert {:ok,
                    """
                    foo

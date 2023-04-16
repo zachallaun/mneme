@@ -90,5 +90,25 @@ defmodule Mneme.Integration.ReceiveTest do
       # y
       auto_assert_received {:message, pid} when is_pid(pid)
     end
+
+    test "handles escaped characters in strings" do
+      send(
+        self(),
+        {:message,
+         """
+         foo
+         \\
+         bar
+         """}
+      )
+
+      # y
+      auto_assert_receive {:message,
+                           """
+                           foo
+                           \\
+                           bar
+                           """}
+    end
   end
 end

@@ -237,8 +237,17 @@ defmodule Mneme.Assertion do
     {patterns, 0}
   end
 
-  defp build_and_select_raise(%{value: %exception{} = e, macro_ast: macro_ast}, default) do
-    patterns = [Pattern.new({exception, nil}), Pattern.new({exception, Exception.message(e)})]
+  defp build_and_select_raise(%{value: error, macro_ast: macro_ast, context: ctx}, default) do
+    %exception{} = error
+
+    patterns =
+      error
+      |> Exception.message()
+      |> PatternBuilder.to_patterns(ctx)
+      |> Enum.map(fn %Pattern{expr: message} ->
+        Pattern.new({exception, message})
+      end)
+      |> then(&[Pattern.new({exception, nil}) | &1])
 
     case {default, macro_ast} do
       {:infer, {_, _, [_, _, _]}} -> {patterns, 1}
@@ -341,7 +350,7 @@ defmodule Mneme.Assertion do
   """
   def to_code(%Assertion{kind: :auto_assert_raise} = assertion, target) do
     %Pattern{expr: expr} = pattern(assertion)
-    build_call(target, assertion, {expr, nil})
+    build_call(target, assertion, expr)
   end
 
   def to_code(%Assertion{rich_ast: ast} = assertion, target) do
@@ -364,11 +373,11 @@ defmodule Mneme.Assertion do
      [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
   end
 
-  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, nil}, _}) do
+  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, nil}) do
     {:auto_assert_raise, meta(ast), [exception, value_expr(ast)]}
   end
 
-  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, msg}, _}) do
+  defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, msg}) do
     {:auto_assert_raise, meta(ast), [exception, msg, value_expr(ast)]}
   end
 
@@ -405,12 +414,12 @@ defmodule Mneme.Assertion do
     end
   end
 
-  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, nil}, _}) do
+  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, nil}) do
     {:assert_raise, meta(ast), [exception, value_expr(ast)]}
   end
 
-  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {{exception, msg}, _}) do
-    {:assert_raise, meta(ast), [exception, escape_string(msg), value_expr(ast)]}
+  defp build_call(:ex_unit, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, msg}) do
+    {:assert_raise, meta(ast), [exception, unescape_strings(msg), value_expr(ast)]}
   end
 
   defp build_call(:ex_unit, %{kind: :auto_assert_receive, rich_ast: ast}, pattern) do
@@ -477,7 +486,7 @@ defmodule Mneme.Assertion do
 
   def code_for_eval(:auto_assert_raise, {_, _, [exception, message, _]}, e) do
     quote do
-      assert_raise unquote(exception), unquote(message), fn ->
+      assert_raise unquote(exception), unquote(unescape_strings(message)), fn ->
         raise unquote(Macro.escape(e))
       end
     end
@@ -502,7 +511,7 @@ defmodule Mneme.Assertion do
     # We always set 0 timeout here since we've already waited in order
     # to generate patterns
     quote do
-      assert_receive unquote(pattern), 0
+      assert_receive unquote(unescape_strings(pattern)), 0
     end
   end
 
@@ -514,7 +523,7 @@ defmodule Mneme.Assertion do
 
   def code_for_eval(:auto_assert_received, {_, _, [pattern]}, _) do
     quote do
-      assert_received unquote(pattern)
+      assert_received unquote(unescape_strings(pattern))
     end
   end
 

@@ -39,6 +39,17 @@ defmodule Mneme.Integration.BasicTest do
 
       # y
       auto_assert <<0>> <- <<0>>
+
+      # k y
+      auto_assert """
+                  foo
+                  \\
+                  bar
+                  """ <- """
+                  foo
+                  \\
+                  bar
+                  """
     end
 
     test "tuples" do

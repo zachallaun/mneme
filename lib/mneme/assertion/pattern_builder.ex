@@ -3,7 +3,6 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   alias Mneme.Assertion
   alias Mneme.Assertion.Pattern
-  alias Mneme.Utils
 
   @doc """
   Builds pattern expressions from a runtime value.
@@ -42,16 +41,11 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(string, context) when is_binary(string) do
-    newlines = Utils.occurrences(string, ?\n)
-
     cond do
       !String.printable?(string) ->
         [Pattern.new({:<<>>, [], String.to_charlist(string)})]
 
-      newlines >= 2 ->
-        [heredoc_pattern(string, context), string_pattern(string, context)]
-
-      newlines >= 1 ->
+      String.contains?(string, "\n") ->
         [string_pattern(string, context), heredoc_pattern(string, context)]
 
       true ->

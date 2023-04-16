@@ -79,7 +79,7 @@ defmodule Mneme.AssertionTest do
 
       auto_assert [
                     mneme:
-                      "auto_assert_raise ArgumentError, \"This \\\"is\\\" a\\nmessage\", fn -> :ok end",
+                      "auto_assert_raise ArgumentError, \"This \\\"is\\\" a\\\\nmessage\", fn -> :ok end",
                     ex_unit:
                       "assert_raise ArgumentError, \"This \\\"is\\\" a\\nmessage\", fn -> :ok end",
                     eval: """
@@ -88,6 +88,18 @@ defmodule Mneme.AssertionTest do
                     end\
                     """
                   ] <- targets(ast, %ArgumentError{message: ~S|This "is" a\nmessage|})
+    end
+
+    test "with multi-line message" do
+      ast = quote(do: auto_assert_raise(ArgumentError, "", fn -> :ok end))
+
+      auto_assert [
+                    mneme:
+                      "auto_assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
+                    ex_unit: "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> :ok end",
+                    eval:
+                      "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> raise %{__exception__: true, __struct__: ArgumentError, message: \"foo\nbar\nbaz\n\"} end"
+                  ] <- targets(ast, %ArgumentError{message: "foo\nbar\nbaz\n"})
     end
   end
 

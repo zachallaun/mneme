@@ -227,25 +227,26 @@ defmodule Mneme.Diff do
 
   # When both nodes are strings, we may want to include a Myers edit script
   defp add_novel_edges(neighbors, {%{form: :string} = left, %{form: :string} = right, _} = v) do
-    {:string, _, s1} = SyntaxNode.ast(left)
-    {:string, _, s2} = SyntaxNode.ast(right)
+    case {SyntaxNode.ast(left), SyntaxNode.ast(right)} do
+      {{:string, _, s1}, {:string, _, s2}} when is_binary(s1) and is_binary(s2) ->
+        if String.bag_distance(s1, s2) > 0.5 do
+          {left_edit, right_edit} = myers_edit_scripts(s1, s2)
+          left_delta = Delta.novel(:node, :left, left, left_edit)
+          right_delta = Delta.novel(:node, :right, right, right_edit)
 
-    if String.bag_distance(s1, s2) > 0.5 do
-      {left_edit, right_edit} = myers_edit_scripts(s1, s2)
-      left_delta = Delta.novel(:node, :left, left, left_edit)
-      right_delta = Delta.novel(:node, :right, right, right_edit)
+          v2 = {
+            SyntaxNode.next_sibling(left),
+            SyntaxNode.next_sibling(right),
+            [left_delta, right_delta]
+          }
 
-      v2 = {
-        SyntaxNode.next_sibling(left),
-        SyntaxNode.next_sibling(right),
-        [left_delta, right_delta]
-      }
+          add_edge(neighbors, v, v2)
+        else
+          add_novel_left_right(neighbors, v)
+        end
 
-      add_edge(neighbors, v, v2)
-    else
-      neighbors
-      |> add_novel_left(v)
-      |> add_novel_right(v)
+      _ ->
+        add_novel_left_right(neighbors, v)
     end
   end
 
@@ -265,7 +266,9 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, v2)
   end
 
-  defp add_novel_edges(neighbors, v) do
+  defp add_novel_edges(neighbors, v), do: add_novel_left_right(neighbors, v)
+
+  defp add_novel_left_right(neighbors, v) do
     neighbors
     |> add_novel_left(v)
     |> add_novel_right(v)

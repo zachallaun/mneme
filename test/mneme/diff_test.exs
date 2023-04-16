@@ -111,6 +111,54 @@ defmodule Mneme.DiffTest do
 
       auto_assert {nil, [["[", %Tag{data: "\"\\\"foo\\\"\"", sequences: [:green]}, "]"]]} <-
                     format("[]", ~s(["\\\"foo\\\""]))
+
+      auto_assert {nil,
+                   [
+                     [
+                       "auto_assert_raise ",
+                       %Tag{data: "ArgumentError", sequences: [:green]},
+                       ","
+                     ],
+                     ["                  ", %Tag{data: "\"\"\"", sequences: [:green]}],
+                     %Tag{data: "                  foo", sequences: [:green]},
+                     %Tag{data: "                  bar", sequences: [:green]},
+                     %Tag{data: "                  \\\#{baz}", sequences: [:green]},
+                     [%Tag{data: "                  \"\"\"", sequences: [:green]}, ","],
+                     ["                  fn ->"],
+                     ["                    error!(\"\"\""],
+                     ["                    foo"],
+                     ["                    bar"],
+                     ["                    \\\#{baz}"],
+                     ["                    \"\"\")"],
+                     ["                  end"],
+                     []
+                   ]} <-
+                    format(
+                      """
+                      auto_assert_raise fn ->
+                        error!(\"""
+                        foo
+                        bar
+                        \\\#{baz}
+                        \""")
+                      end
+                      """,
+                      """
+                      auto_assert_raise ArgumentError,
+                                        \"""
+                                        foo
+                                        bar
+                                        \\\#{baz}
+                                        \""",
+                                        fn ->
+                                          error!(\"""
+                                          foo
+                                          bar
+                                          \\\#{baz}
+                                          \""")
+                                        end
+                      """
+                    )
     end
 
     test "formats strings using myers diff when they are similar" do
