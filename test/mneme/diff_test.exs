@@ -325,6 +325,24 @@ defmodule Mneme.DiffTest do
 
       auto_assert {nil, [["%{foo: 1, ", %Tag{data: "bar: 2", sequences: [:green]}, "}"]]} <-
                     format("%{foo: 1}", "%{foo: 1, bar: 2}")
+
+      auto_assert {nil,
+                   [
+                     ["foo(", %Tag{data: "%{", sequences: [:green]}],
+                     %Tag{data: "  bar: 1", sequences: [:green]},
+                     [%Tag{data: "}", sequences: [:green]}, ")"],
+                     []
+                   ]} <-
+                    format(
+                      """
+                      foo()
+                      """,
+                      """
+                      foo(%{
+                        bar: 1
+                      })
+                      """
+                    )
     end
 
     test "formats entire collections" do

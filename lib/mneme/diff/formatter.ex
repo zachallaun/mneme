@@ -35,13 +35,11 @@ defmodule Mneme.Diff.Formatter do
   end
 
   @spec fmt(op, bounds) :: fmt_instruction
-  defp fmt(op, {{l1, c1}, {l2, c2}} = bounds) when l2 >= l1 and c2 >= c1 do
+  defp fmt(op, {{l1, c1}, {l2, c2}} = bounds) when l2 > l1 or (l2 == l1 and c2 >= c1) do
     {op, bounds}
   end
 
-  defp fmt(_op, bounds) do
-    raise ArgumentError, "invalid bounds: #{inspect(bounds)}"
-  end
+  defp fmt(_op, bounds), do: raise(ArgumentError, "invalid bounds: #{inspect(bounds)}")
 
   defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
 

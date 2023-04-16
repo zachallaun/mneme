@@ -7,6 +7,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 ### Fixed
 
   * Raise a more comprehensible error if `Mneme.start()` is called multiple times without `restart: true`.
+  * Fix an incorrect guard that could cause semantic diffing to fail and fall back to text diffing.
 
 ## v0.3.1 (2023-04-14)
 
