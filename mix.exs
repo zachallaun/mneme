@@ -48,7 +48,7 @@ defmodule Mneme.MixProject do
       # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
       # is merged:
       # {:excoveralls, "~> 0.15", only: :test},
-      {:ecto, "~> 3.9.4", only: :test},
+      {:ecto, "~> 3.9", only: :test},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
