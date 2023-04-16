@@ -4,17 +4,21 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ## Unreleased
 
+### Changed
+
+  * Multi-line string patterns will now always appear in the same order (heredoc format will always be the last option).
+
 ### Fixed
 
   * Raise a more comprehensible error if `Mneme.start()` is called multiple times without `restart: true`.
   * Fix an incorrect guard that could cause semantic diffing to fail and fall back to text diffing.
+  * Fix multi-line string formatting issues with `auto_assert_raise`, `auto_assert_receive`, and `auto_assert_received`.
 
 ## v0.3.1 (2023-04-14)
 
 ### Changed
 
-  * Pattern generation improvements:
-    * Multi-line strings will now generate both a heredoc and a single-line option.
+  * Multi-line strings will now generate both a heredoc and a single-line option.
 
 ### Removed
 
@@ -38,8 +42,7 @@ It is recommended to now use Elixir v1.14.4 or later.
 
   * For falsy values, `auto_assert` now generates `<-` pattern matches instead of `==` value comparisons, which have been removed.
   * Existing auto-assertions will now run when `Mneme.start()` is not called, but new or failing auto-assertions will fail without prompting ([#32](https://github.com/zachallaun/mneme/issues/32)).
-  * Pattern generation improvements:
-    * Ranges now use range syntax like `1..10` and `1..10//2` instead of generating a `%Range{}` struct.
+  * Ranges now use range syntax like `1..10` and `1..10//2` instead of generating a `%Range{}` struct.
 
 ### Removed
 
