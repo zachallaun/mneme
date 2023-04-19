@@ -1,0 +1,5 @@
+#!/usr/bin/env elixir
+
+System.no_halt(true)
+
+IO.puts("we're in!")
