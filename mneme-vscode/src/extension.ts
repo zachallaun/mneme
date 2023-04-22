@@ -1,23 +1,22 @@
 import * as vscode from 'vscode';
 
-import { Executable, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
+import { Executable, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, ServerOptions } from "vscode-languageclient/node";
 
 let mnemeClient: LanguageClient;
-let output = vscode.window.createOutputChannel("Mneme");
+let outputChannel = vscode.window.createOutputChannel("Mneme");
 
 export function activate(context: vscode.ExtensionContext) {
-	const serverOpts: Executable = {
-		command: context.asAbsolutePath('./bin/mneme-language-server'),
+	const serverOptions: Executable = {
+		command: context.asAbsolutePath('./bin/mneme-language-server.exs'),
 		args: [],
-	};
-
-	const serverOptions: ServerOptions = {
-		run: serverOpts,
-		debug: serverOpts,
 	};
 
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: "file", language: "elixir" }],
+		diagnosticCollectionName: "mneme",
+		revealOutputChannelOn: RevealOutputChannelOn.Never,
+		progressOnInitialization: true,
+		outputChannel: outputChannel,
 	};
 
 	mnemeClient = new LanguageClient(
@@ -27,12 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
 		clientOptions
 	);
 
-	mnemeClient.start().then(() => {
-		console.log("Elixir Mneme: started LS");
-	});
+	mnemeClient.start();
 }
 
-export function deactivate() {
-	if (!mnemeClient) { return undefined; }
-	return mnemeClient.stop();
-}
+export function deactivate() {}

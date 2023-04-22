@@ -1,0 +1,7 @@
+%{
+  "gen_lsp": {:hex, :gen_lsp, "0.0.10", "284bd1850c39c59e82a462b4d291ae6fe16f889c2577e457b4e8371c1f94830d", [:mix], [{:jason, "~> 1.3", [hex: :jason, repo: "hexpm", optional: false]}, {:nimble_options, "~> 0.5 or ~> 1.0", [hex: :nimble_options, repo: "hexpm", optional: false]}, {:schematic, "~> 0.0.9", [hex: :schematic, repo: "hexpm", optional: false]}, {:typed_struct, "~> 0.3.0", [hex: :typed_struct, repo: "hexpm", optional: false]}], "hexpm", "5eb07a3886791bbb57a4937a755bd05580e64366b8c47d132f01c9bea2fae663"},
+  "jason": {:hex, :jason, "1.4.0", "e855647bc964a44e2f67df589ccf49105ae039d4179db7f6271dfd3843dc27e6", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121"},
+  "nimble_options": {:hex, :nimble_options, "1.0.2", "92098a74df0072ff37d0c12ace58574d26880e522c22801437151a159392270e", [:mix], [], "hexpm", "fd12a8db2021036ce12a309f26f564ec367373265b53e25403f0ee697380f1b8"},
+  "schematic": {:hex, :schematic, "0.0.9", "27cdda55a4fab2ab031889cf7693c9c3f4837f490d48cccca30f7504281bf15d", [:mix], [], "hexpm", "dae91152218e64d5a119ba0524737dff25f3495400ce532d7d4da4a3ce56e0f8"},
+  "typed_struct": {:hex, :typed_struct, "0.3.0", "939789e3c1dca39d7170c87f729127469d1315dcf99fee8e152bb774b17e7ff7", [:mix], [], "hexpm", "c50bd5c3a61fe4e198a8504f939be3d3c85903b382bde4865579bc23111d1b6d"},
+}
