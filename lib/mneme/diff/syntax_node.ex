@@ -73,6 +73,12 @@ defmodule Mneme.Diff.SyntaxNode do
     string |> AST.parse_string!() |> root()
   end
 
+  @doc false
+  def roots!(left, right), do: {root!(left), root!(right)}
+
+  @doc false
+  def minimized_roots!(left, right), do: minimize_nodes(root!(left), root!(right))
+
   @doc """
   Creates a root syntax node from the given tree.
 
@@ -109,19 +115,7 @@ defmodule Mneme.Diff.SyntaxNode do
     |> Map.new()
   end
 
-  @doc """
-  Creates the minimized root syntax nodes for the given trees.
-  """
-  def minimized_roots!(left, right) do
-    minimize_nodes(root!(left), root!(right))
-  end
-
-  @doc """
-  Breaks down two root nodes into a list of pairs with differences.
-
-  This is an optimization that allows tree search to perform multiple
-  searches on smaller syntax nodes.
-  """
+  @doc false
   def minimize_nodes(left, right)
 
   def minimize_nodes(%{hash: h}, %{hash: h}), do: nil

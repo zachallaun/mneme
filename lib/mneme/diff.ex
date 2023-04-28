@@ -80,8 +80,7 @@ defmodule Mneme.Diff do
   @doc false
   @spec compute(String.t(), String.t()) :: {[instruction], [instruction]}
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
-    left = SyntaxNode.root!(left_code)
-    right = SyntaxNode.root!(right_code)
+    {left, right} = SyntaxNode.roots!(left_code, right_code)
     path = shortest_path({left, right, nil})
 
     if debug?() do
