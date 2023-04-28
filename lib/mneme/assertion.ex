@@ -294,14 +294,17 @@ defmodule Mneme.Assertion do
       end
       |> Enum.map(&simplify_expr/1)
 
-    PatternBuilder.to_patterns(value, assertion.context)
-    |> Enum.split_while(fn %Pattern{expr: pattern_expr, guard: pattern_guard} ->
-      !(simplify_expr(pattern_expr) == expr && simplify_expr(pattern_guard) == guard)
-    end)
-    |> case do
-      {patterns, []} -> {patterns, 0}
-      {patterns, selected} -> {patterns ++ selected, length(patterns)}
-    end
+    patterns = PatternBuilder.to_patterns(value, assertion.context)
+
+    {_, index} =
+      patterns
+      |> Enum.with_index()
+      |> Enum.max_by(fn {%Pattern{expr: pattern_expr, guard: pattern_guard}, _index} ->
+        similarity_score(expr, simplify_expr(pattern_expr)) +
+          similarity_score(guard, simplify_expr(pattern_guard))
+      end)
+
+    {patterns, index}
   end
 
   defp simplify_expr(nil), do: nil
@@ -318,6 +321,28 @@ defmodule Mneme.Assertion do
         {quoted, state}
     end)
   end
+
+  # Opaque expression similarity score. More similar expressions should
+  # have a higher value, but the exact value should be not be relied on.
+  defp similarity_score({name, _, args1}, {name, _, args2}) do
+    1 + similarity_score(args1, args2)
+  end
+
+  defp similarity_score(l1, l2) when is_list(l1) and is_list(l2) do
+    # add the lesser length so that non-empty lists will be considered
+    # more similar than empty ones, but lists sharing content will be
+    # considered even more similar
+    min(length(l1), length(l2)) +
+      (Enum.zip(l1, l2)
+       |> Enum.map(fn {el1, el2} -> similarity_score(el1, el2) end)
+       |> Enum.sum())
+  end
+
+  defp similarity_score({_, _, args1}, {_, _, args2}), do: similarity_score(args1, args2)
+  defp similarity_score({key, val1}, {key, val2}), do: 1 + similarity_score(val1, val2)
+  defp similarity_score({_, val1}, {_, val2}), do: similarity_score(val1, val2)
+  defp similarity_score(expr, expr), do: 1
+  defp similarity_score(_, _), do: 0
 
   @doc """
   Select the previous pattern.
