@@ -91,9 +91,15 @@ defmodule Mneme.Assertion do
   @doc """
   Run an auto-assertion, potentially patching the code.
   """
-  def run(assertion, env, interactive? \\ true)
+  def run(assertion, env, interactive? \\ true) do
+    do_run(assertion, env, interactive?)
+  rescue
+    error in [ExUnit.AssertionError] ->
+      updated_error = %{error | expr: assertion.macro_ast}
+      reraise updated_error, __STACKTRACE__
+  end
 
-  def run(assertion, env, true) do
+  defp do_run(assertion, env, true) do
     case assertion.stage do
       :new ->
         patch(assertion, env)
@@ -112,7 +118,7 @@ defmodule Mneme.Assertion do
     assertion.value
   end
 
-  def run(assertion, env, false) do
+  defp do_run(assertion, env, false) do
     case assertion.stage do
       :new -> assertion_error!()
       :update -> eval(assertion, env)
@@ -160,7 +166,15 @@ defmodule Mneme.Assertion do
 
   defp assertion_error!(message \\ "No pattern present") do
     raise Mneme.AssertionError, message: message
+  rescue
+    error ->
+      reraise error, prune_stacktrace(__STACKTRACE__)
   end
+
+  # This runner module will be at the head of the stacktrace. Once it
+  # isn't, return the remainder.
+  defp prune_stacktrace([{__MODULE__, _, _, _} | t]), do: prune_stacktrace(t)
+  defp prune_stacktrace(stacktrace), do: stacktrace
 
   defp warn_non_interactive do
     [
