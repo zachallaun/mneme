@@ -2,6 +2,13 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+  * Improve stacktraces and ExUnit assertion errors when an auto-assertion fails or is rejected.
+  * When an `auto_assert` updates, a default pattern that is more similar to the existing one will be selected in more cases when the `:default_pattern` option is set to `:infer` (the default).
+
 ## v0.3.2 (2023-04-16)
 
 ### Changed
