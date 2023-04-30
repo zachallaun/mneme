@@ -41,8 +41,7 @@ defmodule Mneme.Assertion do
           module: module(),
           test: atom(),
           aliases: list(),
-          binding: list(),
-          foo: integer()
+          binding: list()
         }
 
   @type target :: :mneme | :ex_unit
