@@ -8,6 +8,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
   * Improve stacktraces and ExUnit assertion errors when an auto-assertion fails or is rejected.
   * When an `auto_assert` updates, a default pattern that is more similar to the existing one will be selected in more cases when the `:default_pattern` option is set to `:infer` (the default).
+  * When updating an assertion with an existing map pattern that only asserts a subset of keys, generate a pattern using that subset as well.
 
 ## v0.3.2 (2023-04-16)
 
