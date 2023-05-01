@@ -9,12 +9,27 @@ defmodule Mneme.Assertion.PatternBuilder do
   """
   @spec to_patterns(term(), Assertion.context()) :: [Pattern.t(), ...]
   def to_patterns(value, context) do
+    context = Map.put(context, :keysets, get_keysets(context.original_pattern))
     patterns = do_to_patterns(value, context)
 
     case fetch_pinned(value, context) do
       {:ok, pin} -> [Pattern.new(pin) | patterns]
       :error -> patterns
     end
+  end
+
+  # keysets are the lists of keys being matched in any map patterns
+  defp get_keysets(pattern) do
+    {_, keysets} =
+      Macro.prewalk(pattern, [], fn
+        {:%{}, _, [_ | _] = kvs} = quoted, keysets ->
+          {quoted, [Enum.map(kvs, &elem(&1, 0)) | keysets]}
+
+        quoted, keysets ->
+          {quoted, keysets}
+      end)
+
+    keysets
   end
 
   defp with_meta(meta \\ [], context) do
@@ -103,19 +118,27 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(%{} = map, context) do
+    sub_maps =
+      for keyset <- context.keysets,
+          sub_map = Map.take(map, keyset),
+          map_size(sub_map) > 0 && map != sub_map do
+        sub_map
+      end
+
     patterns =
-      map
-      |> enum_to_patterns(context)
-      |> Enum.map(&to_map_pattern(&1, context))
+      for map <- sub_maps ++ [map],
+          enum_pattern <- enum_to_patterns(map, context) do
+        to_map_pattern(enum_pattern, context)
+      end
 
     [map_pattern([], context) | patterns]
   end
 
   defp struct_to_patterns(struct, map, context, extra_notes) do
-    empty = struct.__struct__()
+    defaults = struct.__struct__()
 
     map
-    |> Map.filter(fn {k, v} -> v != Map.get(empty, k) end)
+    |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
     |> to_patterns(context)
     |> Enum.map(&to_struct_pattern(struct, &1, context, extra_notes))
   end

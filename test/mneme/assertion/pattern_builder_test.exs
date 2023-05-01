@@ -24,12 +24,6 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     test "tuples" do
       auto_assert ["{1, \"string\", :atom}"] <- to_pattern_strings({1, "string", :atom})
       auto_assert ["{{:nested}, {\"tuples\"}}"] <- to_pattern_strings({{:nested}, {"tuples"}})
-
-      auto_assert [%Pattern{expr: {:two, :elements}}] <-
-                    PatternBuilder.to_patterns({:two, :elements}, %{binding: []})
-
-      auto_assert [%Pattern{expr: {:{}, [line: nil], [:more, :than, :two, :elements]}}] <-
-                    PatternBuilder.to_patterns({:more, :than, :two, :elements}, %{binding: []})
     end
 
     test "lists" do
@@ -115,8 +109,13 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     end
   end
 
-  defp to_pattern_strings(value, context \\ [binding: []]) do
-    context = context |> Map.new() |> Map.put_new(:line, 1)
+  defp to_pattern_strings(value, context \\ []) do
+    context =
+      context
+      |> Map.new()
+      |> Map.put_new(:line, 1)
+      |> Map.put_new(:binding, [])
+      |> Map.put_new(:original_pattern, nil)
 
     value
     |> PatternBuilder.to_patterns(context)

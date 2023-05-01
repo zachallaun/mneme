@@ -51,17 +51,17 @@ defmodule Mneme.AssertionTest do
       ast1 = quote(do: auto_assert(%{bar: 2, foo: 1} <- unquote(value_ast)))
 
       auto_assert [
-                    mneme: "auto_assert %{bar: 2, baz: 3, foo: 1} <- %{bar: 2, baz: 3, foo: 1}",
-                    ex_unit: "assert %{bar: 2, baz: 3, foo: 1} = %{bar: 2, baz: 3, foo: 1}",
-                    eval: "assert %{bar: 2, baz: 3, foo: 1} = value"
+                    mneme: "auto_assert %{bar: 2, foo: 1} <- %{bar: 2, baz: 3, foo: 1}",
+                    ex_unit: "assert %{bar: 2, foo: 1} = %{bar: 2, baz: 3, foo: 1}",
+                    eval: "assert %{bar: 2, foo: 1} = value"
                   ] <- targets(ast1, value)
 
       ast2 = quote(do: auto_assert(%{foo: 1, bar: 2} <- unquote(value_ast)))
 
       auto_assert [
-                    mneme: "auto_assert %{bar: 2, baz: 3, foo: 1} <- %{bar: 2, baz: 3, foo: 1}",
-                    ex_unit: "assert %{bar: 2, baz: 3, foo: 1} = %{bar: 2, baz: 3, foo: 1}",
-                    eval: "assert %{bar: 2, baz: 3, foo: 1} = value"
+                    mneme: "auto_assert %{bar: 2, foo: 1} <- %{bar: 2, baz: 3, foo: 1}",
+                    ex_unit: "assert %{bar: 2, foo: 1} = %{bar: 2, baz: 3, foo: 1}",
+                    eval: "assert %{bar: 2, foo: 1} = value"
                   ] <- targets(ast2, value)
 
       ast3 = quote(do: auto_assert(%{other: :key, and: :value} <- unquote(value_ast)))

@@ -41,19 +41,23 @@ defmodule Mneme.Assertion do
           module: module(),
           test: atom(),
           aliases: list(),
-          binding: list()
+          binding: list(),
+          original_pattern: Macro.t() | nil
         }
 
   @type target :: :mneme | :ex_unit
 
   @doc false
-  def new({kind, _, _} = macro_ast, value, ctx) do
+  def new({kind, _, args} = macro_ast, value, ctx) do
+    {stage, original_pattern} = get_stage(kind, args)
+    context = Enum.into(ctx, %{original_pattern: original_pattern})
+
     %Assertion{
       kind: kind,
-      stage: get_stage(kind, macro_ast),
+      stage: stage,
       macro_ast: macro_ast,
       value: value,
-      context: Map.new(ctx)
+      context: context
     }
   end
 
@@ -184,17 +188,20 @@ defmodule Mneme.Assertion do
     |> IO.puts()
   end
 
-  defp get_stage(:auto_assert, {_, _, [{:<-, _, [_, _]}]}), do: :update
-  defp get_stage(:auto_assert, _ast), do: :new
+  defp get_stage(:auto_assert, [{:<-, _, [{:when, _, [pattern, _]}, _]}]), do: {:update, pattern}
+  defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
+  defp get_stage(:auto_assert, _args), do: {:new, nil}
 
-  defp get_stage(:auto_assert_raise, {_, _, [_]}), do: :new
-  defp get_stage(:auto_assert_raise, _ast), do: :update
+  defp get_stage(:auto_assert_raise, [exception, message, _]), do: {:update, {exception, message}}
+  defp get_stage(:auto_assert_raise, [exception, _]), do: {:update, {exception, nil}}
+  defp get_stage(:auto_assert_raise, _args), do: {:new, nil}
 
-  defp get_stage(:auto_assert_receive, {_, _, []}), do: :new
-  defp get_stage(:auto_assert_receive, _ast), do: :update
+  defp get_stage(:auto_assert_receive, [pattern, _timeout]), do: {:update, pattern}
+  defp get_stage(:auto_assert_receive, [pattern]), do: {:update, pattern}
+  defp get_stage(:auto_assert_receive, _args), do: {:new, nil}
 
-  defp get_stage(:auto_assert_received, {_, _, []}), do: :new
-  defp get_stage(:auto_assert_received, _ast), do: :update
+  defp get_stage(:auto_assert_received, [pattern]), do: {:update, pattern}
+  defp get_stage(:auto_assert_received, _args), do: {:new, nil}
 
   @doc """
   Set the rich AST from Sourceror for the given assertion.

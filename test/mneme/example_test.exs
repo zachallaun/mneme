@@ -15,7 +15,12 @@ defmodule Mneme.ExampleTest do
   test "2" do
     s2 = %MyStruct{field: 5}
 
-    auto_assert %MyStruct{field: 5, list: [:foo, :baz]} <- Map.put(s2, :list, [:foo, :baz])
+    auto_assert %MyStruct{field: 5, list: [:foo, :buzz]} <-
+                  %{
+                    s2
+                    | list: [:foo, :buzz],
+                      map: %{ok: :cool}
+                  }
   end
 
   test "3" do
