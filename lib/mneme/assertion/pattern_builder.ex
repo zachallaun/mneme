@@ -1,13 +1,12 @@
 defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
-  alias Mneme.Assertion
   alias Mneme.Assertion.Pattern
 
   @doc """
   Builds pattern expressions from a runtime value.
   """
-  @spec to_patterns(term(), Assertion.context()) :: [Pattern.t(), ...]
+  @spec to_patterns(term(), context :: map()) :: [Pattern.t(), ...]
   def to_patterns(value, context) do
     context = Map.put(context, :keysets, get_keysets(context.original_pattern))
     patterns = do_to_patterns(value, context)
@@ -18,7 +17,9 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  # keysets are the lists of keys being matched in any map patterns
+  # Keysets are the lists of keys being matched in any map patterns. We
+  # extract them upfront so that map pattern generation can create
+  # patterns for those subsets as well when applicable.
   defp get_keysets(pattern) do
     {_, keysets} =
       Macro.prewalk(pattern, [], fn
