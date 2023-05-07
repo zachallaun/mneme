@@ -10,52 +10,34 @@ end
 ## Setup
 ##
 
+Application.put_env(:mneme, :dry_run, true)
+ExUnit.start(seed: 0)
+Mneme.start()
+
 defmodule Tour do
-  def setup do
-    {opts, _} = OptionParser.parse!(System.argv(), strict: [only: :keep])
-
-    opts =
-      if Keyword.has_key?(opts, :only) do
-        filters = ExUnit.Filters.parse(Keyword.get_values(opts, :only))
-
-        opts
-        |> Keyword.put(:include, filters)
-        |> Keyword.put(:exclude, [:test])
-      else
-        opts
-      end
-
-    ExUnit.start(Keyword.merge([seed: 0], opts))
-  end
-
-  def begin do
-    ExUnit.run()
-  end
-
   @prefix Owl.Data.tag("[Tour] ", :magenta)
   @continue Owl.Data.tag("[....] ", :magenta)
 
   def await(message) do
     [first | rest] = Owl.Data.lines(message) ++ ["", Owl.Data.tag("continue ⏎ ", :faint)]
 
-    [[], [@prefix, first] | Enum.map(rest, &[@continue, &1])]
-    |> Owl.Data.unlines()
+    data =
+      [[], [@prefix, first] | Enum.map(rest, &[@continue, &1])]
+      |> Owl.Data.unlines()
+
+    [data, "\n\n"]
     |> Owl.Data.to_ansidata()
     |> IO.write()
 
     _ = IO.gets("")
 
-    IO.puts("")
+    IO.puts(IO.ANSI.cursor_up(2))
 
     :ok
   end
 end
 
-Application.put_env(:mneme, :dry_run, true)
-Tour.setup()
-Mneme.start()
-
-## Code to test
+## Code
 ##
 
 defmodule HTTPParser do
@@ -238,16 +220,15 @@ defmodule HTTPParserTest do
 
     test "fin" do
       Tour.await("""
-      That's all for now! Thanks for taking the tour. After acting on any
-      auto-assertions from the current test module, the ExUnit test runner
-      will report the results. You'll see them when you continue.
+      After acting on any auto-assertions, the ExUnit test runner will report
+      results as usual. You'll see them when you continue.
 
-      Tip: If you accepted everything above, all of the tests should pass.
-      You can re-run this tour and try rejecting or skipping assertions to
-      see how it affects the results!\
+      If you accepted everything above, all of the tests should pass. You can
+      re-run this tour and try rejecting or skipping assertions to see how it
+      affects the results!\
       """)
     end
   end
 end
 
-Tour.begin()
+ExUnit.run()
