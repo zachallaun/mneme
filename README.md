@@ -1,6 +1,9 @@
 # /ni:mi:/ - Snapshot testing for Elixir ExUnit
 
-https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4
+<details>
+  <summary>🎥 Video Demo</summary>
+  <p>https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4</p>
+</details>
 
 ---
 
@@ -15,19 +18,14 @@ https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
 Snapshot tests assert that some expression matches a reference value.
-It's like an ExUnit `assert`, except that the reference value is
-managed for you by Mneme.
+It's like a regular `assert`, except that the reference value is generated for you by Mneme.
 
-Mneme follows in the footsteps of existing snapshot testing libraries
-like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect)
-(OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir)
-(Elixir). Instead of simple value or string comparison, however, Mneme
-leans heavily into pattern matching.
+Mneme follows in the footsteps of existing snapshot testing libraries like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect) (OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir) (Elixir).
+Instead of simple value or string comparison, however, Mneme focuses on pattern matching.
 
-## Example
+## A brief example
 
-Let's say you've written a test for a function that removes even
-numbers from a list:
+Let's say you're working on a function that removes even numbers from a list:
 
 ```elixir
 test "drop_evens/1 should remove all even numbers from an enum" do
@@ -39,10 +37,9 @@ test "drop_evens/1 should remove all even numbers from an enum" do
 end
 ```
 
-The first time you run this test, you'll see interactive prompts for
-each call to `auto_assert` showing a diff and asking if you'd like to
-accept the generated pattern. After accepting them, your test is
-updated:
+Notice that these assertions don't really _assert_ anything yet.
+That's okay, because the first time you run `mix test`, Mneme will generate the patterns and prompt you with diffs.
+When you accept them, your test is updated for you:
 
 ```elixir
 test "drop_evens/1 should remove all even numbers from an enum" do
@@ -54,14 +51,17 @@ test "drop_evens/1 should remove all even numbers from an enum" do
 end
 ```
 
-The next time you run this test, you won't receive a prompt and these
-will act (almost) like any other assertion. If the result of the call
-ever changes, you'll be prompted again and can choose to update the
-test or reject it and let it fail.
+The next time you run your tests, you won't receive prompts (unless something changes!), and these auto-assertions will act like a normal `assert`.
+If things _do_ change, you're prompted again and can choose to accept and update the test or reject the change and let it fail.
 
-With a few exceptions, `auto_assert/1` acts very similarly to a normal
-`assert`. See the [macro docs](https://hexdocs.pm/mneme/Mneme.html#auto_assert/1)
-for a list of differences.
+## A brief tour
+
+To see Mneme in action without adding it to a project, you can download and run the standalone tour:
+
+```shell
+curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main/examples/tour_mneme.exs
+elixir tour_mneme.exs
+```
 
 ## Quick start
 
@@ -106,20 +106,20 @@ for a list of differences.
     end
     ```
 
-## Match patterns
+## Generated patterns
 
-Mneme tries to generate match patterns that are equivalent to what a
-human (or at least a nice LLM) would write. Basic data types like
-strings, numbers, lists, tuples, etc. will be as you would expect.
+Mneme tries to generate match patterns that are equivalent to what a human (or at least a nice LLM) would write.
+Basic data types like strings, numbers, lists, tuples, etc. will be as you would expect.
 
-Some values, however, do not have a literal representation that can be
-used in a pattern match. Pids are such an example. For those, guards
-are used:
+Some values, however, do not have a literal representation that can be used in a pattern match.
+Pids are such an example.
+For those, guards are used:
 
 ```elixir
 auto_assert self()
 
-# after running the test and accepting the change
+# generates:
+
 auto_assert pid when is_pid(pid) <- self()
 ```
 
@@ -134,7 +134,8 @@ test "create_post/1 creates a new post with valid attrs", %{user: user} do
   auto_assert create_post(valid_attrs)
 end
 
-# after running the test
+# generates:
+
 test "create_post/1 creates a new post with valid attrs", %{user: user} do
   valid_attrs = %{title: "my_post", author: user}
 
