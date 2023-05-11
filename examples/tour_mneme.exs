@@ -19,8 +19,8 @@ ExUnit.start(seed: 0)
 Mneme.start()
 
 defmodule Tour do
-  @prefix Owl.Data.tag("[Tour] ", :magenta)
-  @continue Owl.Data.tag("[....] ", :magenta)
+  @prefix [Owl.Data.tag(" Tour ", [:magenta_background, :bright]), " "]
+  @continue [Owl.Data.tag("      ", :magenta_background), " "]
 
   def await(message) do
     [first | rest] = Owl.Data.lines(message) ++ ["", Owl.Data.tag("continue ⏎ ", :faint)]
