@@ -105,6 +105,12 @@ defmodule Mneme.Assertion.PatternBuilder do
     struct_to_patterns(URI, Map.delete(uri, :authority), context, [])
   end
 
+  defp do_to_patterns(%MapSet{} = set, context) do
+    struct_to_patterns(MapSet, set, context, [
+      "MapSets do not serialize well, consider transforming to a list using `MapSet.to_list/1`"
+    ])
+  end
+
   defp do_to_patterns(%struct{} = value, context) do
     if ecto_schema?(struct) do
       {value, notes} = prepare_ecto_struct(value)
