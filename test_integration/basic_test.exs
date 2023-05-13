@@ -161,5 +161,18 @@ defmodule Mneme.Integration.BasicTest do
       # y
       auto_assert 1..10//2 <- Range.new(1, 10, 2)
     end
+
+    test "functions" do
+      # y
+      auto_assert fun when is_function(fun, 1) <- &Function.identity/1
+
+      fun = &Function.identity/1
+
+      # y
+      auto_assert ^fun <- fun
+
+      # y
+      auto_assert fun when is_function(fun, 2) <- &Enum.map/2
+    end
   end
 end

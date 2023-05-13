@@ -88,7 +88,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     |> Enum.map(&to_tuple_pattern(&1, context))
   end
 
-  for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port] do
+  for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port, fun: :is_function] do
     defp do_to_patterns(value, context) when unquote(guard)(value) do
       [guard_pattern(unquote(var_name), unquote(guard), value, context)]
     end
@@ -199,8 +199,16 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp guard_pattern(name, guard, value, context) do
     var = make_var(name, context)
 
+    guard =
+      if is_function(value) do
+        {:arity, arity} = Function.info(value, :arity)
+        {guard, with_meta(context), [var, arity]}
+      else
+        {guard, with_meta(context), [var]}
+      end
+
     Pattern.new(var,
-      guard: {guard, with_meta(context), [var]},
+      guard: guard,
       notes: ["Using guard for non-serializable value `#{inspect(value)}`"]
     )
   end
