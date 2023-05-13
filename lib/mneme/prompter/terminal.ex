@@ -10,7 +10,6 @@ defmodule Mneme.Prompter.Terminal do
   @middle_dot_char "·"
   @bullet_char "●"
   @empty_bullet_char "○"
-  @info_char "🛈"
   @arrow_left_char "❮"
   @arrow_right_char "❯"
 
@@ -243,11 +242,10 @@ defmodule Mneme.Prompter.Terminal do
     notes = Enum.uniq(notes)
 
     [
-      "\n#{@info_char} Notes about this assertion:\n",
-      notes |> Owl.Data.unlines() |> Owl.Data.add_prefix("  * "),
+      "\n",
+      notes |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("Note: ", :magenta)),
       "\n"
     ]
-    |> tag(:faint)
   end
 
   defp format_input(%{stage: stage} = assertion, opts) do
