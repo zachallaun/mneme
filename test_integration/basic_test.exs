@@ -92,6 +92,13 @@ defmodule Mneme.Integration.BasicTest do
       auto_assert [ref] when is_reference(ref) <- l
     end
 
+    test "charlists" do
+      # y
+      auto_assert [102, 111, 111] <- String.to_charlist("foo")
+      # k y
+      auto_assert ~c"foo" <- String.to_charlist("foo")
+    end
+
     test "maps" do
       # y
       auto_assert %{} <- Map.put(%{}, :foo, 1)
@@ -128,12 +135,14 @@ defmodule Mneme.Integration.BasicTest do
       # y
       auto_assert [102, 111, 111] <- ~c(foo)
       # k y
-      auto_assert 'foo' <- ~c(foo)
+      auto_assert ~c"foo" <- ~c(foo)
 
       # y
       auto_assert [102, 111, 111] <- ~C(foo)
       # k y
-      auto_assert 'foo' <- ~c(foo)
+      auto_assert ~c"foo" <- ~c(foo)
+      # k y
+      auto_assert ~c"foo" <- ~c"foo"
       # NOTE: Formatter bug in Elixir is causing this whitespace to collapse.
       # y
       auto_assert ~r/abc/ <- ~r/abc/

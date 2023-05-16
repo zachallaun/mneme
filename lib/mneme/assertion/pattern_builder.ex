@@ -75,7 +75,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     patterns = enum_to_patterns(list, context)
 
     if List.ascii_printable?(list) do
-      patterns ++ [Pattern.new(list)]
+      patterns ++ [charlist_pattern(list, context)]
     else
       patterns
     end
@@ -303,6 +303,13 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   defp string_pattern(string, context) do
     Pattern.new({:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]})
+  end
+
+  defp charlist_pattern(charlist, context) do
+    Pattern.new(
+      {:sigil_c, with_meta([delimiter: ~S(")], context),
+       [{:<<>>, [], [List.to_string(charlist)]}, []]}
+    )
   end
 
   defp heredoc_pattern(string, context) do

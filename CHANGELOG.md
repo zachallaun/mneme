@@ -11,7 +11,8 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ### Changed
 
-  * Format pattern notes such that they are more obvious.
+  * Format pattern notes to be more obvious when they're present.
+  * Generate charlist patterns using `sigil_c` instead of single quotes, e.g. `~c"foo"` instead of `'foo'`. See [this discussion](https://elixirforum.com/t/convert-charlists-into-c-charlists/49455) for more context.
 
 ## v0.3.3 (2023-05-01)
 
