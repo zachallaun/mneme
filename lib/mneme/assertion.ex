@@ -532,7 +532,7 @@ defmodule Mneme.Assertion do
   def code_for_eval(:auto_assert_raise, {_, _, [exception, message, _]}, e) do
     quote do
       assert_raise unquote(exception), unquote(unescape_strings(message)), fn ->
-        raise unquote(Macro.escape(e))
+        raise unquote(quote_exception(e))
       end
     end
   end
@@ -540,7 +540,7 @@ defmodule Mneme.Assertion do
   def code_for_eval(:auto_assert_raise, {_, _, [exception, _]}, e) do
     quote do
       assert_raise unquote(exception), fn ->
-        raise unquote(Macro.escape(e))
+        raise unquote(quote_exception(e))
       end
     end
   end
@@ -661,4 +661,14 @@ defmodule Mneme.Assertion do
 
   defp meta({_, meta, _}), do: meta
   defp meta(_), do: []
+
+  defp quote_exception(%exception{} = err) do
+    kvs =
+      err
+      |> Map.from_struct()
+      |> Map.delete(:__exception__)
+      |> Enum.map(&Macro.escape/1)
+
+    {:%, [], [exception, {:%{}, [], kvs}]}
+  end
 end

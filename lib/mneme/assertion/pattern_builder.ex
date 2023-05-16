@@ -155,7 +155,11 @@ defmodule Mneme.Assertion.PatternBuilder do
     {patterns, vars} =
       (sub_maps ++ [map])
       |> Enum.flat_map_reduce(vars, fn map, vars ->
-        {patterns, vars} = enum_to_patterns(map, context, vars)
+        {patterns, vars} =
+          map
+          |> Enum.sort_by(&elem(&1, 0))
+          |> enum_to_patterns(context, vars)
+
         {Enum.map(patterns, &to_map_pattern(&1, context)), vars}
       end)
 

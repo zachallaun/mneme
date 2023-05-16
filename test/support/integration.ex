@@ -30,31 +30,20 @@ defmodule Mneme.Integration do
       "Elixir." <> module_name = to_string(module)
       test_data = source.private[:mneme_integration]
 
-      if Version.match?(System.version(), test_data[:version]) do
-        quote do
-          defmodule unquote(module) do
-            use ExUnit.Case, async: true
+      quote do
+        defmodule unquote(module) do
+          use ExUnit.Case, async: true
 
-            @tag :tmp_dir
-            @tag :integration
-            @tag unquote(test_data[:name])
-            test unquote(module_name), %{tmp_dir: tmp_dir} do
-              unquote(test_data)
-              |> Map.new()
-              |> Map.put(:tmp_dir, tmp_dir)
-              |> Mneme.Integration.run_test()
-            end
+          @tag :tmp_dir
+          @tag :integration
+          @tag unquote(test_data[:name])
+          test unquote(module_name), %{tmp_dir: tmp_dir} do
+            unquote(test_data)
+            |> Map.new()
+            |> Map.put(:tmp_dir, tmp_dir)
+            |> Mneme.Integration.run_test()
           end
         end
-      else
-        [
-          :yellow,
-          "\nwarning: skipping #{module_name}, version requirement not met: #{test_data[:version]}"
-        ]
-        |> IO.ANSI.format()
-        |> IO.puts()
-
-        []
       end
     end
   end
@@ -155,7 +144,10 @@ defmodule Mneme.Integration do
   end
 
   defp set_up_source(source, project) do
-    ast = Source.ast(source)
+    ast =
+      source
+      |> Source.ast()
+      |> prune_to_version()
 
     {test_ast, test_input} = build_test_ast_and_input(ast)
     test_code = source |> Source.update(:mneme, ast: test_ast) |> Source.code()
@@ -163,7 +155,7 @@ defmodule Mneme.Integration do
     expected_ast = build_expected_ast(ast)
     expected_code = source |> Source.update(:mneme, ast: expected_ast) |> Source.code()
 
-    %{exit_code: exit_code, version: version} = module_metadata(ast)
+    %{exit_code: exit_code} = module_metadata(ast)
 
     source =
       Source.put_private(source, :mneme_integration,
@@ -172,12 +164,58 @@ defmodule Mneme.Integration do
         test_input: test_input,
         test_code: eof_newline(test_code),
         expected_code: eof_newline(expected_code),
-        expected_exit_code: exit_code,
-        version: version
+        expected_exit_code: exit_code
       )
 
     Project.update(project, source)
   end
+
+  defp prune_to_version(ast) do
+    alias Sourceror.Zipper, as: Z
+
+    current = %{
+      version: System.version(),
+      otp: semantic_otp_version()
+    }
+
+    ast
+    |> Z.zip()
+    |> Z.traverse(fn zipper ->
+      if meets_version_requirements?(Z.node(zipper), current) do
+        zipper
+      else
+        Z.replace(zipper, :ok)
+      end
+    end)
+    |> Z.node()
+  end
+
+  defp meets_version_requirements?(node, current) do
+    case required_versions(node) do
+      %{version: version, otp: otp} ->
+        Version.match?(current.version, version) && Version.match?(current.otp, otp)
+
+      %{version: version} ->
+        Version.match?(current.version, version)
+
+      %{otp: otp} ->
+        Version.match?(current.otp, otp)
+
+      _ ->
+        true
+    end
+  end
+
+  defp required_versions({_, meta, _}) do
+    Enum.flat_map(meta[:leading_comments] || [], fn
+      %{text: "# version: " <> version_spec} -> [{:version, version_spec}]
+      %{text: "# otp: " <> otp_spec} -> [{:otp, otp_spec}]
+      _ -> []
+    end)
+    |> Map.new()
+  end
+
+  defp required_versions(_), do: %{}
 
   defp build_test_ast_and_input(ast) do
     {test_ast, nested_comments} = Sourceror.prewalk(ast, [], &transform_test_assertion/2)
@@ -281,16 +319,14 @@ defmodule Mneme.Integration do
         {exit_code, ""} = Integer.parse(exit_code)
         [{:exit_code, exit_code}]
 
-      %{text: "# version: " <> version_spec} ->
-        [{:version, version_spec}]
-
       _ ->
         []
     end)
     |> Map.new()
     |> Map.put_new(:exit_code, 0)
-    |> Map.put_new(:version, System.version())
   end
+
+  defp module_metadata(_), do: %{exit_code: 0}
 
   defp diff(header, expected, actual) do
     [
@@ -304,4 +340,30 @@ defmodule Mneme.Integration do
   end
 
   defp eof_newline(string), do: String.trim_trailing(string) <> "\n"
+
+  defp semantic_otp_version do
+    otp_version()
+    |> String.trim()
+    |> String.split(".")
+    |> case do
+      [major] -> "#{major}.0.0"
+      [major, minor] -> "#{major}.#{minor}.0"
+      [major, minor, patch | _] -> "#{major}.#{minor}.#{patch}"
+    end
+  end
+
+  defp otp_version do
+    major = System.otp_release()
+    version_file = Path.join([:code.root_dir(), "releases", major, "OTP_VERSION"])
+
+    try do
+      {:ok, contents} = File.read(version_file)
+      String.split(contents, "\n", trim: true)
+    else
+      [full] -> full
+      _ -> major
+    catch
+      :error, _ -> major
+    end
+  end
 end

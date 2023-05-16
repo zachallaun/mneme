@@ -34,21 +34,21 @@ defmodule Mneme.Assertion.PatternBuilderTest do
 
     test "pins and guards" do
       ref = make_ref()
-      auto_assert ["is_reference(ref) when ref"] <- to_pattern_strings(ref)
+      auto_assert ["ref when is_reference(ref)"] <- to_pattern_strings(ref)
 
-      auto_assert ["^my_ref", "is_reference(ref) when ref"] <-
+      auto_assert ["^my_ref", "ref when is_reference(ref)"] <-
                     to_pattern_strings(ref, binding: [my_ref: ref])
 
       self = self()
-      auto_assert ["is_pid(pid) when pid"] <- to_pattern_strings(self)
-      auto_assert ["^me", "is_pid(pid) when pid"] <- to_pattern_strings(self, binding: [me: self])
+      auto_assert ["pid when is_pid(pid)"] <- to_pattern_strings(self)
+      auto_assert ["^me", "pid when is_pid(pid)"] <- to_pattern_strings(self, binding: [me: self])
 
       {:ok, port} = :gen_tcp.listen(0, [])
 
       try do
-        auto_assert ["is_port(port) when port"] <- to_pattern_strings(port)
+        auto_assert ["port when is_port(port)"] <- to_pattern_strings(port)
 
-        auto_assert ["^my_port", "is_port(port) when port"] <-
+        auto_assert ["^my_port", "port when is_port(port)"] <-
                       to_pattern_strings(port, binding: [my_port: port])
       after
         Port.close(port)
@@ -63,7 +63,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       auto_assert ["%{}", "%{:foo => 1, \"bar\" => 2}"] <-
                     to_pattern_strings(%{:foo => 1, "bar" => 2})
 
-      auto_assert ["%{}", "is_reference(ref) and is_pid(pid) when %{bar: ref, foo: pid}"] <-
+      auto_assert ["%{}", "%{bar: ref, foo: pid} when is_reference(ref) and is_pid(pid)"] <-
                     to_pattern_strings(%{foo: self(), bar: make_ref()})
 
       auto_assert ["%{}", "%{bar: %{}, foo: [1, 2]}", "%{bar: %{baz: [3, 4]}, foo: [1, 2]}"] <-
@@ -121,7 +121,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     |> PatternBuilder.to_patterns(context)
     |> Enum.map(fn
       %Pattern{guard: nil, expr: expr} -> expr
-      %Pattern{guard: guard, expr: expr} -> {:when, [], [guard, expr]}
+      %Pattern{guard: guard, expr: expr} -> {:when, [], [expr, guard]}
     end)
     |> Enum.map(&Sourceror.to_string(&1, @format_opts))
   end
