@@ -13,6 +13,6 @@ defmodule Mneme.Integration.FunctionTest do
     auto_assert ^fun <- fun
 
     # y
-    auto_assert fun when is_function(fun, 2) <- &Enum.map/2
+    auto_assert fun1 when is_function(fun1, 2) <- &Enum.map/2
   end
 end

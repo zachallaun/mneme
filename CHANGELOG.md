@@ -14,6 +14,10 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
   * Format pattern notes to be more obvious when they're present.
   * Generate charlist patterns using `sigil_c` instead of single quotes, e.g. `~c"foo"` instead of `'foo'`. See [this discussion](https://elixirforum.com/t/convert-charlists-into-c-charlists/49455) for more context.
 
+### Fixed
+
+  * Fixed a number of issues related to vars generated in guards, including shadowing variables already in scope and using the same var for different values of the same type.
+
 ## v0.3.3 (2023-05-01)
 
 ### Changed
