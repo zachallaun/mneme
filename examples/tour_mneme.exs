@@ -14,7 +14,6 @@ end
 ## Setup
 ##
 
-Application.put_env(:mneme, :dry_run, true)
 ExUnit.start(seed: 0)
 Mneme.start()
 
@@ -22,8 +21,19 @@ defmodule Tour do
   @prefix [Owl.Data.tag(" Tour ", [:magenta_background, :bright]), " "]
   @continue [Owl.Data.tag("      ", :magenta_background), " "]
 
-  def await(message) do
-    [first | rest] = Owl.Data.lines(message) ++ ["", Owl.Data.tag("continue ⏎ ", :faint)]
+  def await(message, prompt \\ "continue") do
+    [message, "\n\n", Owl.Data.tag("#{prompt} ⏎ ", :faint)]
+    |> puts()
+
+    _ = IO.gets("")
+
+    IO.puts(IO.ANSI.cursor_up(2))
+
+    :ok
+  end
+
+  def puts(message) do
+    [first | rest] = Owl.Data.lines(message)
 
     data =
       [[], [@prefix, first] | Enum.map(rest, &[@continue, &1])]
@@ -32,12 +42,6 @@ defmodule Tour do
     [data, "\n\n"]
     |> Owl.Data.to_ansidata()
     |> IO.write()
-
-    _ = IO.gets("")
-
-    IO.puts(IO.ANSI.cursor_up(2))
-
-    :ok
   end
 end
 
@@ -109,7 +113,7 @@ end
 
 defmodule HTTPParserTest do
   use ExUnit.Case
-  use Mneme
+  use Mneme, dry_run: true
 
   describe "parse_request/1" do
     @tag example: 1
@@ -227,12 +231,17 @@ defmodule HTTPParserTest do
       After acting on any auto-assertions, the ExUnit test runner will report
       results as usual. You'll see them when you continue.
 
-      If you accepted everything above, all of the tests should pass. You can
-      re-run this tour and try rejecting or skipping assertions to see how it
-      affects the results!\
+      If you accepted everything above, all of the tests should pass.\
       """)
     end
   end
 end
 
 ExUnit.run()
+
+Tour.puts("""
+That's all we have!
+
+This tour was run in a "dry-run" mode, so you can re-run it as many
+times as you'd like.\
+""")

@@ -32,7 +32,7 @@ Show
 Type "# Mneme is a snapshot testing library for Elixir." Sleep 300ms Enter Sleep 1s
 Type "# It adds a handful of new assertions, like auto_assert." Sleep 300ms Enter Sleep 1s
 Type "# When a new auto-assertion is found, Mneme generates a pattern for you." Sleep 300ms Enter Sleep 1s
-Type "# Let's see what happens..." Sleep 300ms Enter Sleep 1s
+Type "# Let's try it out." Sleep 300ms Enter Sleep 1s
 Type "clear" Sleep 1.5s Enter Sleep 500ms
 Type "mix test --only first_example" Sleep 300ms Enter
 Sleep 4s

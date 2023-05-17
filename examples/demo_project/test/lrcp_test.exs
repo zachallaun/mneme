@@ -1,6 +1,6 @@
 defmodule LRCPTest do
   use ExUnit.Case
-  use Mneme
+  use Mneme, dry_run: true
 
   describe "parse/1" do
     alias LRCPCorrect, as: LRCP

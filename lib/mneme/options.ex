@@ -64,6 +64,11 @@ defmodule Mneme.Options do
   ]
 
   @private_options [
+    dry_run: [
+      type: :boolean,
+      default: false,
+      doc: "Prevents changes from being written to the file when `true`."
+    ],
     prompter: [
       type: :atom,
       default: Mneme.Prompter.Terminal,

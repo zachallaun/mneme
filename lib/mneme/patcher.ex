@@ -41,30 +41,26 @@ defmodule Mneme.Patcher do
   """
   @spec finalize!(state) :: :ok | {:error, term()}
   def finalize!(project) do
-    if Application.get_env(:mneme, :dry_run) do
+    unsaved_files =
+      project
+      |> Project.sources()
+      |> Enum.flat_map(fn source ->
+        file = Source.path(source)
+
+        if source.private[:hash] == content_hash(file) do
+          case Source.save(source) do
+            :ok -> []
+            _ -> [file]
+          end
+        else
+          [file]
+        end
+      end)
+
+    if unsaved_files == [] do
       :ok
     else
-      unsaved_files =
-        project
-        |> Project.sources()
-        |> Enum.flat_map(fn source ->
-          file = Source.path(source)
-
-          if source.private[:hash] == content_hash(file) do
-            case Source.save(source) do
-              :ok -> []
-              _ -> [file]
-            end
-          else
-            [file]
-          end
-        end)
-
-      if unsaved_files == [] do
-        :ok
-      else
-        {:error, {:not_saved, unsaved_files}}
-      end
+      {:error, {:not_saved, unsaved_files}}
     end
   end
 
@@ -101,7 +97,11 @@ defmodule Mneme.Patcher do
         ast = replace_assertion_node(node, assertion.code)
         source = Source.update(source, :mneme, ast: ast)
 
-        {{:ok, assertion}, Project.update(project, source)}
+        if opts.dry_run do
+          {{:ok, assertion}, project}
+        else
+          {{:ok, assertion}, Project.update(project, source)}
+        end
 
       :reject ->
         {{:error, :rejected}, project}
