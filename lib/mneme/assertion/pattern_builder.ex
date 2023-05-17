@@ -226,23 +226,28 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp combine_guards(g1, g2, context), do: {:and, with_meta(context), [g2, g1]}
 
   defp guard_pattern(name, guard, value, context, vars) do
-    {var_name, _, _} = var = make_unique_var(name, context, vars)
+    if existing = List.keyfind(vars, value, 1) do
+      {var, _} = existing
+      {Pattern.new(make_var(var, context)), vars}
+    else
+      {var_name, _, _} = var = make_unique_var(name, context, vars)
 
-    guard =
-      if is_function(value) do
-        {:arity, arity} = Function.info(value, :arity)
-        {guard, with_meta(context), [var, arity]}
-      else
-        {guard, with_meta(context), [var]}
-      end
+      guard =
+        if is_function(value) do
+          {:arity, arity} = Function.info(value, :arity)
+          {guard, with_meta(context), [var, arity]}
+        else
+          {guard, with_meta(context), [var]}
+        end
 
-    pattern =
-      Pattern.new(var,
-        guard: guard,
-        notes: ["Using guard for non-serializable value `#{inspect(value)}`"]
-      )
+      pattern =
+        Pattern.new(var,
+          guard: guard,
+          notes: ["Using guard for non-serializable value `#{inspect(value)}`"]
+        )
 
-    {pattern, [var_name | vars]}
+      {pattern, [{var_name, value} | vars]}
+    end
   end
 
   defp to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
@@ -358,7 +363,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp make_unique_var(name, context, vars) do
-    vars = Keyword.keys(context[:binding]) ++ vars
+    vars = Keyword.keys(context[:binding] ++ vars)
     name = get_unique_name(name, vars)
     make_var(name, context)
   end

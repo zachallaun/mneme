@@ -16,7 +16,10 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ### Fixed
 
-  * Fixed a number of issues related to vars generated in guards, including shadowing variables already in scope and using the same var for different values of the same type.
+  * Numerous fixes related to the vars used in guards:
+    * Generated vars will no longer shadow variables in scope (e.g. if `pid` is in scope, a different pid will use the var `pid1`).
+    * The same var will no longer be used for different values of the same type.
+    * Multiple, redundant guards will no longer be emitted for the same var (e.g. `[self(), self()]` would result in `[pid, pid] when is_pid(pid) and is_pid(pid)`).
 
 ## v0.3.3 (2023-05-01)
 
