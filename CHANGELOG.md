@@ -6,6 +6,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ### Added
 
+  * Tested to support OTP 26.0 when using Elixir 1.14.4.
   * Support expressions that return functions, serializing them with an `is_function(fun, arity)` guard.
   * When generating a pattern for a MapSet, add a note suggesting using `MapSet.to_list/1` for better serialization.
 
