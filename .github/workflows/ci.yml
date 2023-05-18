@@ -12,10 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - pair:
-              elixir: 1.14.4
-              otp: 25
+        elixir: [1.14.4]
+        otp: [25, 26]
     steps:
       - uses: actions/checkout@v3
 
@@ -23,8 +21,8 @@ jobs:
         id: beam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{matrix.pair.otp}}
-          elixir-version: ${{matrix.pair.elixir}}
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
 
       - name: Deps cache
         uses: actions/cache@v3
@@ -74,6 +72,9 @@ jobs:
       matrix:
         elixir: [1.14.3, 1.14.4]
         otp: [24.3, 25]
+        include:
+          - elixir: 1.14.4
+            otp: 26
     steps:
       - uses: actions/checkout@v3
 
