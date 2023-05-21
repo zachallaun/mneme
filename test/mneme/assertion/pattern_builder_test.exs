@@ -1,6 +1,7 @@
 defmodule Mneme.Assertion.PatternBuilderTest do
   use ExUnit.Case, async: true
   use Mneme
+  use ExUnitProperties
 
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
@@ -9,6 +10,18 @@ defmodule Mneme.Assertion.PatternBuilderTest do
   @format_opts opts
 
   describe "patterns" do
+    @mneme action: :reject
+    property "match the value they're created from" do
+      check all term <- StreamData.term(),
+                max_runs: 500,
+                max_run_time: 2_000 do
+        for pattern <- to_patterns(term) do
+          Mneme.Assertion.build(:auto_assert, [{:<-, [], [pattern, {:term, [], nil}]}], __ENV__)
+          |> Code.eval_quoted([term: term], __ENV__)
+        end
+      end
+    end
+
     test "atoms" do
       auto_assert [":foo"] <- to_pattern_strings(:foo)
       auto_assert ["true"] <- to_pattern_strings(true)
@@ -110,12 +123,13 @@ defmodule Mneme.Assertion.PatternBuilderTest do
   end
 
   defp to_pattern_strings(value, context \\ []) do
-    context =
-      context
-      |> Map.new()
-      |> Map.put_new(:line, 1)
-      |> Map.put_new(:binding, [])
-      |> Map.put_new(:original_pattern, nil)
+    value
+    |> to_patterns(context)
+    |> Enum.map(&Sourceror.to_string(&1, @format_opts))
+  end
+
+  defp to_patterns(value, context \\ []) do
+    context = mock_context(context)
 
     value
     |> PatternBuilder.to_patterns(context)
@@ -123,6 +137,13 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       %Pattern{guard: nil, expr: expr} -> expr
       %Pattern{guard: guard, expr: expr} -> {:when, [], [expr, guard]}
     end)
-    |> Enum.map(&Sourceror.to_string(&1, @format_opts))
+  end
+
+  defp mock_context(context) do
+    context
+    |> Map.new()
+    |> Map.put_new(:line, 1)
+    |> Map.put_new(:binding, [])
+    |> Map.put_new(:original_pattern, nil)
   end
 end
