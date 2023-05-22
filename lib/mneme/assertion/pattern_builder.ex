@@ -3,6 +3,8 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   alias Mneme.Assertion.Pattern
 
+  @map_key_pattern_error :__map_key_pattern_error__
+
   @doc """
   Builds pattern expressions from a runtime value.
   """
@@ -109,6 +111,8 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port, fun: :is_function] do
     defp do_to_patterns(value, context, vars) when unquote(guard)(value) do
+      if context.map_key_pattern?, do: throw({@map_key_pattern_error, value})
+
       {pattern, vars} = guard_pattern(unquote(var_name), unquote(guard), value, context, vars)
       {[pattern], vars}
     end
@@ -164,23 +168,40 @@ defmodule Mneme.Assertion.PatternBuilder do
         enumerate_map_patterns(map, context, vars)
       end)
 
-    {[Pattern.new({:%{}, with_meta(context), []}) | patterns], vars}
+    if contains_empty_map_pattern?(patterns) do
+      {patterns, vars}
+    else
+      {[Pattern.new({:%{}, with_meta(context), []}) | patterns], vars}
+    end
+  end
+
+  defp contains_empty_map_pattern?(patterns) do
+    Enum.any?(patterns, fn
+      %Pattern{expr: {:%{}, _, []}} -> true
+      _ -> false
+    end)
   end
 
   defp enumerate_map_patterns(map, context, vars) do
-    {nested_patterns, vars} =
+    {nested_patterns, {vars, bad_map_keys}} =
       map
       |> Enum.sort_by(&elem(&1, 0))
-      |> Enum.map_reduce(vars, fn {k, v}, vars ->
-        {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
-        {v_patterns, vars} = to_patterns(v, context, vars)
+      |> Enum.flat_map_reduce({vars, []}, fn {k, v}, {vars, bad_map_keys} ->
+        try do
+          {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
+          {v_patterns, vars} = to_patterns(v, context, vars)
 
-        tuples =
-          [k_patterns, v_patterns]
-          |> combine_nested()
-          |> Enum.map(&list_pattern_to_tuple_pattern(&1, context))
+          tuples =
+            [k_patterns, v_patterns]
+            |> combine_nested()
+            |> Enum.map(&list_pattern_to_tuple_pattern(&1, context))
 
-        {tuples, vars}
+          {[tuples], {vars, bad_map_keys}}
+        catch
+          {@map_key_pattern_error, bad_key} ->
+            if context.map_key_pattern?, do: throw({@map_key_pattern_error, bad_key})
+            {[], {vars, [bad_key | bad_map_keys]}}
+        end
       end)
 
     map_patterns =
@@ -188,7 +209,17 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> combine_nested()
       |> Enum.map(&keyword_pattern_to_map_pattern(&1, context))
 
-    {map_patterns, vars}
+    {maybe_bad_map_key_notes(map_patterns, bad_map_keys), vars}
+  end
+
+  defp maybe_bad_map_key_notes(patterns, []), do: patterns
+
+  defp maybe_bad_map_key_notes(patterns, keys) do
+    note = "Cannot match on following values in map keys: #{inspect(keys)}"
+
+    Enum.map(patterns, fn pattern ->
+      %{pattern | notes: [note | pattern.notes]}
+    end)
   end
 
   defp struct_to_patterns(struct, map, context, vars, extra_notes) do
