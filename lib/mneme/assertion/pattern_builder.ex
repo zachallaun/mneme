@@ -206,28 +206,11 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> Enum.map(&pop_pattern/1)
       |> Enum.unzip()
 
-    {combine_patterns(patterns), rest_patterns}
+    {Pattern.combine(patterns), rest_patterns}
   end
 
   defp pop_pattern([current, next | rest]), do: {current, [next | rest]}
   defp pop_pattern([current]), do: {current, [current]}
-
-  defp combine_patterns(patterns) do
-    {exprs, {guard, notes}} =
-      Enum.map_reduce(
-        patterns,
-        {nil, []},
-        fn %Pattern{expr: expr, guard: g1, notes: n1}, {g2, n2} ->
-          {expr, {combine_guards(g1, g2), n1 ++ n2}}
-        end
-      )
-
-    Pattern.new(exprs, guard: guard, notes: notes)
-  end
-
-  defp combine_guards(nil, guard), do: guard
-  defp combine_guards(guard, nil), do: guard
-  defp combine_guards(g1, {_, meta, _} = g2), do: {:and, meta, [g2, g1]}
 
   defp guard_pattern(name, guard, value, context, vars) do
     if existing = List.keyfind(vars, value, 1) do
