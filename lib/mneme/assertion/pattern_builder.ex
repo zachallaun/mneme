@@ -145,6 +145,11 @@ defmodule Mneme.Assertion.PatternBuilder do
     {[Pattern.new({:%{}, with_meta(context), []})], vars}
   end
 
+  defp do_to_patterns(map, %{map_key_pattern?: true} = context, vars) when is_map(map) do
+    {patterns, vars} = enumerate_map_patterns(map, context, vars)
+    {[List.last(patterns)], vars}
+  end
+
   defp do_to_patterns(map, context, vars) when is_map(map) do
     sub_maps =
       for keyset <- context.keysets,
@@ -156,9 +161,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     {patterns, vars} =
       (sub_maps ++ [map])
       |> Enum.flat_map_reduce(vars, fn map, vars ->
-        map
-        |> Enum.sort_by(&elem(&1, 0))
-        |> enumerate_map_patterns(context, vars)
+        enumerate_map_patterns(map, context, vars)
       end)
 
     {[Pattern.new({:%{}, with_meta(context), []}) | patterns], vars}
@@ -166,7 +169,9 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   defp enumerate_map_patterns(map, context, vars) do
     {nested_patterns, vars} =
-      Enum.map_reduce(map, vars, fn {k, v}, vars ->
+      map
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map_reduce(vars, fn {k, v}, vars ->
         {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
         {v_patterns, vars} = to_patterns(v, context, vars)
 
