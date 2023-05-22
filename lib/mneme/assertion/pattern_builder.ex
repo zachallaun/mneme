@@ -103,7 +103,7 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> Tuple.to_list()
       |> enum_to_patterns(context, vars)
 
-    {Enum.map(patterns, &to_tuple_pattern(&1, context)), vars}
+    {Enum.map(patterns, &list_to_tuple_pattern(&1, context)), vars}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port, fun: :is_function] do
@@ -140,11 +140,11 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp do_to_patterns(%{} = map, context, vars) when map_size(map) == 0 do
+  defp do_to_patterns(map, context, vars) when map_size(map) == 0 do
     {[map_pattern([], context)], vars}
   end
 
-  defp do_to_patterns(%{} = map, context, vars) do
+  defp do_to_patterns(map, context, vars) when is_map(map) do
     sub_maps =
       for keyset <- context.keysets,
           sub_map = Map.take(map, keyset),
@@ -160,7 +160,7 @@ defmodule Mneme.Assertion.PatternBuilder do
           |> Enum.sort_by(&elem(&1, 0))
           |> enum_to_patterns(context, vars)
 
-        {Enum.map(patterns, &to_map_pattern(&1, context)), vars}
+        {Enum.map(patterns, &kv_to_map_pattern(&1, context)), vars}
       end)
 
     {[map_pattern([], context) | patterns], vars}
@@ -169,13 +169,12 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp struct_to_patterns(struct, map, context, vars, extra_notes) do
     defaults = struct.__struct__()
 
-    map
-    |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
-    |> to_patterns(context, vars)
-    |> then(fn {patterns, vars} ->
-      struct_patterns = Enum.map(patterns, &to_struct_pattern(struct, &1, context, extra_notes))
-      {struct_patterns, vars}
-    end)
+    {patterns, vars} =
+      map
+      |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
+      |> to_patterns(context, vars)
+
+    {Enum.map(patterns, &map_to_struct_pattern(&1, struct, context, extra_notes)), vars}
   end
 
   defp enum_to_patterns(values, context, vars) do
@@ -237,19 +236,19 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
+  defp list_to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
     %{pattern | expr: {e1, e2}}
   end
 
-  defp to_tuple_pattern(%Pattern{expr: exprs} = pattern, context) do
+  defp list_to_tuple_pattern(%Pattern{expr: exprs} = pattern, context) do
     %{pattern | expr: {:{}, with_meta(context), exprs}}
   end
 
-  defp to_map_pattern(%Pattern{expr: tuples} = pattern, context) do
+  defp kv_to_map_pattern(%Pattern{expr: tuples} = pattern, context) do
     %{pattern | expr: map_pattern(tuples, context).expr}
   end
 
-  defp to_struct_pattern(struct, map_pattern, context, extra_notes) do
+  defp map_to_struct_pattern(map_pattern, struct, context, extra_notes) do
     {aliased, _} =
       context
       |> Map.get(:aliases, [])
