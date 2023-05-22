@@ -14,6 +14,7 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> Map.put_new(:aliases, [])
       |> Map.put_new(:binding, [])
       |> Map.put(:keysets, get_keysets(context.original_pattern))
+      |> Map.put(:map_key_pattern?, false)
 
     {patterns, _vars} = to_patterns(value, context, [])
     patterns
@@ -103,7 +104,7 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> Tuple.to_list()
       |> enum_to_patterns(context, vars)
 
-    {Enum.map(patterns, &list_to_tuple_pattern(&1, context)), vars}
+    {Enum.map(patterns, &list_pattern_to_tuple_pattern(&1, context)), vars}
   end
 
   for {var_name, guard} <- [ref: :is_reference, pid: :is_pid, port: :is_port, fun: :is_function] do
@@ -141,7 +142,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(map, context, vars) when map_size(map) == 0 do
-    {[map_pattern([], context)], vars}
+    {[Pattern.new({:%{}, with_meta(context), []})], vars}
   end
 
   defp do_to_patterns(map, context, vars) when is_map(map) do
@@ -155,15 +156,34 @@ defmodule Mneme.Assertion.PatternBuilder do
     {patterns, vars} =
       (sub_maps ++ [map])
       |> Enum.flat_map_reduce(vars, fn map, vars ->
-        {patterns, vars} =
-          map
-          |> Enum.sort_by(&elem(&1, 0))
-          |> enum_to_patterns(context, vars)
-
-        {Enum.map(patterns, &kv_to_map_pattern(&1, context)), vars}
+        map
+        |> Enum.sort_by(&elem(&1, 0))
+        |> enumerate_map_patterns(context, vars)
       end)
 
-    {[map_pattern([], context) | patterns], vars}
+    {[Pattern.new({:%{}, with_meta(context), []}) | patterns], vars}
+  end
+
+  defp enumerate_map_patterns(map, context, vars) do
+    {nested_patterns, vars} =
+      Enum.map_reduce(map, vars, fn {k, v}, vars ->
+        {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
+        {v_patterns, vars} = to_patterns(v, context, vars)
+
+        tuples =
+          [k_patterns, v_patterns]
+          |> combine_nested()
+          |> Enum.map(&list_pattern_to_tuple_pattern(&1, context))
+
+        {tuples, vars}
+      end)
+
+    map_patterns =
+      nested_patterns
+      |> combine_nested()
+      |> Enum.map(&keyword_pattern_to_map_pattern(&1, context))
+
+    {map_patterns, vars}
   end
 
   defp struct_to_patterns(struct, map, context, vars, extra_notes) do
@@ -178,17 +198,21 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp enum_to_patterns(values, context, vars) do
-    {patterns, vars} = Enum.map_reduce(values, vars, &to_patterns(&1, context, &2))
-    {unzip_combine(patterns), vars}
+    {nested_patterns, vars} = Enum.map_reduce(values, vars, &to_patterns(&1, context, &2))
+    {combine_nested(nested_patterns), vars}
   end
 
-  defp unzip_combine(nested_patterns, acc \\ []) do
+  # Combines element-wise patterns into patterns of the same length such
+  # that all patterns are present in the result:
+  #    [[a1, a2], [b1], [c1, c2, c3]]
+  # => [[a1, b1, c1], [a2, b1, c2], [a2, b1, c3]]
+  defp combine_nested(nested_patterns, acc \\ []) do
     if last_pattern?(nested_patterns) do
       {patterns, _} = combine_and_pop(nested_patterns)
       Enum.reverse([patterns | acc])
     else
       {patterns, rest} = combine_and_pop(nested_patterns)
-      unzip_combine(rest, [patterns | acc])
+      combine_nested(rest, [patterns | acc])
     end
   end
 
@@ -208,8 +232,8 @@ defmodule Mneme.Assertion.PatternBuilder do
     {Pattern.combine(patterns), rest_patterns}
   end
 
-  defp pop_pattern([current, next | rest]), do: {current, [next | rest]}
-  defp pop_pattern([current]), do: {current, [current]}
+  defp pop_pattern([x | [_ | _] = xs]), do: {x, xs}
+  defp pop_pattern([x]), do: {x, [x]}
 
   defp guard_pattern(name, guard, value, context, vars) do
     if existing = List.keyfind(vars, value, 1) do
@@ -236,16 +260,16 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp list_to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
+  defp list_pattern_to_tuple_pattern(%Pattern{expr: [e1, e2]} = pattern, _context) do
     %{pattern | expr: {e1, e2}}
   end
 
-  defp list_to_tuple_pattern(%Pattern{expr: exprs} = pattern, context) do
+  defp list_pattern_to_tuple_pattern(%Pattern{expr: exprs} = pattern, context) do
     %{pattern | expr: {:{}, with_meta(context), exprs}}
   end
 
-  defp kv_to_map_pattern(%Pattern{expr: tuples} = pattern, context) do
-    %{pattern | expr: map_pattern(tuples, context).expr}
+  defp keyword_pattern_to_map_pattern(%Pattern{expr: tuples} = pattern, context) do
+    %{pattern | expr: {:%{}, with_meta(context), tuples}}
   end
 
   defp map_to_struct_pattern(map_pattern, struct, context, extra_notes) do
@@ -308,10 +332,6 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> schema.__schema__()
       |> Enum.flat_map(&elem(&1, 0))
     end
-  end
-
-  defp map_pattern(tuples, context) do
-    Pattern.new({:%{}, with_meta(context), tuples})
   end
 
   defp string_pattern(string, context) do
