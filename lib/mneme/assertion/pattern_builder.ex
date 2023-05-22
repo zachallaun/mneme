@@ -73,7 +73,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     patterns =
       cond do
         !String.printable?(string) ->
-          [Pattern.new({:<<>>, [], String.to_charlist(string)})]
+          [Pattern.new({:<<>>, [], :erlang.binary_to_list(string)})]
 
         String.contains?(string, "\n") ->
           [string_pattern(string, context), heredoc_pattern(string, context)]
