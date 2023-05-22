@@ -180,16 +180,16 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   defp enum_to_patterns(values, context, vars) do
     {patterns, vars} = Enum.map_reduce(values, vars, &to_patterns(&1, context, &2))
-    {unzip_combine(patterns, context), vars}
+    {unzip_combine(patterns), vars}
   end
 
-  defp unzip_combine(nested_patterns, context, acc \\ []) do
+  defp unzip_combine(nested_patterns, acc \\ []) do
     if last_pattern?(nested_patterns) do
-      {patterns, _} = combine_and_pop(nested_patterns, context)
+      {patterns, _} = combine_and_pop(nested_patterns)
       Enum.reverse([patterns | acc])
     else
-      {patterns, rest} = combine_and_pop(nested_patterns, context)
-      unzip_combine(rest, context, [patterns | acc])
+      {patterns, rest} = combine_and_pop(nested_patterns)
+      unzip_combine(rest, [patterns | acc])
     end
   end
 
@@ -200,34 +200,34 @@ defmodule Mneme.Assertion.PatternBuilder do
     end)
   end
 
-  defp combine_and_pop(nested_patterns, context) do
+  defp combine_and_pop(nested_patterns) do
     {patterns, rest_patterns} =
       nested_patterns
       |> Enum.map(&pop_pattern/1)
       |> Enum.unzip()
 
-    {combine_patterns(patterns, context), rest_patterns}
+    {combine_patterns(patterns), rest_patterns}
   end
 
   defp pop_pattern([current, next | rest]), do: {current, [next | rest]}
   defp pop_pattern([current]), do: {current, [current]}
 
-  defp combine_patterns(patterns, context) do
+  defp combine_patterns(patterns) do
     {exprs, {guard, notes}} =
       Enum.map_reduce(
         patterns,
         {nil, []},
         fn %Pattern{expr: expr, guard: g1, notes: n1}, {g2, n2} ->
-          {expr, {combine_guards(g1, g2, context), n1 ++ n2}}
+          {expr, {combine_guards(g1, g2), n1 ++ n2}}
         end
       )
 
     Pattern.new(exprs, guard: guard, notes: notes)
   end
 
-  defp combine_guards(nil, guard, _context), do: guard
-  defp combine_guards(guard, nil, _context), do: guard
-  defp combine_guards(g1, g2, context), do: {:and, with_meta(context), [g2, g1]}
+  defp combine_guards(nil, guard), do: guard
+  defp combine_guards(guard, nil), do: guard
+  defp combine_guards(g1, {_, meta, _} = g2), do: {:and, meta, [g2, g1]}
 
   defp guard_pattern(name, guard, value, context, vars) do
     if existing = List.keyfind(vars, value, 1) do
