@@ -325,6 +325,11 @@ defmodule Mneme do
     end
   end
 
+  # Elixir v1.15.0 introduced `ExUnit.Case.get_last_registered_test/1`,
+  # which can be called at compile-time to get the `%ExUnit.Test{}`
+  # struct containing test tags. For prior versions of Elixir, we access
+  # the private module attribute that ExUnit uses to store test structs
+  # as they are registered.
   if Version.match?(System.version(), ">= 1.15.0") do
     defp get_last_registered_test(module) do
       ExUnit.Case.get_last_registered_test(module)
