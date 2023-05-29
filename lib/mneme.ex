@@ -310,17 +310,17 @@ defmodule Mneme do
     build_assertion(:auto_assert_received, [], __CALLER__)
   end
 
-  defp build_assertion(call, args, caller) do
-    ensure_in_test!(call, caller)
-    Mneme.Assertion.build(call, args, caller)
+  defp build_assertion(kind, args, caller) do
+    ensure_in_test!(kind, caller)
+    Mneme.Assertion.build(kind, args, caller)
   end
 
-  defp ensure_in_test!(call, caller) do
+  defp ensure_in_test!(kind, caller) do
     with {fun_name, 1} <- caller.function,
          "test " <> _ <- to_string(fun_name) do
       :ok
     else
-      _ -> raise Mneme.CompileError, message: "#{call} can only be used inside of a test"
+      _ -> raise Mneme.CompileError, message: "#{kind} can only be used inside of a test"
     end
   end
 
