@@ -2,6 +2,7 @@ defmodule Mneme.Patcher do
   @moduledoc false
 
   alias Mneme.Assertion
+  alias Mneme.Prompter.Terminal
   alias Sourceror.Zipper
   alias Rewrite.Project
   alias Rewrite.Source
@@ -115,12 +116,9 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp prompt_change(
-         %Assertion{options: %{action: :prompt, prompter: prompter}} = assertion,
-         counter
-       ) do
+  defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, counter) do
     diff = %{left: format_node(assertion.rich_ast), right: format_node(assertion.code)}
-    prompter.prompt!(assertion, counter, diff)
+    Terminal.prompt!(assertion, counter, diff)
   end
 
   defp prompt_change(%Assertion{options: %{action: action}}, _), do: action

@@ -1,8 +1,6 @@
 defmodule Mneme.Prompter.Terminal do
   @moduledoc false
 
-  @behaviour Mneme.Prompter
-
   import Owl.Data, only: [tag: 2]
 
   alias Mneme.Assertion
@@ -18,7 +16,6 @@ defmodule Mneme.Prompter.Terminal do
   @box_cross_down "┬"
   @box_cross_up "┴"
 
-  @impl true
   def prompt!(%Assertion{} = assertion, counter, diff) do
     Owl.IO.puts(["\n", message(assertion, counter, diff, assertion.options)])
     input()

@@ -69,11 +69,6 @@ defmodule Mneme.Options do
       default: false,
       doc: "Prevents changes from being written to the file when `true`."
     ],
-    prompter: [
-      type: :atom,
-      default: Mneme.Prompter.Terminal,
-      doc: "Module implementing the `Mneme.Prompter` behaviour."
-    ],
     wip: [
       type: :boolean,
       default: false,
