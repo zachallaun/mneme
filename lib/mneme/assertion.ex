@@ -208,51 +208,48 @@ defmodule Mneme.Assertion do
   defp get_stage(:auto_assert_received, _args), do: {:new, nil}
 
   @doc """
-  Set the rich AST from Sourceror for the given assertion.
+  Set the rich AST from Sourceror for the given assertion and generate
+  the target expression.
   """
-  def put_rich_ast(%Assertion{rich_ast: nil} = assertion, ast) do
-    %{assertion | rich_ast: ast}
+  def prepare_for_patch(%Assertion{rich_ast: nil} = assertion, ast) do
+    assertion
+    |> Map.put(:rich_ast, ast)
+    |> regenerate_code()
   end
 
-  @doc """
-  Generate output code for the given target.
-  """
-  def generate_code(assertion, target, default_pattern \\ :infer)
+  @doc false
+  def prepare_for_patch(assertion), do: regenerate_code(assertion)
 
-  def generate_code(%Assertion{rich_ast: nil}, _, _) do
-    raise ArgumentError, "cannot generate code until `:rich_ast` has been set"
-  end
-
-  def generate_code(%Assertion{patterns: nil} = assertion, target, default_pattern) do
-    {patterns, pattern_idx} = build_and_select(assertion, default_pattern)
+  defp regenerate_code(%Assertion{patterns: nil} = assertion) do
+    {patterns, pattern_idx} = build_and_select(assertion)
 
     assertion
     |> Map.merge(%{
       patterns: patterns,
       pattern_idx: pattern_idx
     })
-    |> generate_code(target)
+    |> regenerate_code()
   end
 
-  def generate_code(%Assertion{} = assertion, target, _) do
-    %{assertion | code: assertion |> to_code(target) |> escape_strings()}
+  defp regenerate_code(%Assertion{} = assertion) do
+    %{assertion | code: assertion |> to_code() |> escape_strings()}
   end
 
-  defp build_and_select(%{kind: kind} = assertion, default_pattern) do
+  defp build_and_select(%{kind: kind} = assertion) do
     case kind do
-      :auto_assert -> build_and_select_pattern(assertion, default_pattern)
-      :auto_assert_raise -> build_and_select_raise(assertion, default_pattern)
-      :auto_assert_receive -> build_and_select_receive(assertion, default_pattern)
-      :auto_assert_received -> build_and_select_receive(assertion, default_pattern)
+      :auto_assert -> build_and_select_pattern(assertion)
+      :auto_assert_raise -> build_and_select_raise(assertion)
+      :auto_assert_receive -> build_and_select_receive(assertion)
+      :auto_assert_received -> build_and_select_receive(assertion)
     end
   end
 
-  defp build_and_select_receive(%{value: [_ | _] = messages, context: ctx}, default_pattern) do
+  defp build_and_select_receive(%{value: [_ | _] = messages, context: ctx, options: opts}) do
     patterns =
       messages
       |> Enum.map(&PatternBuilder.to_patterns(&1, ctx))
       |> Enum.map(fn patterns ->
-        case default_pattern do
+        case opts.default_pattern do
           :first -> List.first(patterns)
           _ -> List.last(patterns)
         end
@@ -261,7 +258,7 @@ defmodule Mneme.Assertion do
     {patterns, 0}
   end
 
-  defp build_and_select_raise(%{value: error, macro_ast: macro_ast, context: ctx}, default) do
+  defp build_and_select_raise(%{value: error, macro_ast: macro_ast, context: ctx, options: opts}) do
     %exception{} = error
 
     patterns =
@@ -273,11 +270,15 @@ defmodule Mneme.Assertion do
       end)
       |> then(&[Pattern.new({exception, nil}) | &1])
 
-    case {default, macro_ast} do
+    case {opts.default_pattern, macro_ast} do
       {:infer, {_, _, [_, _, _]}} -> {patterns, 1}
       {:last, _} -> {patterns, 1}
       _ -> {patterns, 0}
     end
+  end
+
+  defp build_and_select_pattern(assertion) do
+    build_and_select_pattern(assertion, assertion.options.default_pattern)
   end
 
   defp build_and_select_pattern(%{value: value} = assertion, :first) do
@@ -359,10 +360,12 @@ defmodule Mneme.Assertion do
   """
   def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion) do
     %{assertion | pattern_idx: length(ps) - 1}
+    |> regenerate_code()
   end
 
   def prev(%Assertion{pattern_idx: idx} = assertion) do
     %{assertion | pattern_idx: idx - 1}
+    |> regenerate_code()
   end
 
   @doc """
@@ -370,6 +373,7 @@ defmodule Mneme.Assertion do
   """
   def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion) do
     %{assertion | pattern_idx: rem(idx + 1, length(ps))}
+    |> regenerate_code()
   end
 
   @doc """
@@ -397,14 +401,14 @@ defmodule Mneme.Assertion do
   @doc """
   Generates assertion code for the given target.
   """
-  def to_code(%Assertion{kind: :auto_assert_raise} = assertion, target) do
+  def to_code(%Assertion{kind: :auto_assert_raise, options: opts} = assertion) do
     %Pattern{expr: expr} = pattern(assertion)
-    build_call(target, assertion, expr)
+    build_call(opts.target, assertion, expr)
   end
 
-  def to_code(%Assertion{rich_ast: ast} = assertion, target) do
+  def to_code(%Assertion{rich_ast: ast, options: opts} = assertion) do
     %Pattern{expr: expr, guard: guard} = pattern(assertion)
-    build_call(target, assertion, {block_with_line(expr, meta(ast)), guard})
+    build_call(opts.target, assertion, {block_with_line(expr, meta(ast)), guard})
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this

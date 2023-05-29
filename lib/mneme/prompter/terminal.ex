@@ -19,8 +19,8 @@ defmodule Mneme.Prompter.Terminal do
   @box_cross_up "┴"
 
   @impl true
-  def prompt!(%Assertion{} = assertion, counter, diff, opts) do
-    Owl.IO.puts(["\n", message(assertion, counter, diff, opts)])
+  def prompt!(%Assertion{} = assertion, counter, diff) do
+    Owl.IO.puts(["\n", message(assertion, counter, diff, assertion.options)])
     input()
   end
 

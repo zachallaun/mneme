@@ -119,7 +119,7 @@ defmodule Mneme.AssertionTest do
       auto_assert [
                     mneme:
                       "auto_assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
-                    ex_unit: "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> :ok end",
+                    ex_unit: "assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
                     eval:
                       "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> raise %ArgumentError{message: \"foo\nbar\nbaz\n\"} end"
                   ] <- targets(ast, %ArgumentError{message: "foo\nbar\nbaz\n"})
@@ -232,12 +232,15 @@ defmodule Mneme.AssertionTest do
   defp targets(ast, value, context \\ %{}) do
     assertion =
       Assertion.new(ast, value, context)
-      |> Assertion.put_rich_ast(ast)
-      |> Assertion.generate_code(:mneme)
+      |> Assertion.prepare_for_patch(ast)
+
+    ex_unit_assertion =
+      %{assertion | options: Map.put(assertion.options, :target, :ex_unit)}
+      |> Assertion.prepare_for_patch()
 
     [
       mneme: assertion.code |> Sourceror.to_string(@format_opts),
-      ex_unit: assertion |> Assertion.to_code(:ex_unit) |> Sourceror.to_string(@format_opts),
+      ex_unit: ex_unit_assertion.code |> Sourceror.to_string(@format_opts),
       eval: assertion |> Assertion.code_for_eval() |> Sourceror.to_string(@format_opts)
     ]
   end

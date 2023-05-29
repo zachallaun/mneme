@@ -6,7 +6,6 @@ defmodule Mneme.Prompter do
 
   @type response :: :accept | :reject | :skip | :prev | :next
   @type diff :: %{left: String.t(), right: String.t()}
-  @type options :: map()
 
-  @callback prompt!(Mneme.Assertion.t(), counter :: non_neg_integer(), diff, options) :: response
+  @callback prompt!(Mneme.Assertion.t(), counter :: non_neg_integer(), diff) :: response
 end

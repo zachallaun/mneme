@@ -79,25 +79,23 @@ defmodule Mneme.Patcher do
   def patch!(%Project{} = project, %Assertion{} = assertion, counter) do
     {project, source} = load_source!(project, assertion.context.file)
     {assertion, node} = prepare_assertion(assertion, source)
-    patch!(project, source, assertion, counter, node, assertion.options)
+    patch!(project, source, assertion, counter, node)
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}
   end
 
-  defp patch!(_, _, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _, _) do
+  defp patch!(_, _, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _) do
     raise ArgumentError, "I told you!"
   end
 
-  defp patch!(project, source, assertion, counter, node, opts) do
-    assertion = Assertion.generate_code(assertion, opts.target, opts.default_pattern)
-
-    case prompt_change(assertion, counter, opts) do
+  defp patch!(project, source, assertion, counter, node) do
+    case prompt_change(assertion, counter) do
       :accept ->
         ast = replace_assertion_node(node, assertion.code)
         source = Source.update(source, :mneme, ast: ast)
 
-        if opts.dry_run do
+        if assertion.options.dry_run do
           {{:ok, assertion}, project}
         else
           {{:ok, assertion}, Project.update(project, source)}
@@ -110,19 +108,22 @@ defmodule Mneme.Patcher do
         {{:error, :skipped}, project}
 
       :prev ->
-        patch!(project, source, Assertion.prev(assertion), counter, node, opts)
+        patch!(project, source, Assertion.prev(assertion), counter, node)
 
       :next ->
-        patch!(project, source, Assertion.next(assertion), counter, node, opts)
+        patch!(project, source, Assertion.next(assertion), counter, node)
     end
   end
 
-  defp prompt_change(assertion, counter, %{action: :prompt, prompter: prompter} = opts) do
+  defp prompt_change(
+         %Assertion{options: %{action: :prompt, prompter: prompter}} = assertion,
+         counter
+       ) do
     diff = %{left: format_node(assertion.rich_ast), right: format_node(assertion.code)}
-    prompter.prompt!(assertion, counter, diff, opts)
+    prompter.prompt!(assertion, counter, diff)
   end
 
-  defp prompt_change(_, _, %{action: action}), do: action
+  defp prompt_change(%Assertion{options: %{action: action}}, _), do: action
 
   defp prepare_assertion(assertion, source) do
     zipper =
@@ -136,7 +137,7 @@ defmodule Mneme.Patcher do
       |> Zipper.node()
       |> Sourceror.Comments.extract_comments()
 
-    {Assertion.put_rich_ast(assertion, rich_ast), {zipper, comments}}
+    {Assertion.prepare_for_patch(assertion, rich_ast), {zipper, comments}}
   end
 
   defp replace_assertion_node({zipper, comments}, ast) do
