@@ -28,8 +28,6 @@ defmodule Mneme.Server do
     :patch_state,
     :io_pid,
     :current_module,
-    opts: %{},
-    to_register: [],
     to_patch: [],
     stats: %{
       counter: 0,
@@ -45,8 +43,6 @@ defmodule Mneme.Server do
           patch_state: any(),
           io_pid: pid(),
           current_module: module(),
-          opts: %{{mod :: module(), test :: atom()} => map()},
-          to_register: [{any(), from :: pid()}],
           to_patch: [{any(), from :: pid()}],
           stats: %{
             counter: non_neg_integer(),
@@ -104,14 +100,20 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:register_assertion, assertion}, from, state) do
-    state =
-      case assertion.stage do
-        :new -> Map.update!(state, :to_patch, &[{assertion, from} | &1])
-        :update -> Map.update!(state, :to_register, &[{assertion, from} | &1])
-      end
-
+  def handle_call({:register_assertion, %Assertion{stage: :new} = assertion}, from, state) do
+    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
     {:noreply, state, {:continue, :process_next}}
+  end
+
+  def handle_call({:register_assertion, %Assertion{stage: :update} = assertion}, from, state) do
+    %{options: opts} = assertion
+
+    if opts.force_update || opts.target == :ex_unit do
+      state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+      {:noreply, state, {:continue, :process_next}}
+    else
+      {:reply, {:ok, assertion}, state, {:continue, :process_next}}
+    end
   end
 
   def handle_call({:patch_assertion, assertion}, from, state) do
@@ -124,13 +126,8 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:formatter, {:test_started, test}}, _from, state) do
-    %{module: module, name: test_name, tags: tags} = test
-    opts = Options.options(tags) |> Map.new()
-
-    state =
-      state
-      |> Map.update!(:opts, &Map.put(&1, {module, test_name}, opts))
-      |> inc_stat(:wip, if: opts[:wip])
+    opts = Options.options(test.tags)
+    state = inc_stat(state, :wip, if: opts[:wip])
 
     {:reply, :ok, state, {:continue, :process_next}}
   end
@@ -162,15 +159,9 @@ defmodule Mneme.Server do
 
   @impl true
   def handle_continue(:process_next, state) do
-    case pop_to_register(state) do
-      {next, state} ->
-        {:noreply, do_register_assertion(state, next), {:continue, :process_next}}
-
-      nil ->
-        case pop_to_patch(state) do
-          {next, state} -> {:noreply, do_patch_assertion(state, next)}
-          nil -> {:noreply, state}
-        end
+    case pop_to_patch(state) do
+      {next, state} -> {:noreply, do_patch_assertion(state, next)}
+      nil -> {:noreply, state}
     end
   end
 
@@ -191,35 +182,10 @@ defmodule Mneme.Server do
     |> Map.put(:current_module, assertion.context.module)
   end
 
-  defp do_register_assertion(state, {assertion, from}) do
-    %Assertion{options: opts} = assertion
-
-    if opts.force_update || opts.target == :ex_unit do
-      %{state | to_patch: [{assertion, from} | state.to_patch]}
-    else
-      GenServer.reply(from, {:ok, assertion})
-      state
-    end
-  end
-
   defp flush_io(%{io_pid: io_pid} = state) do
     output = StringIO.flush(io_pid)
     if output != "", do: IO.write(output)
     state
-  end
-
-  defp pop_to_register(state), do: pop_to_register(state, [])
-
-  defp pop_to_register(%{to_register: []}, _acc), do: nil
-
-  defp pop_to_register(%{to_register: [next | rest]} = state, acc) do
-    {%Assertion{context: %{module: module, test: test}}, _from} = next
-
-    if state.opts[{module, test}] do
-      {next, %{state | to_register: acc ++ rest}}
-    else
-      pop_to_register(%{state | to_register: rest}, [next | acc])
-    end
   end
 
   defp pop_to_patch(state), do: pop_to_patch(state, [])
@@ -227,9 +193,9 @@ defmodule Mneme.Server do
   defp pop_to_patch(%{to_patch: []}, _acc), do: nil
 
   defp pop_to_patch(%{to_patch: [next | rest]} = state, acc) do
-    {%Assertion{context: %{module: module, test: test}}, _from} = next
+    {%Assertion{context: %{module: module}}, _from} = next
 
-    if current_module?(state, module) && state.opts[{module, test}] do
+    if current_module?(state, module) do
       {next, %{state | to_patch: acc ++ rest}}
     else
       pop_to_patch(%{state | to_patch: rest}, [next | acc])
