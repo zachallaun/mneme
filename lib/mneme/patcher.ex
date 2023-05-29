@@ -74,12 +74,12 @@ defmodule Mneme.Patcher do
 
   Returns `{result, patch_state}`.
   """
-  @spec patch!(state, Assertion.t(), non_neg_integer(), map()) ::
+  @spec patch!(state, Assertion.t(), non_neg_integer()) ::
           {{:ok, Assertion.t()} | {:error, term()}, state}
-  def patch!(%Project{} = project, %Assertion{} = assertion, counter, %{} = opts) do
+  def patch!(%Project{} = project, %Assertion{} = assertion, counter) do
     {project, source} = load_source!(project, assertion.context.file)
     {assertion, node} = prepare_assertion(assertion, source)
-    patch!(project, source, assertion, counter, node, opts)
+    patch!(project, source, assertion, counter, node, assertion.options)
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}

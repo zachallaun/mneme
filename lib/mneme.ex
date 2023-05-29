@@ -166,7 +166,7 @@ defmodule Mneme do
   """
   @doc section: :assertion
   defmacro auto_assert(expression) do
-    build_assertion(:auto_assert, [expression], __CALLER__)
+    __build_assertion__(:auto_assert, [expression], __CALLER__)
   end
 
   @doc """
@@ -207,7 +207,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_raise(exception, message, function) do
-    build_assertion(:auto_assert_raise, [exception, message, function], __CALLER__)
+    __build_assertion__(:auto_assert_raise, [exception, message, function], __CALLER__)
   end
 
   @doc """
@@ -216,7 +216,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_raise(exception, function) do
-    build_assertion(:auto_assert_raise, [exception, function], __CALLER__)
+    __build_assertion__(:auto_assert_raise, [exception, function], __CALLER__)
   end
 
   @doc """
@@ -225,7 +225,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_raise(function) do
-    build_assertion(:auto_assert_raise, [function], __CALLER__)
+    __build_assertion__(:auto_assert_raise, [function], __CALLER__)
   end
 
   @doc """
@@ -256,7 +256,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_receive(pattern, timeout) when is_integer(timeout) and timeout >= 0 do
-    build_assertion(:auto_assert_receive, [pattern, timeout], __CALLER__)
+    __build_assertion__(:auto_assert_receive, [pattern, timeout], __CALLER__)
   end
 
   @doc """
@@ -265,7 +265,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_receive(pattern) do
-    build_assertion(:auto_assert_receive, [pattern], __CALLER__)
+    __build_assertion__(:auto_assert_receive, [pattern], __CALLER__)
   end
 
   @doc """
@@ -274,7 +274,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_receive do
-    build_assertion(:auto_assert_receive, [], __CALLER__)
+    __build_assertion__(:auto_assert_receive, [], __CALLER__)
   end
 
   @doc """
@@ -298,7 +298,7 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_received(pattern) do
-    build_assertion(:auto_assert_received, [pattern], __CALLER__)
+    __build_assertion__(:auto_assert_received, [pattern], __CALLER__)
   end
 
   @doc """
@@ -307,20 +307,33 @@ defmodule Mneme do
   @doc section: :assertion
   @doc since: "0.3.0"
   defmacro auto_assert_received do
-    build_assertion(:auto_assert_received, [], __CALLER__)
+    __build_assertion__(:auto_assert_received, [], __CALLER__)
   end
 
-  defp build_assertion(kind, args, caller) do
-    ensure_in_test!(kind, caller)
-    Mneme.Assertion.build(kind, args, caller)
+  @doc false
+  def __build_assertion__(kind, args, caller) do
+    opts = fetch_opts!(kind, caller)
+    Mneme.Assertion.build(kind, args, caller, opts)
   end
 
-  defp ensure_in_test!(kind, caller) do
+  defp fetch_opts!(kind, caller) do
     with {fun_name, 1} <- caller.function,
-         "test " <> _ <- to_string(fun_name) do
-      :ok
+         %ExUnit.Test{name: ^fun_name, tags: tags} <- get_last_registered_test(caller.module) do
+      Mneme.Options.options(tags)
     else
       _ -> raise Mneme.CompileError, message: "#{kind} can only be used inside of a test"
+    end
+  end
+
+  if Version.match?(System.version(), ">= 1.15.0") do
+    defp get_last_registered_test(module) do
+      ExUnit.Case.get_last_registered_test(module)
+    end
+  else
+    defp get_last_registered_test(module) do
+      module
+      |> Module.get_attribute(:ex_unit_tests)
+      |> List.first()
     end
   end
 

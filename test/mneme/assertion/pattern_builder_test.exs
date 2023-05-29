@@ -10,13 +10,19 @@ defmodule Mneme.Assertion.PatternBuilderTest do
   @format_opts opts
 
   describe "patterns" do
-    @mneme action: :reject
     property "match the value they're created from" do
+      opts = Mneme.Options.options(%{registered: %{mneme: [[action: :reject]]}})
+
       check all term <- StreamData.term(),
                 max_runs: 2_000,
                 max_run_time: 5_000 do
         for pattern <- to_patterns(term) do
-          Mneme.Assertion.build(:auto_assert, [{:<-, [], [pattern, {:term, [], nil}]}], __ENV__)
+          Mneme.Assertion.build(
+            :auto_assert,
+            [{:<-, [], [pattern, {:term, [], nil}]}],
+            __ENV__,
+            opts
+          )
           |> Code.eval_quoted([term: term], __ENV__)
         end
       end

@@ -14,7 +14,8 @@ defmodule Mneme.Assertion do
     :code,
     :patterns,
     :pattern_idx,
-    :context
+    :context,
+    :options
   ]
 
   @type t :: %Assertion{
@@ -26,7 +27,8 @@ defmodule Mneme.Assertion do
           code: Macro.t(),
           patterns: [Pattern.t()],
           pattern_idx: non_neg_integer(),
-          context: context
+          context: context,
+          options: map()
         }
 
   @type kind ::
@@ -48,7 +50,7 @@ defmodule Mneme.Assertion do
   @type target :: :mneme | :ex_unit
 
   @doc false
-  def new({kind, _, args} = macro_ast, value, ctx) do
+  def new({kind, _, args} = macro_ast, value, ctx, opts \\ Mneme.Options.options()) do
     {stage, original_pattern} = get_stage(kind, args)
     context = Enum.into(ctx, %{original_pattern: original_pattern})
 
@@ -57,22 +59,24 @@ defmodule Mneme.Assertion do
       stage: stage,
       macro_ast: macro_ast,
       value: value,
-      context: context
+      context: context,
+      options: Map.new(opts)
     }
   end
 
   @doc """
   Builds a quoted expression that will run the assertion.
   """
-  @spec build(atom(), [term()], Macro.Env.t()) :: Macro.t()
-  def build(kind, args, caller) do
+  @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
+  def build(kind, args, caller, opts) do
     macro_ast = {kind, Macro.Env.location(caller), args}
 
     quote do
       Mneme.Assertion.new(
         unquote(Macro.escape(macro_ast)),
         unquote(value_eval_expr(macro_ast)),
-        Keyword.put(unquote(assertion_context(caller)), :binding, binding())
+        Keyword.put(unquote(assertion_context(caller)), :binding, binding()),
+        unquote(opts)
       )
       |> Mneme.Assertion.run(__ENV__, Mneme.Server.started?())
     end

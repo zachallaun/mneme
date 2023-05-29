@@ -175,7 +175,6 @@ defmodule Mneme.Options do
       test_tags
       |> collect_attributes()
       |> Enum.map(fn {k, [v | _]} -> {k, v} end)
-      |> Map.new()
 
     case(:ets.lookup(@options_cache, opts)) do
       [{_opts, validated}] ->
@@ -186,7 +185,6 @@ defmodule Mneme.Options do
           opts
           |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
           |> validate_opts(stacktrace_info)
-          |> Map.new()
 
         true = :ets.insert(@options_cache, {opts, validated})
 
@@ -194,12 +192,8 @@ defmodule Mneme.Options do
     end
   end
 
-  defp put_opt_if(opts, true, k, v), do: Map.put(opts, k, v)
+  defp put_opt_if(opts, true, k, v), do: Keyword.put(opts, k, v)
   defp put_opt_if(opts, false, _k, _v), do: opts
-
-  defp validate_opts(%{} = opts, stacktrace_info) do
-    validate_opts(Keyword.new(opts), stacktrace_info)
-  end
 
   defp validate_opts(opts, stacktrace_info) do
     case NimbleOptions.validate(opts, @options_schema) do

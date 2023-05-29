@@ -125,7 +125,7 @@ defmodule Mneme.Server do
 
   def handle_call({:formatter, {:test_started, test}}, _from, state) do
     %{module: module, name: test_name, tags: tags} = test
-    opts = Options.options(tags)
+    opts = Options.options(tags) |> Map.new()
 
     state =
       state
@@ -177,10 +177,7 @@ defmodule Mneme.Server do
   defp do_patch_assertion(state, {assertion, from}) do
     {state, counter} = inc_and_return_stat(state, :counter)
 
-    %Assertion{context: %{module: module, test: test}} = assertion
-    opts = state.opts[{module, test}]
-
-    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter, opts)
+    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter)
     GenServer.reply(from, reply)
 
     case {reply, assertion.stage} do
@@ -191,12 +188,11 @@ defmodule Mneme.Server do
       _ -> state
     end
     |> Map.put(:patch_state, patch_state)
-    |> Map.put(:current_module, module)
+    |> Map.put(:current_module, assertion.context.module)
   end
 
   defp do_register_assertion(state, {assertion, from}) do
-    %Assertion{context: %{module: module, test: test}} = assertion
-    opts = state.opts[{module, test}]
+    %Assertion{options: opts} = assertion
 
     if opts.force_update || opts.target == :ex_unit do
       %{state | to_patch: [{assertion, from} | state.to_patch]}
