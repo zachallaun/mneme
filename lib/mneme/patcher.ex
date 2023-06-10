@@ -2,7 +2,7 @@ defmodule Mneme.Patcher do
   @moduledoc false
 
   alias Mneme.Assertion
-  alias Mneme.Prompter.Terminal
+  alias Mneme.Terminal
   alias Sourceror.Zipper
   alias Rewrite.Project
   alias Rewrite.Source

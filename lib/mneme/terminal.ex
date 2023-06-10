@@ -1,4 +1,4 @@
-defmodule Mneme.Prompter.Terminal do
+defmodule Mneme.Terminal do
   @moduledoc false
 
   import Owl.Data, only: [tag: 2]

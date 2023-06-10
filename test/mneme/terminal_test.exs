@@ -1,8 +1,8 @@
-defmodule Mneme.Prompter.TerminalTest do
+defmodule Mneme.TerminalTest do
   use ExUnit.Case, async: true
   use Mneme
 
-  alias Mneme.Prompter.Terminal
+  alias Mneme.Terminal
 
   describe "message/3" do
     test "new assertion" do
