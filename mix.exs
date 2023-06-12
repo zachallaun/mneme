@@ -98,6 +98,7 @@ defmodule Mneme.MixProject do
       extra_section: "GUIDES",
       extras: [
         "CHANGELOG.md",
+        "guides/architecture.md": [title: "Under the hood"],
         "guides/vscode_setup.md": [title: "VS Code"]
       ],
       groups_for_extras: [
