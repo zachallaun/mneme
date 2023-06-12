@@ -9,12 +9,6 @@ defmodule Mneme do
   @moduledoc """
   /ni:mi:/ - Snapshot testing for Elixir ExUnit
 
-  > #### Early days {: .info}
-  >
-  > Mneme is fairly new. Please feel free to submit any feedback, bugs,
-  > or suggestions as issues [on Github](https://github.com/zachallaun/mneme/issues).
-  > Thanks!
-
   #{@mdoc}
 
   ## Configuration
@@ -69,6 +63,12 @@ defmodule Mneme do
   ### Options
 
   #{Mneme.Options.docs()}
+
+  > #### `use Mneme` {: .info}
+  >
+  > When you `use Mneme` in a test module, [assertions](#assertions) are
+  > imported and module attributes are made available for
+  > [configuration](#configuration).
   """
 
   @ex_unit_default_receive_timeout 100
