@@ -43,17 +43,23 @@ defmodule Mneme.MixProject do
       {:rewrite, "~> 0.6.0"},
 
       # Development / Test
-      {:excoveralls,
-       github: "zachallaun/excoveralls", ref: "import-coverdata-improvements", only: :test},
-      # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
-      # is merged:
-      # {:excoveralls, "~> 0.15", only: :test},
       {:ecto, "~> 3.9", only: :test},
       {:stream_data, "~> 0.5.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
-      {:benchee, "~> 1.0", only: :dev}
+      {:benchee, "~> 1.0", only: :dev},
+
+      # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
+      # is merged
+      # {:excoveralls, "~> 0.15", only: :test},
+      {:excoveralls,
+       github: "zachallaun/excoveralls", ref: "import-coverdata-improvements", only: :test},
+      # Elixir 1.15.0 requires this version of ssl_verify_fun, which
+      # is a dependency of hackney, which is a dependency of excoveralls.
+      # TODO: This can be removed when excoveralls no longer depends on
+      # hackney: https://github.com/parroty/excoveralls/pull/311
+      {:ssl_verify_fun, "~> 1.1.7", only: :test}
     ]
   end
 
