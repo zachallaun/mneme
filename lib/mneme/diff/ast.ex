@@ -13,8 +13,6 @@ defmodule Mneme.Diff.AST do
   # * Simplifies struct ASTs. Instead of `{:%, [], [_struct, {:%{}, _, [kws...]}]}`,
   #   which has an inner map node, use `{:%, [], [_struct, [kws...]]}`.
 
-  require Sourceror
-
   defguard is_valid_sigil(letter) when letter in ?a..?z or letter in ?A..?Z
 
   @doc """
@@ -22,7 +20,7 @@ defmodule Mneme.Diff.AST do
   """
   def parse_string!(string) do
     opts = to_quoted_opts()
-    {quoted, _comments} = Sourceror.string_to_quoted!(string, opts)
+    {quoted, _comments} = Code.string_to_quoted_with_comments!(string, opts)
 
     normalize_nodes(quoted)
   end
