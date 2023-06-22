@@ -92,9 +92,11 @@ defmodule Mneme.Diff.Formatter do
     instructions
     |> Enum.flat_map(fn
       {op, kind, zipper} ->
+        # dbg({kind, op, Zipper.node(zipper)})
         to_fmt_instructions(kind, op, Zipper.node(zipper), zipper)
 
       {op, :node, zipper, edit_script} ->
+        # dbg({:node, op, Zipper.node(zipper)})
         edit_script_to_fmt_instructions(op, Zipper.node(zipper), edit_script)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
@@ -178,6 +180,15 @@ defmodule Mneme.Diff.Formatter do
       _ ->
         delimiter_to_fmt_instructions(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
     end
+  end
+
+  defp to_fmt_instructions(
+         :delimiter,
+         op,
+         {:"~", %{line: l, column: c}, [{:string, _, sigil}, _, _]},
+         _
+       ) do
+    [fmt(op, {{l, c}, {l, c + 1 + String.length(sigil)}})]
   end
 
   defp to_fmt_instructions(
@@ -327,7 +338,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:string, %{line: l, column: c}, string}) do
-    {{l, c}, {l, c + String.length(string) - 1}}
+    {{l, c}, {l, c + String.length(string)}}
   end
 
   defp bounds({:charlist, %{line: l, column: c, delimiter: "'"}, string}) do
@@ -375,7 +386,8 @@ defmodule Mneme.Diff.Formatter do
   defp bounds({:"~", %{line: l, column: c, delimiter: del}, [_sigil, [string], modifiers]}) do
     {_, {l2, c2}} = bounds(string)
     del_length = String.length(del) * 2
-    {{l, c}, {l2, c2 + del_length + length(modifiers)}}
+
+    {{l, c}, {l2, c2 - 1 + del_length + length(modifiers)}}
   end
 
   defp bounds({:"~", _, _} = sigil) do

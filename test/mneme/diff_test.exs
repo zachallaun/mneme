@@ -2,8 +2,13 @@ defmodule Mneme.DiffTest do
   use ExUnit.Case, async: true
   use Mneme, default_pattern: :last
 
-  alias Mneme.Diff
+  import Mneme.DiffTestHelpers
+
   alias Owl.Tag, warn: false
+
+  if Version.match?(System.version(), ">= 1.15.0") do
+    Code.require_file("diff_test_1_15.exs", __DIR__)
+  end
 
   describe "format/2" do
     test "formats insertions/deletions from nothing" do
@@ -310,11 +315,22 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats strings to sigil charlists" do
-      auto_assert {nil, [[%Tag{data: "~c\"", sequences: [:green]}, "foo\""]]} <-
-                    format(~S("foo"), ~S(~c"foo"))
+      auto_assert {nil,
+                   [
+                     [
+                       %Tag{data: "~", sequences: [:green]},
+                       %Tag{data: "c", sequences: [:green]},
+                       "\"foo\""
+                     ]
+                   ]} <- format(~S("foo"), ~S(~c"foo"))
 
-      auto_assert {[[%Tag{data: "~c\"", sequences: [:red]}, "foo\""]], nil} <-
-                    format(~S(~c"foo"), ~S("foo"))
+      auto_assert {[
+                     [
+                       %Tag{data: "~", sequences: [:red]},
+                       %Tag{data: "c", sequences: [:red]},
+                       "\"foo\""
+                     ]
+                   ], nil} <- format(~S(~c"foo"), ~S("foo"))
     end
 
     test "formats integer insertions" do
@@ -1028,42 +1044,6 @@ defmodule Mneme.DiffTest do
         auto_assert {[["auto_assert ", %Tag{data: "res", sequences: [:red]}]],
                      [["auto_assert ", %Tag{data: "{:ok, \"\\\#{foo}\"}", sequences: [:green]}]]} <-
                       format(~S|auto_assert res|, ~S|auto_assert {:ok, "\#{foo}"}|)
-      end
-    end
-
-    def dbg_format(left, right) do
-      {left, right} = format(left, right)
-
-      Owl.IO.puts([
-        "\n",
-        Owl.Data.unlines(left || []),
-        "\n\n",
-        Owl.Data.unlines(right || []),
-        "\n"
-      ])
-
-      {left, right}
-    end
-
-    def dbg_format!(left, right) do
-      IEx.break!(Mneme.Diff, :compute, 2)
-      IEx.break!(Mneme.Diff.Formatter, :highlight_lines, 2)
-      format(left, right)
-    end
-
-    defp format(left, right) do
-      case Diff.compute(left, right) do
-        {[], []} ->
-          {nil, nil}
-
-        {[], insertions} ->
-          {nil, Diff.format_lines(right, insertions)}
-
-        {deletions, []} ->
-          {Diff.format_lines(left, deletions), nil}
-
-        {deletions, insertions} ->
-          {Diff.format_lines(left, deletions), Diff.format_lines(right, insertions)}
       end
     end
   end

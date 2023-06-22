@@ -13,8 +13,6 @@ defmodule Mneme.Diff.AST do
   # * Simplifies struct ASTs. Instead of `{:%, [], [_struct, {:%{}, _, [kws...]}]}`,
   #   which has an inner map node, use `{:%, [], [_struct, [kws...]]}`.
 
-  defguard is_valid_sigil(letter) when letter in ?a..?z or letter in ?A..?Z
-
   @doc """
   Parse Elixir code into an enriched AST.
   """
@@ -177,8 +175,8 @@ defmodule Mneme.Diff.AST do
   end
 
   defp normalize_node({form, metadata, args}) when is_atom(form) do
-    case {Atom.to_string(form), args} do
-      {<<"sigil_", sigil>>, [args, modifiers]} when is_valid_sigil(sigil) ->
+    case {fetch_valid_sigil(form), args} do
+      {{:ok, sigil}, [args, modifiers]} ->
         normalize_sigil(sigil, metadata, args, modifiers)
 
       _ ->
@@ -192,8 +190,21 @@ defmodule Mneme.Diff.AST do
 
   defp normalize_node(quoted), do: quoted
 
+  defp fetch_valid_sigil(atom) do
+    with <<"sigil_", sigil::binary>> <- Atom.to_string(atom),
+         true <- String.match?(sigil, ~r/[A-Z]+/) || String.match?(sigil, ~r/[a-z]/) do
+      {:ok, sigil}
+    else
+      _ -> :error
+    end
+  end
+
   defp normalize_sigil(sigil, metadata, args, modifiers) do
     {:<<>>, args_meta, args} = args
+
+    # ~X -> 2
+    # ~XYZ -> 4
+    sigil_len = 1 + String.length(sigil)
 
     start_pos = Keyword.take(args_meta, [:line, :column])
 
@@ -213,11 +224,11 @@ defmodule Mneme.Diff.AST do
       else
         [
           line: start_pos[:line],
-          column: start_pos[:column] + 2 + String.length(metadata[:delimiter])
+          column: start_pos[:column] + sigil_len + String.length(metadata[:delimiter])
         ]
       end
 
-    sigil_string = {:string, [line: metadata[:line], column: metadata[:column] + 1], <<sigil>>}
+    sigil_string = {:string, [line: metadata[:line], column: metadata[:column] + 1], sigil}
 
     {:"~", normalize_metadata(metadata),
      [sigil_string, normalize_interpolation(args, start_pos), modifiers]}

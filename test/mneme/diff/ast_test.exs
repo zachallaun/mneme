@@ -249,6 +249,38 @@ defmodule Mneme.Diff.ASTTest do
                      ],
                      []
                    ]} <- parse_string!(~s(~s"""\nfoo\nbar\n"""))
+
+      auto_assert {:"~", [indentation: 2, delimiter: "\"\"\"", line: 1, column: 1],
+                   [
+                     {:string, [line: 1, column: 2], "s"},
+                     [{:string, [line: 2, column: 3], "foo\nbar\n"}],
+                     []
+                   ]} <- parse_string!(~s(~s"""\n  foo\n  bar\n  """))
+    end
+
+    if Version.match?(System.version(), ">= 1.15.0") do
+      test "multi-letter sigils" do
+        auto_assert {:"~", [delimiter: "(", line: 1, column: 1],
+                     [
+                       {:string, [line: 1, column: 2], "XYZ"},
+                       [{:string, [line: 1, column: 6], "foo"}],
+                       []
+                     ]} <- parse_string!("~XYZ(foo)")
+
+        auto_assert {:"~", [indentation: 0, delimiter: "\"\"\"", line: 1, column: 1],
+                     [
+                       {:string, [line: 1, column: 2], "XYZ"},
+                       [{:string, [line: 2, column: 1], "foo\nbar\n"}],
+                       []
+                     ]} <- parse_string!(~s|~XYZ"""\nfoo\nbar\n"""|)
+
+        auto_assert {:"~", [indentation: 2, delimiter: "\"\"\"", line: 1, column: 1],
+                     [
+                       {:string, [line: 1, column: 2], "XYZ"},
+                       [{:string, [line: 2, column: 3], "foo\nbar\n"}],
+                       []
+                     ]} <- parse_string!(~s(~XYZ"""\n  foo\n  bar\n  """))
+      end
     end
 
     test "vars" do
