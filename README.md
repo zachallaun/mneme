@@ -1,4 +1,4 @@
-# /ni:mi:/ - Snapshot testing for Elixir ExUnit
+# /ˈniːmiː/ - Snapshot testing for Elixir ExUnit
 
 <details>
   <summary>🎥 Video Demo</summary>
