@@ -12,6 +12,11 @@ defmodule Mneme.Diff.AST do
   # * Ignores comments.
   # * Simplifies struct ASTs. Instead of `{:%, [], [_struct, {:%{}, _, [kws...]}]}`,
   #   which has an inner map node, use `{:%, [], [_struct, [kws...]]}`.
+  # * Simplifies interpolation ASTs, exluding the implicit Kernel.to_string/1 call,
+  #   so that inside of a `{:<<>>, :string}` call, we get something like
+  #   `{:"::", [closing: ...], [{:whatever, _, _]}` instead of having the
+  #   `:whatever` additionally nested in the implicit `{{:., _, [Kernel, :to_string]}, _, _}`
+  #   call.
 
   @doc """
   Parse Elixir code into an enriched AST.
@@ -125,7 +130,7 @@ defmodule Mneme.Diff.AST do
         else
           [
             line: start_pos[:line],
-            column: start_pos[:column] + 2 + String.length(metadata[:delimiter])
+            column: start_pos[:column] + String.length(metadata[:delimiter])
           ]
         end
 
@@ -158,7 +163,8 @@ defmodule Mneme.Diff.AST do
       else
         [
           line: start_pos[:line],
-          column: start_pos[:column] + 2 + String.length(metadata[:delimiter])
+          # add 1 to account for the leading :
+          column: start_pos[:column] + String.length(metadata[:delimiter]) + 1
         ]
       end
 
@@ -256,9 +262,11 @@ defmodule Mneme.Diff.AST do
              column: column + 1
            ]}
 
-        {:"::", _, [{_, meta, _}, {_, _, :binary}]} = segment, {segments, _pos} ->
+        {:"::", meta, [{_, inner_meta, args}, {_, _, :binary}]}, {segments, _pos} ->
+          segment = {:"::", meta ++ [closing: inner_meta[:closing]], args}
+
           pos =
-            meta[:closing]
+            inner_meta[:closing]
             |> Keyword.take([:line, :column])
             # Add the closing }
             |> Keyword.update!(:column, &(&1 + 1))

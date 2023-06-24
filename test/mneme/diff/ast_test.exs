@@ -108,6 +108,22 @@ defmodule Mneme.Diff.ASTTest do
                    """} <- parse_string!(~s('''\nfoo\nbar\n'''))
     end
 
+    test "interpolation" do
+      auto_assert {{:<<>>, :string}, [delimiter: "\"", line: 1, column: 1],
+                   [
+                     {:string, [line: 1, column: 2], "foo"},
+                     {:"::", [line: 1, column: 5, closing: [line: 1, column: 10]],
+                      [{:var, [line: 1, column: 7], :bar}]}
+                   ]} <- parse_string!(~S|"foo#{bar}"|)
+
+      auto_assert {{:<<>>, :atom}, [delimiter: "\"", line: 1, column: 1],
+                   [
+                     {:string, [line: 1, column: 3], "foo"},
+                     {:"::", [line: 1, column: 6, closing: [line: 1, column: 11]],
+                      [{:var, [line: 1, column: 8], :bar}]}
+                   ]} <- parse_string!(~S|:"foo#{bar}"|)
+    end
+
     test "tuples" do
       auto_assert {:{}, [closing: [line: 1, column: 2], line: 1, column: 1], []} <-
                     parse_string!("{}")
