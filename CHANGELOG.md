@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.5 (2023-06-30)
+
+### Fixed
+
+  * Support multi-letter sigils when using Elixir 1.15.0+.
+
 ## v0.3.4 (2023-05-22)
 
 ### Added
