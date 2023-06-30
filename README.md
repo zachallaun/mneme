@@ -1,4 +1,4 @@
-# /ˈniːmiː/ - Snapshot testing for Elixir ExUnit
+# /ˈniːmiː/ - Snapshot testing for Elixir
 
 <details>
   <summary>🎥 Video Demo</summary>
@@ -17,15 +17,11 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-Snapshot tests assert that some expression matches a reference value.
-It's like a regular `assert`, except that the reference value is generated for you by Mneme.
-
-Mneme follows in the footsteps of existing snapshot testing libraries like [Insta](https://insta.rs/) (Rust), [expect-test](https://github.com/janestreet/ppx_expect) (OCaml), and [assert_value](https://github.com/assert-value/assert_value_elixir) (Elixir).
-Instead of simple value or string comparison, however, Mneme focuses on pattern matching.
+`Mneme` is a drop-in testing library that makes testing more pleasant by automating the tedious bits.
 
 ## A brief example
 
-Let's say you're working on a function that removes even numbers from a list:
+Let's say we're working on a function that removes even numbers from a list:
 
 ```elixir
 test "drop_evens/1 should remove all even numbers from an enum" do
@@ -37,9 +33,9 @@ test "drop_evens/1 should remove all even numbers from an enum" do
 end
 ```
 
-Notice that these assertions don't really _assert_ anything yet.
-That's okay, because the first time you run `mix test`, Mneme will generate the patterns and prompt you with diffs.
-When you accept them, your test is updated for you:
+We're using `auto_assert` and only writing the expressions we wish to test.
+The first time we run `mix test`, Mneme generates patterns and prompts you with diffs.
+When you accept them, your test is updated automatically:
 
 ```elixir
 test "drop_evens/1 should remove all even numbers from an enum" do
