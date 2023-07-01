@@ -7,7 +7,7 @@ defmodule Mneme do
         |> Enum.fetch!(1)
 
   @moduledoc """
-  /ˈniːmiː/ - Snapshot testing for Elixir ExUnit
+  /ˈniːmiː/ - Snapshot testing utilities
 
   #{@mdoc}
 

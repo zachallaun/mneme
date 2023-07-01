@@ -1,4 +1,4 @@
-# /ˈniːmiː/ - Snapshot testing for Elixir
+# /ˈniːmiː/ - Snapshot testing utilities for Elixir
 
 <details>
   <summary>🎥 Video Demo</summary>
@@ -17,7 +17,7 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-`Mneme` is a drop-in testing library that makes testing more pleasant by automating the tedious bits.
+Mneme provides a set of testing utilities that make writing and maintaining tests a pleasant experience.
 
 ## A brief example
 
