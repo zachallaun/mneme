@@ -20,7 +20,7 @@ defmodule Mneme.MixProject do
       preferred_cli_env: preferred_cli_env(),
 
       # Hex
-      description: "Snapshot/approval testing integrated into ExUnit",
+      description: "Snapshot testing tool using familiar assertions",
       package: package(),
 
       # Docs

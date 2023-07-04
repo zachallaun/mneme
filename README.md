@@ -17,7 +17,14 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-Mneme provides a set of testing utilities that make writing and maintaining tests a pleasant experience.
+Mneme provides a set of familiar assertions to automate the tedious bits of testing.
+
+Writing tests with Mneme is just like writing tests with `ExUnit`, except with some superpowers:
+
+  * **Automatically-maintained reference values** using idiomatic Elixir pattern-matching.
+  * **Seamless integration with ExUnit:** no need to change your workflow, just run `mix test`.
+  * **Interactive reviews** when a new assertion is added or an existing one changes.
+  * **Syntax-aware diffs** rendered in your terminal highlight the meaningful changes in a test.
 
 ## A brief example
 
