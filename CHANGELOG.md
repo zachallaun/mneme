@@ -2,6 +2,24 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.0 (Unreleased)
+
+### Added
+
+  * `Mneme.start/1` now accepts all of Mneme's configuration options that will be applied to the entire test run.
+
+### Removed
+
+  * **Breaking:** Removed support for `:mneme` application config. This has been replaced by passing config options directly to `Mneme.start/1`:
+
+      ```elixir
+      # Old: config/test.exs
+      config :mneme, defaults: [default_pattern: :last, ...]
+
+      # New: test/test_helper.exs
+      Mneme.start(default_pattern: :last, ...)
+      ```
+
 ## v0.3.5 (2023-06-30)
 
 ### Fixed

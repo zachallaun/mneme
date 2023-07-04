@@ -13,56 +13,80 @@ defmodule Mneme do
 
   ## Configuration
 
-  Mneme can be configured globally in your application config, usually
-  `config/test.exs`.
-
-      config :mneme,
-        defaults: [
-          default_pattern: :last
-        ]
-
-  Configuration can also be set at the module level with `use Mneme`,
-  in a `describe` block with `@mneme_describe` or for an individual test
-  using `@mneme`.
-
-      defmodule MyTest do
-        use ExUnit.Case
-
-        # reject all changes to auto-assertions by default
-        use Mneme, action: :reject
-
-        test "this test will fail" do
-          auto_assert 1 + 1
-        end
-
-        describe "some describe block" do
-          # accept all changes to auto-assertions in this describe block
-          @mneme_describe action: :accept
-
-          test "this will update without prompting" do
-            auto_assert 2 + 2
-          end
-
-          # prompt for any changes in this test
-          @mneme action: :prompt
-          test "this will prompt before updating" do
-            auto_assert 3 + 3
-          end
-        end
-      end
-
-  Configuration that is "closer to the test" will override more general
-  configuration:
-
-      @mneme > @mneme_describe > use Mneme > config :mneme
-
-  The exception to this is the `CI` environment variable, which causes
-  all updates to be rejected. See the "Continuous Integration" section
-  for more info.
+  Mneme supports a variety of flexible configuration options that can be
+  applied at multiple levels of granularity, from your entire test suite
+  down to an individual test. While the default behavior will work well
+  for the majority of cases, it's worth knowing which levers and knobs
+  you have available to tweak Mneme to fit your individual workflow.
 
   ### Options
 
   #{Mneme.Options.docs()}
+
+  ### Configuring Mneme
+
+  There are four ways you can apply configuration options; Each is more
+  specific than the last and will override any conflicting options that
+  were set prior.
+
+    * When calling `Mneme.start/1`, which will apply to the entire test
+      run;
+    * When calling `use Mneme`, which will apply to all tests in that
+      module;
+    * In a `@mneme_describe` module attribute, which will apply to all
+      tests that follow in the given `ExUnit.Case.describe/2` block;
+    * In a `@mneme` module attribute, which will apply only to the next
+      test that follows.
+
+  For instance, when an auto-assertion has multiple possible patterns
+  available, Mneme will try to infer the best one to show you first.
+  If you always want the last (and usually most complex) generated
+  pattern, you could call `Mneme.start/1` like this:
+
+      # test/test_helper.exs
+      ExUnit.start()
+      Mneme.start(default_pattern: :last)
+
+  As mentioned above, this can be overriden at the module-level, in a
+  `describe` block, or for an individual test:
+
+      defmodule MyTest do
+        use ExUnit.Case
+        use Mneme, default_pattern: :infer
+
+        test "the default pattern will exclude :baz when this runs" do
+          map = %{foo: :one, baz: :three}
+          auto_assert %{foo: 1, bar: 2} <- Map.put(map, bar: :two)
+        end
+
+        describe "..." do
+          @mneme_describe action: :reject
+
+          test "fails without prompting" do
+            auto_assert :wrong <- MyModule.some_fun()
+          end
+
+          @mneme action: :prompt
+          test "prompts to update" do
+            auto_assert :wrong <- MyModule.another_fun()
+          end
+        end
+      end
+
+  Breaking up with Mneme? While the official stance of the library is
+  that this is Not Recommended™, Mneme can even convert all of your
+  existing auto-assertions to regular assertions:
+
+      Mneme.start(
+        target: :ex_unit,
+        force_update: true,
+        action: :accept
+      )
+
+  Probably don't do this, but if you do, make sure all your tests are
+  committed first in case you want to get back together.
+
+  <hr/>
 
   > #### `use Mneme` {: .info}
   >
@@ -73,26 +97,7 @@ defmodule Mneme do
 
   @ex_unit_default_receive_timeout 100
 
-  @doc """
-  Sets up Mneme configuration for the calling module and imports Mneme's
-  assertion macros.
-
-  This call accepts all options described in the "Configuration" section
-  above.
-
-  ## Example
-
-      defmodule MyTest do
-        use ExUnit.Case
-        use Mneme # <- add this
-
-        test "..." do
-          auto_assert ...
-        end
-      end
-
-  """
-  @doc section: :setup
+  @doc false
   defmacro __using__(opts) do
     quote do
       import Mneme, only: :macros
@@ -359,19 +364,22 @@ defmodule Mneme do
       that allow tests to be run without a startup penalty. Defaults to
       `false`.
 
+    * Any option defined in the [Configuration](#module-configuration)
+      section of the module docs.
+
   """
   @doc section: :setup
   def start(opts \\ []) do
+    {restart?, opts} = Keyword.pop(opts, :restart, false)
     supervisor = Process.whereis(Mneme.Supervisor)
-    restart? = Keyword.get(opts, :restart, false)
 
     cond do
       !supervisor ->
-        configure!()
+        configure!(opts)
         start_server!()
 
       supervisor && restart? ->
-        configure!()
+        configure!(opts)
         restart_server!()
 
       true ->
@@ -400,14 +408,14 @@ defmodule Mneme do
     {:ok, _pid} = Supervisor.restart_child(Mneme.Supervisor, Mneme.Server)
   end
 
-  defp configure! do
+  defp configure!(opts) do
     ExUnit.configure(
       formatters: [Mneme.Server.ExUnitFormatter],
       default_formatter: ExUnit.CLIFormatter,
       timeout: :infinity
     )
 
-    Mneme.Options.configure()
+    Mneme.Options.configure(opts)
   end
 
   @doc false

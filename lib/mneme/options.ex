@@ -8,23 +8,25 @@ defmodule Mneme.Options do
     action: [
       type: {:in, [:prompt, :accept, :reject]},
       default: :prompt,
+      type_doc: "`:prompt | :accept | :reject`",
       doc: """
-      The action to be taken when an auto-assertion updates. Actions are
-      one of `:prompt`, `:accept`, or `:reject`. If `CI=true` is set in
-      environment variables, the action will _always_ be `:reject`.
+      The action to be taken when an auto-assertion updates. If `CI=true`
+      is set in environment variables, the action will _always_ be
+      `:reject`.
       """
     ],
     default_pattern: [
       type: {:in, [:infer, :first, :last]},
       default: :infer,
+      type_doc: "`:infer | :first | :last`",
       doc: """
-      The default pattern to be selected if prompted to update an
-      assertion. Can be one of `:infer`, `:first`, or `:last`.
+      The default pattern to be selected if prompted to update an assertion.
       """
     ],
     diff: [
       type: {:in, [:text, :semantic]},
       default: :semantic,
+      type_doc: "`:text | :semantic`",
       doc: """
       Controls the diff engine used to display changes when an auto-
       assertion updates. If `:semantic`, uses a custom diff engine to
@@ -35,6 +37,7 @@ defmodule Mneme.Options do
     diff_style: [
       type: {:in, [:side_by_side, :stacked]},
       default: :side_by_side,
+      type_doc: "`:side_by_side | :stacked`",
       doc: """
       Controls how diffs are rendered when the `:diff` option is set to
       `:semantic`. If `:side_by_side`, old and new code will be rendered
@@ -55,6 +58,7 @@ defmodule Mneme.Options do
     target: [
       type: {:in, [:mneme, :ex_unit]},
       default: :mneme,
+      type_doc: "`:mneme | :ex_unit`",
       doc: """
       The target output for auto-assertions. If `:mneme`, the expression
       will remain an auto-assertion. If `:ex_unit`, the expression will
@@ -125,8 +129,8 @@ defmodule Mneme.Options do
   @doc """
   Cache application-level options.
   """
-  def configure do
-    opts = Application.get_env(:mneme, :defaults, [])
+  def configure(opts) do
+    opts = validate_opts(opts, [])
     :persistent_term.put(@config_cache, opts)
 
     case :ets.info(@options_cache) do

@@ -15,7 +15,7 @@ end
 ##
 
 ExUnit.start(seed: 0)
-Mneme.start()
+Mneme.start(dry_run: true)
 
 defmodule Tour do
   @prefix [Owl.Data.tag(" Tour ", [:magenta_background, :bright]), " "]
@@ -113,7 +113,7 @@ end
 
 defmodule HTTPParserTest do
   use ExUnit.Case
-  use Mneme, dry_run: true
+  use Mneme
 
   describe "parse_request/1" do
     @tag example: 1
