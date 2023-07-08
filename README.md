@@ -28,7 +28,7 @@ With Mneme, you write something like
 auto_assert my_function()
 ```
 
-and next time you run your tests, Mneme runs the function, generates a pattern from the returned value, updates the assertion, and prompts you to confirm it's what you expected.
+and next time you run your tests, Mneme runs the function, generates a pattern from the returned value, prompts you to confirm it's what you expected, and updates the code for you.
 Now you have:
 
 ```elixir
