@@ -7,7 +7,8 @@
 
 ---
 
-**Note:** This README tracks the `main` branch. See the HexDocs linked below for documentation for the latest release.
+**Note:** This README tracks the `main` branch.
+See the HexDocs linked below for documentation for the latest release.
 
 ---
 
@@ -17,14 +18,33 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-Mneme provides a set of familiar assertions to automate the tedious bits of testing.
+Mneme provides a set of familiar assertions that automate the tedious parts of testing.
 
-Writing tests with Mneme is just like writing tests with `ExUnit`, except with some superpowers:
+This is sometimes called snapshot testing or approval testing, but that's not particulary important.
 
-  * **Automatically-maintained reference values** using idiomatic Elixir pattern-matching.
+With Mneme, you write something like
+
+```elixir
+auto_assert my_function()
+```
+
+and next time you run your tests, Mneme runs the function, generates a pattern from the returned value, updates the assertion, and prompts you to confirm it's what you expected.
+Now you have:
+
+```elixir
+auto_assert %MyAwesomeValue{so: :cool} <- my_function()
+```
+
+This lets you quickly write lots of tests to ensure the behavior of your program doesn't change without you knowing.
+And if it does, Mneme prompts you with a diff so you can easily see what's up.
+
+**Features:**
+
+  * **Automatically-maintained assertions:** compare values using `auto_assert`, test exceptions using `auto_assert_raise`, or test process messages using `auto_assert_receive` and friends.
   * **Seamless integration with ExUnit:** no need to change your workflow, just run `mix test`.
-  * **Interactive reviews** when a new assertion is added or an existing one changes.
-  * **Syntax-aware diffs** rendered in your terminal highlight the meaningful changes in a test.
+  * **Interactive prompts in your terminal** when a new assertion is added or an existing one changes.
+  * **Syntax-aware diffs** highlight the meaningful changes in a value.
+  * **Pattern matching** auto-assertions let you assert on the parts of a value that matter and ignore the rest.
 
 ## A brief example
 
