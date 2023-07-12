@@ -11,12 +11,17 @@
 //
 //     <video src="https://user-images.githubusercontent.com/EXAMPLE.mp4" ...></video>
 //
+// This script implements the same thing, but requires that `data-video`
+// be present on the <p>:
+//
+//     <p data-video>https://user-images.githubusercontent.com/EXAMPLE.mp4</p>
+//
 
 (() => {
 
   const MP4_RE = /^https:\/\/.+\.mp4$/
 
-  document.querySelectorAll('p').forEach(p => {
+  document.querySelectorAll('p[data-video]').forEach(p => {
     if (p.textContent.search(MP4_RE) !== -1) {
       const url = p.textContent
 

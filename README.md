@@ -6,7 +6,7 @@
 
 <details>
   <summary>🎥 Video Demo</summary>
-  <p>https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4</p>
+  <p data-video>https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4</p>
 </details>
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
