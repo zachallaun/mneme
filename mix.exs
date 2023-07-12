@@ -98,24 +98,30 @@ defmodule Mneme.MixProject do
 
   defp docs do
     [
-      main: "Mneme",
-      api_reference: false,
-      source_url: @source_url,
+      main: "readme",
       extra_section: "GUIDES",
       extras: [
-        "CHANGELOG.md",
+        "README.md": [title: "Overview"],
+        "CHANGELOG.md": [title: "Changelog"],
         "guides/architecture.md": [title: "Under the hood"],
         "guides/vscode_setup.md": [title: "VS Code"]
       ],
       groups_for_extras: [
+        Introduction: [
+          "README.md"
+        ],
         "Editor Setup": [
           "guides/vscode_setup.md"
+        ],
+        Internals: [
+          "guides/architecture.md"
         ]
       ],
       groups_for_docs: [
         Setup: &(&1[:section] == :setup),
         Assertions: &(&1[:section] == :assertion)
-      ]
+      ],
+      source_url: @source_url
     ]
   end
 

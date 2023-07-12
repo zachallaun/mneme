@@ -1,22 +1,13 @@
 # /ˈniːmiː/ - Snapshot testing utilities for Elixir
 
+[![Hex.pm](https://img.shields.io/hexpm/v/mneme.svg)](https://hex.pm/packages/mneme)
+[![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
+[![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
+
 <details>
   <summary>🎥 Video Demo</summary>
   <p>https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4</p>
 </details>
-
----
-
-**Note:** This README tracks the `main` branch.
-See [HexDocs](https://hexdocs.pm/mneme) for documentation of the latest release.
-
----
-
-<!-- MDOC !-->
-
-[![Hex.pm](https://img.shields.io/hexpm/v/mneme.svg)](https://hex.pm/packages/mneme)
-[![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
-[![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
 This is sometimes called snapshot or approval testing.
@@ -59,7 +50,7 @@ $ curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main
 $ elixir tour_mneme.exs
 ```
 
-## Setup
+## Quickstart
 
 1.  Add `:mneme` do your deps in `mix.exs`:
 
@@ -95,12 +86,38 @@ $ elixir tour_mneme.exs
       use Mneme
 
       test "arithmetic" do
-        # use auto_assert instead of ExUnit's assert - run this test
-        # and delight in all the typing you don't have to do
         auto_assert 2 + 2
       end
     end
     ```
+
+5.  Run `mix test` and type `y<ENTER>` when prompted; your test should look like:
+
+    ```elixir
+    defmodule MyTest do
+      use ExUnit.Case, async: true
+      use Mneme
+
+      test "arithmetic" do
+        auto_assert 4 <- 2 + 2
+      end
+    end
+    ```
+
+## Requirements
+
+### Elixir
+
+Mneme requires Elixir version 1.14 or later.
+
+### Formatter
+
+**If you do not use a formatter, the first auto-assertion will reformat the entire file,** introducing unrelated formatting changes.
+Mneme rewrites your test scripts when updating an assertion using the formatter configuration for your project.
+
+It's highly recommended to configure your editor to format Elixir files on-save.
+
+Note: Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update files, which supports the [Elixir formatter](https://hexdocs.pm/mix/Mix.Tasks.Format.html) and [`FreedomFormatter`](https://github.com/marcandre/freedom_formatter).
 
 ## Generated patterns
 
@@ -144,13 +161,6 @@ This is a non-exhaustive list of things Mneme takes into consideration when gene
 
   * Structs defined by Ecto schemas exclude primary keys, association foreign keys, and auto generated fields like `:inserted_at` and `:updated_at`. This is because these fields are often randomly generated and would fail on subsequent tests.
 
-## Warning: formatting required
-
-**If you do not use a formatter, the first auto-assertion will reformat the entire file.**
-
-Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update source code, formatting that code before saving the file.
-Currently, the Elixir formatter and `FreedomFormatter` are supported.
-
 ## Continuous Integration
 
 In a CI environment, Mneme will not attempt to prompt and update any assertions, but will instead fail any tests that would update.
@@ -165,12 +175,6 @@ export CI=true
 Guides for optional editor integration can be found here:
 
   * [VS Code](https://hexdocs.pm/mneme/vscode_setup.html)
-
-<!-- MDOC !-->
-
-## Configuration
-
-See the [full module documentation](https://hexdocs.pm/mneme/Mneme.html#module-configuration) for configuration options.
 
 ## Acknowledgements
 

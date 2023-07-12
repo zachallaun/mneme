@@ -1,15 +1,13 @@
 defmodule Mneme do
-  @external_resource "mix.exs"
-  @external_resource "README.md"
-  @mdoc "README.md"
-        |> File.read!()
-        |> String.split("<!-- MDOC !-->")
-        |> Enum.fetch!(1)
-
   @moduledoc """
-  /ˈniːmiː/ - Snapshot testing utilities
+  Augments `ExUnit.Assertions` with a set of assertions that know how to
+  update themselves.
 
-  #{@mdoc}
+  > #### `use Mneme` {: .info}
+  >
+  > When you `use Mneme` in a test module, [assertions](#assertions) are
+  > imported and module attributes are made available for
+  > [configuration](#configuration).
 
   ## Configuration
 
@@ -85,14 +83,6 @@ defmodule Mneme do
 
   Probably don't do this, but if you do, make sure all your tests are
   committed first in case you want to get back together.
-
-  <hr/>
-
-  > #### `use Mneme` {: .info}
-  >
-  > When you `use Mneme` in a test module, [assertions](#assertions) are
-  > imported and module attributes are made available for
-  > [configuration](#configuration).
   """
 
   @ex_unit_default_receive_timeout 100
