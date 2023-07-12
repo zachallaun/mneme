@@ -98,7 +98,13 @@ defmodule Mneme.MixProject do
 
   defp docs do
     [
+      source_url: @source_url,
       main: "readme",
+      assets: "docs/assets",
+      before_closing_body_tag: fn
+        :html -> ~S|<script src="assets/js/embedded-video.js"></script>|
+        _ -> ""
+      end,
       extra_section: "GUIDES",
       extras: [
         "README.md": [title: "Overview"],
@@ -120,8 +126,7 @@ defmodule Mneme.MixProject do
       groups_for_docs: [
         Setup: &(&1[:section] == :setup),
         Assertions: &(&1[:section] == :assertion)
-      ],
-      source_url: @source_url
+      ]
     ]
   end
 
