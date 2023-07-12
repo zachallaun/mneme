@@ -8,7 +8,7 @@
 ---
 
 **Note:** This README tracks the `main` branch.
-See the HexDocs linked below for documentation for the latest release.
+See [HexDocs](https://hexdocs.pm/mneme) for documentation of the latest release.
 
 ---
 
