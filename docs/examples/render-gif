@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# Example usage:
+# $ ./docs/examples/render-gif docs/examples/basic_test.exs
+#   [clip]
+#   Creating docs/examples/basic_test.gif...
+
+set -Euo pipefail
+
+exs_file=${1?pass a path to .exs as argument}
+if [[ ! -f $exs_file ]]; then
+  echo 'File $exs_file does not exist'
+  exit
+fi
+
+# Output the .gif using the same path & basename as the input .exs
+output_gif="${exs_file%.exs}.gif"
+tmp_test_exs="$(dirname "$0")/example.exs"
+
+# Copy example to temp file and delete after run
+cp $exs_file $tmp_test_exs
+vhs "$(dirname "$0")/example.tape" -o $output_gif
+rm $tmp_test_exs

@@ -1,0 +1,7 @@
+%{
+  "glob_ex": {:hex, :glob_ex, "0.1.4", "fc69cb3f6df9138a1e36e9aa041ef2eab0d4dfe916331425f6bac290d1977e79", [:mix], [], "hexpm", "583d35559dc5b17f14612f7153aaaf6dcc13edf2e383126e2dfb5f2d19c78b89"},
+  "nimble_options": {:hex, :nimble_options, "1.0.2", "92098a74df0072ff37d0c12ace58574d26880e522c22801437151a159392270e", [:mix], [], "hexpm", "fd12a8db2021036ce12a309f26f564ec367373265b53e25403f0ee697380f1b8"},
+  "owl": {:hex, :owl, "0.7.0", "4899a1de8f5ba004ff14883f97a4ef97ac46c6395f1da39aa1e27a026443a1b3", [:mix], [], "hexpm", "c4c61de07128fff8fdcefb12722e0420262091296b796f3db4f400a1b3d22e8b"},
+  "rewrite": {:hex, :rewrite, "0.6.3", "d0066a47ee0dfd807f8ec9bfe2933a2e6ec06eb070af26ebb881e8bd1f75b4b3", [:mix], [{:glob_ex, "~> 0.1", [hex: :glob_ex, repo: "hexpm", optional: false]}, {:sourceror, "~> 0.12", [hex: :sourceror, repo: "hexpm", optional: false]}], "hexpm", "e0b0e3b6bbeddce9e16e04fb9b024fd82cd75369bd94bc27351458303e831bc2"},
+  "sourceror": {:hex, :sourceror, "0.12.3", "a2ad3a1a4554b486d8a113ae7adad5646f938cad99bf8bfcef26dc0c88e8fade", [:mix], [], "hexpm", "4d4e78010ca046524e8194ffc4683422f34a96f6b82901abbb45acc79ace0316"},
+}
