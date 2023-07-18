@@ -4,10 +4,9 @@ defmodule Mneme.Patcher do
   alias Mneme.Assertion
   alias Mneme.Terminal
   alias Sourceror.Zipper
-  alias Rewrite.Project
   alias Rewrite.Source
 
-  @type state :: Project.t()
+  @type state :: Rewrite.t()
   @type source :: Source.t()
 
   @doc """
@@ -15,26 +14,15 @@ defmodule Mneme.Patcher do
   """
   @spec init() :: state
   def init do
-    Rewrite.Project.from_sources([])
+    Rewrite.new()
   end
 
   @doc """
   Load and cache and source and AST required by the context.
   """
-  @spec load_source!(state, String.t()) :: {state, source}
-  def load_source!(%Project{} = project, file) do
-    case Project.source(project, file) do
-      {:ok, source} ->
-        {project, source}
-
-      :error ->
-        source =
-          file
-          |> Source.read!()
-          |> Source.put_private(:hash, content_hash(file))
-
-        {Project.update(project, source), source}
-    end
+  @spec load_source!(state, String.t()) :: state
+  def load_source!(%Rewrite{} = project, file) do
+    Rewrite.read!(project, file)
   end
 
   @doc """
@@ -42,32 +30,15 @@ defmodule Mneme.Patcher do
   """
   @spec finalize!(state) :: :ok | {:error, term()}
   def finalize!(project) do
-    unsaved_files =
-      project
-      |> Project.sources()
-      |> Enum.flat_map(fn source ->
-        file = Source.path(source)
+    case Rewrite.write_all(project) do
+      {:ok, _project} ->
+        :ok
 
-        if source.private[:hash] == content_hash(file) do
-          case Source.save(source) do
-            :ok -> []
-            _ -> [file]
-          end
-        else
-          [file]
-        end
-      end)
+      {:error, errors, _project} ->
+        not_saved = Enum.map(errors, fn {_reason, file} -> file end)
 
-    if unsaved_files == [] do
-      :ok
-    else
-      {:error, {:not_saved, unsaved_files}}
+        {:error, {:not_saved, not_saved}}
     end
-  end
-
-  defp content_hash(file) do
-    data = File.read!(file)
-    :crypto.hash(:sha256, data)
   end
 
   @doc """
@@ -77,29 +48,33 @@ defmodule Mneme.Patcher do
   """
   @spec patch!(state, Assertion.t(), non_neg_integer()) ::
           {{:ok, Assertion.t()} | {:error, term()}, state}
-  def patch!(%Project{} = project, %Assertion{} = assertion, counter) do
-    {project, source} = load_source!(project, assertion.context.file)
-    {assertion, node} = prepare_assertion(assertion, source)
-    patch!(project, source, assertion, counter, node)
+  def patch!(%Rewrite{} = project, %Assertion{} = assertion, counter) do
+    project = load_source!(project, assertion.context.file)
+    {assertion, node} = prepare_assertion(assertion, project)
+    patch!(project, assertion, counter, node)
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}
   end
 
-  defp patch!(_, _, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _) do
+  defp patch!(_, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _) do
     raise ArgumentError, "I told you!"
   end
 
-  defp patch!(project, source, assertion, counter, node) do
+  defp patch!(project, assertion, counter, node) do
     case prompt_change(assertion, counter) do
       :accept ->
         ast = replace_assertion_node(node, assertion.code)
-        source = Source.update(source, :mneme, ast: ast)
 
         if assertion.options.dry_run do
           {{:ok, assertion}, project}
         else
-          {{:ok, assertion}, Project.update(project, source)}
+          {:ok, project} =
+            Rewrite.update(project, assertion.context.file, fn source ->
+              Source.update(source, :quoted, ast)
+            end)
+
+          {{:ok, assertion}, project}
         end
 
       :reject ->
@@ -109,24 +84,26 @@ defmodule Mneme.Patcher do
         {{:error, :skipped}, project}
 
       :prev ->
-        patch!(project, source, Assertion.prev(assertion), counter, node)
+        patch!(project, Assertion.prev(assertion), counter, node)
 
       :next ->
-        patch!(project, source, Assertion.next(assertion), counter, node)
+        patch!(project, Assertion.next(assertion), counter, node)
     end
   end
 
   defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, counter) do
-    diff = %{left: format_node(assertion.rich_ast), right: format_node(assertion.code)}
+    diff = %{left: Source.Ex.format(assertion.rich_ast), right: Source.Ex.format(assertion.code)}
     Terminal.prompt!(assertion, counter, diff)
   end
 
   defp prompt_change(%Assertion{options: %{action: action}}, _), do: action
 
-  defp prepare_assertion(assertion, source) do
+  defp prepare_assertion(assertion, project) do
+    source = Rewrite.source!(project, assertion.context.file)
+
     zipper =
       source
-      |> Source.ast()
+      |> Source.get(:quoted)
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
@@ -142,11 +119,5 @@ defmodule Mneme.Patcher do
     zipper
     |> Zipper.update(fn _ -> Sourceror.Comments.merge_comments(ast, comments) end)
     |> Zipper.root()
-  end
-
-  defp format_node(node) do
-    node
-    |> Source.from_ast()
-    |> Source.code()
   end
 end

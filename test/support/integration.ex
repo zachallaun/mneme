@@ -11,7 +11,6 @@ defmodule Mneme.Integration do
   ```
   """
 
-  alias Rewrite.Project
   alias Rewrite.Source
 
   defmodule TestError do
@@ -22,11 +21,11 @@ defmodule Mneme.Integration do
   Build integration test modules for each file matching the wildcard.
   """
   defmacro build_tests!(wildcard) when is_binary(wildcard) do
-    project = Project.read!(wildcard)
-    project = Enum.reduce(Project.sources(project), project, &set_up_source/2)
-
-    for source <- Project.sources(project) do
-      module = source |> Source.modules() |> List.last()
+    wildcard
+    |> Rewrite.new!()
+    |> Rewrite.map!(&set_up_source/1)
+    |> Enum.each(fn source ->
+      module = source |> Source.Ex.modules() |> List.last()
       "Elixir." <> module_name = to_string(module)
       test_data = source.private[:mneme_integration]
 
@@ -45,7 +44,7 @@ defmodule Mneme.Integration do
           end
         end
       end
-    end
+    end)
   end
 
   @doc """
@@ -143,31 +142,28 @@ defmodule Mneme.Integration do
     end
   end
 
-  defp set_up_source(source, project) do
+  defp set_up_source(source) do
     ast =
       source
-      |> Source.ast()
+      |> Source.get(:quoted)
       |> prune_to_version()
 
     {test_ast, test_input} = build_test_ast_and_input(ast)
-    test_code = source |> Source.update(:mneme, ast: test_ast) |> Source.code()
+    test_code = source |> Source.update(:mneme, :quoted, test_ast) |> Source.get(:content)
 
     expected_ast = build_expected_ast(ast)
-    expected_code = source |> Source.update(:mneme, ast: expected_ast) |> Source.code()
+    expected_code = source |> Source.update(:mneme, :quoted, expected_ast) |> Source.get(:content)
 
     %{exit_code: exit_code} = module_metadata(ast)
 
-    source =
-      Source.put_private(source, :mneme_integration,
-        name: source |> Source.path() |> Path.rootname() |> Path.basename() |> String.to_atom(),
-        path: Source.path(source),
-        test_input: test_input,
-        test_code: eof_newline(test_code),
-        expected_code: eof_newline(expected_code),
-        expected_exit_code: exit_code
-      )
-
-    Project.update(project, source)
+    Source.put_private(source, :mneme_integration,
+      name: source |> Source.get(:path) |> Path.rootname() |> Path.basename() |> String.to_atom(),
+      path: Source.get(source, :path),
+      test_input: test_input,
+      test_code: eof_newline(test_code),
+      expected_code: eof_newline(expected_code),
+      expected_exit_code: exit_code
+    )
   end
 
   defp prune_to_version(ast) do
