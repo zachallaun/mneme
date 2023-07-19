@@ -2,16 +2,17 @@
 
 Hide
 
+Require bat
+Require mix
+
 Set Shell zsh
-Set FontSize 18
 Set FontFamily "Berkeley Mono"
+Set FontSize 18
 Set Width 1600
 Set Height 900
 Set Margin 30
+Set Padding 60
 Set MarginFill "#242841"
-Set Padding 30
-Set WindowBar ColorfulRight
-Set WindowBarSize 40
 Set Theme "Argonaut"
 Set TypingSpeed 30ms
 
