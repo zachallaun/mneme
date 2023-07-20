@@ -3,6 +3,7 @@ defmodule Mneme.ExampleTest do
   use Mneme
 
   defmodule MyStruct do
+    @moduledoc false
     defstruct field: nil, list: [], map: %{}
   end
 

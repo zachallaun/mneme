@@ -18,9 +18,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                     null?: false,
                     terminal?: false,
                     zipper:
-                      {{:auto_assert, %{},
-                        [{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}]},
-                       nil}
+                      {{:auto_assert, %{}, [{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}]}, nil}
                   } <- @left
     end
   end
@@ -43,8 +41,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
 
     test "discards identical children" do
-      auto_assert {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 3}]},
-                   {:"[]", %{}, [{:atom, %{}, :foo}, {:atom, %{}, :bar}]}} <-
+      auto_assert {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 3}]}, {:"[]", %{}, [{:atom, %{}, :foo}, {:atom, %{}, :bar}]}} <-
                     minimize!("[1, 2, 3]", "[:foo, 2, :bar]")
 
       auto_assert {{:%{}, %{},
@@ -52,8 +49,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                       {{:atom, %{}, :foo}, {:int, %{}, 1}},
                       {{:atom, %{}, :bar}, {:{}, %{}, [{:int, %{}, 3}]}}
                     ]},
-                   {:%{}, %{},
-                    [{{:atom, %{}, :foo}, {:int, %{}, 2}}, {{:atom, %{}, :bar}, {:{}, %{}, []}}]}} <-
+                   {:%{}, %{}, [{{:atom, %{}, :foo}, {:int, %{}, 2}}, {{:atom, %{}, :bar}, {:{}, %{}, []}}]}} <-
                     minimize!("%{foo: 1, bar: {2, 3}}", "%{foo: 2, bar: {2}}")
 
       auto_assert {{:"[]", %{}, [{:"[]", %{}, [{:atom, %{}, :bar}]}]},
@@ -76,14 +72,13 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   describe "coordinated traversal" do
     test "using next_child/1, next_sibling/1 and pop/2" do
-      left = @left |> next_child(:pop_both)
-      right = @right |> next_child(:pop_both)
+      left = next_child(@left, :pop_both)
+      right = next_child(@right, :pop_both)
 
       auto_assert %SyntaxNode{
                     parent: {:pop_both, %SyntaxNode{}},
                     terminal?: false,
-                    zipper:
-                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                    zipper: {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
                   } <- left
 
       auto_assert %SyntaxNode{
@@ -109,8 +104,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
       auto_assert %SyntaxNode{
                     parent: {:pop_either, %SyntaxNode{}},
                     terminal?: false,
-                    zipper:
-                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                    zipper: {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
                   } <- right
 
       right = right |> next_child() |> next_sibling() |> next_sibling() |> next_sibling()
@@ -129,7 +123,7 @@ defmodule Mneme.Diff.SyntaxNodeTest do
   describe "similar?/2" do
     test "compares syntax nodes based on content, not location in ast" do
       node1 = root!("1")
-      node2 = root!("[1]") |> next_child()
+      node2 = "[1]" |> root!() |> next_child()
 
       assert similar?(node1, node2)
     end

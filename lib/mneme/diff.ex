@@ -130,11 +130,13 @@ defmodule Mneme.Diff do
   end
 
   defp coalesce(changed_deltas) do
-    changed_node_ids =
+    for_result =
       for %{kind: :node, node: node} <- changed_deltas do
         node.id
       end
-      |> MapSet.new()
+
+    changed_node_ids =
+      MapSet.new(for_result)
 
     changed_ids =
       for %{kind: :branch, node: branch} <- Enum.reverse(changed_deltas),
@@ -205,10 +207,7 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
   end
 
-  defp maybe_add_unchanged_branch(
-         neighbors,
-         {%{branch?: true} = left, %{branch?: true} = right, _} = v
-       ) do
+  defp maybe_add_unchanged_branch(neighbors, {%{branch?: true} = left, %{branch?: true} = right, _} = v) do
     if SyntaxNode.similar_branch?(left, right) do
       delta =
         Delta.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
@@ -253,8 +252,7 @@ defmodule Mneme.Diff do
   # changed together to avoid arguments "sliding", e.g. `2 + 1` and `1 + 2`
   defp add_changed_edges(
          neighbors,
-         {%{parent: {_, %{binary_op?: true}}} = left, right,
-          %Delta{changed?: false, kind: :branch}} = v
+         {%{parent: {_, %{binary_op?: true}}} = left, right, %Delta{changed?: false, kind: :branch}} = v
        ) do
     v2 = {
       SyntaxNode.next_sibling(left),
@@ -274,8 +272,7 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_left(neighbors, {left, %{null?: true} = right, _} = v) do
-    neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
   end
 
   defp add_changed_left(neighbors, {%{branch?: true} = left, right, _} = v) do
@@ -285,13 +282,11 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_left(neighbors, {%{branch?: false} = left, right, _} = v) do
-    neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
   end
 
   defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
-    neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: true} = right, _} = v) do
@@ -301,8 +296,7 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: false} = right, _} = v) do
-    neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
   end
 
   defp add_edge(neighbors, _v1, {left, right, delta}) do
@@ -334,7 +328,8 @@ defmodule Mneme.Diff do
   defp delta_id(d), do: {d.changed?, d.node.id}
 
   defp myers_edit_scripts(s1, s2) do
-    String.myers_difference(s1, s2)
+    s1
+    |> String.myers_difference(s2)
     |> Enum.reduce({[], []}, fn
       {:eq, s}, {left, right} -> {[{:eq, s} | left], [{:eq, s} | right]}
       {:del, s}, {left, right} -> {[{:changed, s} | left], right}

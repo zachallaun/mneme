@@ -44,7 +44,7 @@ defmodule Mneme.Diff.Formatter do
   defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
 
   defp highlight([], _, current_line, earlier_lines, line_acc, acc) do
-    Enum.reverse(earlier_lines) ++ [[current_line | line_acc] | acc]
+    Enum.reverse(earlier_lines, [[current_line | line_acc] | acc])
   end
 
   # no-content highlight
@@ -60,18 +60,10 @@ defmodule Mneme.Diff.Formatter do
   end
 
   # bottom of a multi-line highlight
-  defp highlight(
-         [{op, {{l, _}, {l2, c2}}} | _] = hl,
-         l2,
-         line,
-         earlier,
-         line_acc,
-         acc
-       )
-       when l2 > l do
+  defp highlight([{op, {{l, _}, {l2, c2}}} | _] = hl, l2, line, earlier, line_acc, acc) when l2 > l do
     {token, rest_line} = String.split_at(line, c2 - 1)
     lines = earlier |> Enum.take(l2 - l - 1) |> Enum.reverse() |> Enum.map(&tag(&1, op))
-    [next | rest_earlier] = earlier |> Enum.drop(l2 - l - 1)
+    [next | rest_earlier] = Enum.drop(earlier, l2 - l - 1)
     acc = lines ++ [[tag(token, op), rest_line | line_acc] | acc]
 
     highlight(hl, l, next, rest_earlier, [], acc)
@@ -182,53 +174,27 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {:"~", %{line: l, column: c}, [{:string, _, sigil}, _, _]},
-         _
-       ) do
+  defp to_fmt_instructions(:delimiter, op, {:"~", %{line: l, column: c}, [{:string, _, sigil}, _, _]}, _) do
     [fmt(op, {{l, c}, {l, c + 1 + String.length(sigil)}})]
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _},
-         _
-       )
+  defp to_fmt_instructions(:delimiter, op, {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _}, _)
        when is_atom(call) do
-    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+    len = :remote_call |> Macro.inspect_atom(call) |> String.length()
     [fmt(op, {{l, c}, {l, c + len + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {call, %{line: l, column: c}, _},
-         _
-       )
-       when is_atom(call) do
-    len = Macro.inspect_atom(:remote_call, call) |> String.length()
+  defp to_fmt_instructions(:delimiter, op, {call, %{line: l, column: c}, _}, _) when is_atom(call) do
+    len = :remote_call |> Macro.inspect_atom(call) |> String.length()
     [fmt(op, {{l, c}, {l, c + len}})]
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _},
-         _
-       ) do
+  defp to_fmt_instructions(:delimiter, op, {{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _}, _) do
     {_, {l, c}} = bounds(right)
     [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _},
-         _
-       ) do
+  defp to_fmt_instructions(:delimiter, op, {{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _}, _) do
     {_, {l, c}} = bounds(var)
     [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
@@ -236,9 +202,8 @@ defmodule Mneme.Diff.Formatter do
   # Dot call delimiter with no parens, nothing to highlight
   defp to_fmt_instructions(:delimiter, _op, {{:., _, _}, _, _}, _), do: []
 
-  defp to_fmt_instructions(:delimiter, op, {atom, %{line: l, column: c}, _}, _)
-       when is_atom(atom) do
-    len = Macro.inspect_atom(:remote_call, atom) |> String.length()
+  defp to_fmt_instructions(:delimiter, op, {atom, %{line: l, column: c}, _}, _) when is_atom(atom) do
+    len = :remote_call |> Macro.inspect_atom(atom) |> String.length()
     [fmt(op, {{l, c}, {l, c + len}})]
   end
 
@@ -292,8 +257,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp split_edit_script_on_newlines(edit_script) do
-    edit_script
-    |> Stream.flat_map(fn {edit, s} ->
+    Stream.flat_map(edit_script, fn {edit, s} ->
       s
       |> String.split(~r/\n/, include_captures: true)
       |> Enum.map(fn
@@ -365,7 +329,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp bounds({:^, %{line: l, column: c}, [var]}) do
-    {_, end_bound} = var |> bounds()
+    {_, end_bound} = bounds(var)
     {{l, c}, end_bound}
   end
 
@@ -425,7 +389,7 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp atom_bounds(type, atom, l, c) when type in [:literal, :key, :remote_call] do
-    len = Macro.inspect_atom(type, atom) |> String.length()
+    len = type |> Macro.inspect_atom(atom) |> String.length()
     {{l, c}, {l, c + len}}
   end
 

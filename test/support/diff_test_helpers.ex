@@ -1,4 +1,5 @@
 defmodule Mneme.DiffTestHelpers do
+  @moduledoc false
   alias Mneme.Diff
 
   @doc """

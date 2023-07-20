@@ -91,7 +91,7 @@ defmodule Mneme.TerminalTest do
       |> Map.put_new(:diff_style, :stacked)
       |> Map.put_new(:terminal_width, 50)
 
-    Terminal.message(assertion, 1, mock_diff(), opts) |> untag_to_string()
+    assertion |> Terminal.message(1, mock_diff(), opts) |> untag_to_string()
   end
 
   defp untag_to_string(data) do

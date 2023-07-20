@@ -109,10 +109,12 @@ defmodule Mneme.Diff.SyntaxNode do
   end
 
   defp normalize_metadata(meta) do
-    for {k, v} <- meta do
-      if Keyword.keyword?(v), do: {k, normalize_metadata(v)}, else: {k, v}
-    end
-    |> Map.new()
+    for_result =
+      for {k, v} <- meta do
+        if Keyword.keyword?(v), do: {k, normalize_metadata(v)}, else: {k, v}
+      end
+
+    Map.new(for_result)
   end
 
   @doc false
@@ -133,8 +135,7 @@ defmodule Mneme.Diff.SyntaxNode do
         _ -> {[l_k, l_v], [r_k, r_v]}
       end
 
-    {with_children(l, Enum.map(l_children, &ast/1)),
-     with_children(r, Enum.map(r_children, &ast/1))}
+    {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
   end
 
   def minimize_nodes(%{branch?: true, form: f} = l, %{branch?: true, form: f} = r) do
@@ -146,15 +147,15 @@ defmodule Mneme.Diff.SyntaxNode do
         {l_child, r_child}
 
       {l_children, r_children} ->
-        {with_children(l, Enum.map(l_children, &ast/1)),
-         with_children(r, Enum.map(r_children, &ast/1))}
+        {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
     end
   end
 
   def minimize_nodes(left, right), do: {left, right}
 
   defp minimize_children(left, right) do
-    zip_children(left, right)
+    left
+    |> zip_children(right)
     |> Enum.map(fn {l, r} -> minimize_nodes(l, r) end)
     |> Enum.filter(&Function.identity/1)
     |> Enum.unzip()
@@ -181,7 +182,8 @@ defmodule Mneme.Diff.SyntaxNode do
   defp children(node), do: node |> next_child() |> sibling_nodes()
 
   defp sibling_nodes(node) do
-    Stream.unfold(node, fn
+    node
+    |> Stream.unfold(fn
       %{null?: true} -> nil
       node -> {node, next_sibling(node)}
     end)
@@ -201,8 +203,7 @@ defmodule Mneme.Diff.SyntaxNode do
 
   def pop(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {:pop_both, p1}} = left,
-       %{null?: true, parent: {:pop_both, p2}} = right} ->
+      {%{null?: true, parent: {:pop_both, p1}} = left, %{null?: true, parent: {:pop_both, p2}} = right} ->
         if similar_branch?(p1, p2) do
           pop(next_sibling(p1), next_sibling(p2))
         else

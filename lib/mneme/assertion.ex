@@ -72,8 +72,8 @@ defmodule Mneme.Assertion do
     macro_ast = {kind, Macro.Env.location(caller), args}
 
     quote do
-      Mneme.Assertion.new(
-        unquote(Macro.escape(macro_ast)),
+      unquote(Macro.escape(macro_ast))
+      |> Mneme.Assertion.new(
         unquote(value_eval_expr(macro_ast)),
         Keyword.put(unquote(assertion_context(caller)), :binding, binding()),
         unquote(opts)
@@ -137,13 +137,15 @@ defmodule Mneme.Assertion do
   end
 
   defp patch(assertion, env, existing_error \\ nil) do
-    case assertion do
-      %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
-      %{kind: :auto_assert_receive, value: []} -> {:ok, assertion}
-      %{kind: :auto_assert_received, value: []} -> {:ok, assertion}
-      _ -> Mneme.Server.patch_assertion(assertion)
-    end
-    |> handle_assertion(assertion, env, existing_error)
+    result =
+      case assertion do
+        %{kind: :auto_assert_raise, value: nil} -> {:ok, assertion}
+        %{kind: :auto_assert_receive, value: []} -> {:ok, assertion}
+        %{kind: :auto_assert_received, value: []} -> {:ok, assertion}
+        _ -> Mneme.Server.patch_assertion(assertion)
+      end
+
+    handle_assertion(result, assertion, env, existing_error)
   end
 
   defp handle_assertion(result, assertion, env, existing_error \\ nil)
@@ -294,16 +296,15 @@ defmodule Mneme.Assertion do
     build_and_select_pattern(assertion, :first)
   end
 
-  defp build_and_select_pattern(
-         %{stage: :update, value: value, rich_ast: ast} = assertion,
-         :infer
-       ) do
-    [expr, guard] =
+  defp build_and_select_pattern(%{stage: :update, value: value, rich_ast: ast} = assertion, :infer) do
+    subexpressions =
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
       end
-      |> Enum.map(&simplify_expr/1)
+
+    [expr, guard] =
+      Enum.map(subexpressions, &simplify_expr/1)
 
     patterns = PatternBuilder.to_patterns(value, assertion.context)
 
@@ -344,7 +345,8 @@ defmodule Mneme.Assertion do
     # more similar than empty ones, but lists sharing content will be
     # considered even more similar
     min(length(l1), length(l2)) +
-      (Enum.zip(l1, l2)
+      (l1
+       |> Enum.zip(l2)
        |> Enum.map(fn {el1, el2} -> similarity_score(el1, el2) end)
        |> Enum.sum())
   end
@@ -359,21 +361,18 @@ defmodule Mneme.Assertion do
   Select the previous pattern.
   """
   def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion) do
-    %{assertion | pattern_idx: length(ps) - 1}
-    |> regenerate_code()
+    regenerate_code(%{assertion | pattern_idx: length(ps) - 1})
   end
 
   def prev(%Assertion{pattern_idx: idx} = assertion) do
-    %{assertion | pattern_idx: idx - 1}
-    |> regenerate_code()
+    regenerate_code(%{assertion | pattern_idx: idx - 1})
   end
 
   @doc """
   Select the next pattern.
   """
   def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion) do
-    %{assertion | pattern_idx: rem(idx + 1, length(ps))}
-    |> regenerate_code()
+    regenerate_code(%{assertion | pattern_idx: rem(idx + 1, length(ps))})
   end
 
   @doc """
@@ -422,8 +421,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
-    {:auto_assert, meta(ast),
-     [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
+    {:auto_assert, meta(ast), [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
   end
 
   defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, nil}) do
@@ -449,8 +447,7 @@ defmodule Mneme.Assertion do
     {:auto_assert_received, Keyword.delete(meta(ast), :closing), [maybe_when(pattern)]}
   end
 
-  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil})
-       when falsy in [false, nil] do
+  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil}) when falsy in [false, nil] do
     {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
@@ -512,8 +509,7 @@ defmodule Mneme.Assertion do
 
   # ExUnit assert arguments must evaluate to a truthy value, so we eval
   # a comparison instead of pattern match
-  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy)
-      when falsy in [nil, false] do
+  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy) when falsy in [nil, false] do
     {:assert, [], [{:==, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 

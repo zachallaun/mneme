@@ -3,8 +3,8 @@ defmodule Mneme.Patcher do
 
   alias Mneme.Assertion
   alias Mneme.Terminal
-  alias Sourceror.Zipper
   alias Rewrite.Source
+  alias Sourceror.Zipper
 
   @type state :: Rewrite.t()
   @type source :: Source.t()

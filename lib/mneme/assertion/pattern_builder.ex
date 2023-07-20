@@ -163,10 +163,7 @@ defmodule Mneme.Assertion.PatternBuilder do
       end
 
     {patterns, vars} =
-      (sub_maps ++ [map])
-      |> Enum.flat_map_reduce(vars, fn map, vars ->
-        enumerate_map_patterns(map, context, vars)
-      end)
+      Enum.flat_map_reduce(sub_maps ++ [map], vars, fn map, vars -> enumerate_map_patterns(map, context, vars) end)
 
     if contains_empty_map_pattern?(patterns) do
       {patterns, vars}
@@ -316,8 +313,10 @@ defmodule Mneme.Assertion.PatternBuilder do
 
     aliases = aliased |> Module.split() |> Enum.map(&String.to_atom/1)
 
-    {:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_pattern.expr]}
-    |> Pattern.new(guard: map_pattern.guard, notes: extra_notes ++ map_pattern.notes)
+    Pattern.new({:%, with_meta(context), [{:__aliases__, with_meta(context), aliases}, map_pattern.expr]},
+      guard: map_pattern.guard,
+      notes: extra_notes ++ map_pattern.notes
+    )
   end
 
   defp ecto_schema?(module) do
@@ -375,17 +374,11 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp charlist_pattern(charlist, context) do
-    Pattern.new(
-      {:sigil_c, with_meta([delimiter: ~S(")], context),
-       [{:<<>>, [], [List.to_string(charlist)]}, []]}
-    )
+    Pattern.new({:sigil_c, with_meta([delimiter: ~S(")], context), [{:<<>>, [], [List.to_string(charlist)]}, []]})
   end
 
   defp heredoc_pattern(string, context) do
-    Pattern.new(
-      {:__block__, with_meta([delimiter: ~S(""")], context),
-       [string |> escape() |> format_for_heredoc()]}
-    )
+    Pattern.new({:__block__, with_meta([delimiter: ~S(""")], context), [string |> escape() |> format_for_heredoc()]})
   end
 
   defp format_for_heredoc(string) when is_binary(string) do

@@ -17,8 +17,8 @@ defmodule Mneme.Assertion.PatternBuilderTest do
                 max_runs: 2_000,
                 max_run_time: 5_000 do
         for pattern <- to_patterns(term) do
-          Mneme.Assertion.build(
-            :auto_assert,
+          :auto_assert
+          |> Mneme.Assertion.build(
             [{:<-, [], [pattern, {:term, [], nil}]}],
             __ENV__,
             opts
@@ -63,9 +63,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       self = self()
       auto_assert(["pid when is_pid(pid)"] <- to_pattern_strings(self))
 
-      auto_assert(
-        ["^me", "pid when is_pid(pid)"] <- to_pattern_strings(self, binding: [me: self])
-      )
+      auto_assert(["^me", "pid when is_pid(pid)"] <- to_pattern_strings(self, binding: [me: self]))
 
       {:ok, port} = :gen_tcp.listen(0, [])
 

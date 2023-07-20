@@ -122,7 +122,7 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:capture_formatter, io_pid}, _from, state) do
-    {:reply, :ok, state |> Map.put(:io_pid, io_pid)}
+    {:reply, :ok, Map.put(state, :io_pid, io_pid)}
   end
 
   def handle_call({:formatter, {:test_started, test}}, _from, state) do
@@ -171,13 +171,16 @@ defmodule Mneme.Server do
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter)
     GenServer.reply(from, reply)
 
-    case {reply, assertion.stage} do
-      {{:ok, _}, :new} -> inc_stat(state, :new)
-      {{:ok, _}, :update} -> inc_stat(state, :updated)
-      {{:error, :skipped}, _} -> inc_stat(state, :skipped)
-      {{:error, :rejected}, _} -> inc_stat(state, :rejected)
-      _ -> state
-    end
+    state =
+      case {reply, assertion.stage} do
+        {{:ok, _}, :new} -> inc_stat(state, :new)
+        {{:ok, _}, :update} -> inc_stat(state, :updated)
+        {{:error, :skipped}, _} -> inc_stat(state, :skipped)
+        {{:error, :rejected}, _} -> inc_stat(state, :rejected)
+        _ -> state
+      end
+
+    state
     |> Map.put(:patch_state, patch_state)
     |> Map.put(:current_module, assertion.context.module)
   end
@@ -228,8 +231,7 @@ defmodule Mneme.Server do
         Enum.map(files, &["  * ", &1, "\n"])
       ]
 
-      ["\n", Owl.Data.tag(["[Mneme] ", message], :red)]
-      |> Owl.IO.puts()
+      Owl.IO.puts(["\n", Owl.Data.tag(["[Mneme] ", message], :red)])
     end)
   end
 
@@ -238,8 +240,7 @@ defmodule Mneme.Server do
       fun && fun.()
 
       exit_status =
-        ExUnit.configuration()
-        |> Keyword.fetch!(:exit_status)
+        Keyword.fetch!(ExUnit.configuration(), :exit_status)
 
       exit({:shutdown, exit_status})
     end)

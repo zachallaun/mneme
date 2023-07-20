@@ -1,5 +1,6 @@
 # requires Elixir >= 1.15.0
 defmodule Mneme.DiffTest_1_15 do
+  @moduledoc false
   use ExUnit.Case, async: true
   use Mneme, default_pattern: :last, diff: :text
 

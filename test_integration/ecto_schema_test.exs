@@ -3,6 +3,7 @@ defmodule Mneme.Integration.EctoSchemaTest do
   use Mneme
 
   defmodule User do
+    @moduledoc false
     use Ecto.Schema
 
     schema "users" do
@@ -12,6 +13,7 @@ defmodule Mneme.Integration.EctoSchemaTest do
   end
 
   defmodule Post do
+    @moduledoc false
     use Ecto.Schema
 
     schema "posts" do
@@ -22,6 +24,7 @@ defmodule Mneme.Integration.EctoSchemaTest do
   end
 
   defmodule Thread do
+    @moduledoc false
     use Ecto.Schema
 
     schema "threads" do
@@ -89,7 +92,7 @@ defmodule Mneme.Integration.EctoSchemaTest do
 
     attrs =
       Enum.into(attrs, %{
-        id: System.monotonic_time() |> abs(),
+        id: abs(System.monotonic_time()),
         inserted_at: now,
         updated_at: now
       })
