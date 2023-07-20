@@ -95,8 +95,7 @@ defmodule Mneme.Diff.AST do
     normalize_node({var, metadata, args})
   end
 
-  defp normalize_node({name, metadata, context})
-       when is_atom(name) and is_atom(context) do
+  defp normalize_node({name, metadata, context}) when is_atom(name) and is_atom(context) do
     {:var, normalize_metadata(metadata), name}
   end
 
@@ -141,9 +140,7 @@ defmodule Mneme.Diff.AST do
   end
 
   # Handles :"atoms#{with_interpolation}"
-  defp normalize_node(
-         {{:., _, [:erlang, :binary_to_atom]}, metadata, [{:<<>>, _, segments}, :utf8]}
-       ) do
+  defp normalize_node({{:., _, [:erlang, :binary_to_atom]}, metadata, [{:<<>>, _, segments}, :utf8]}) do
     metadata = normalize_metadata(metadata)
     start_pos = Keyword.take(metadata, [:line, :column])
 
@@ -236,8 +233,7 @@ defmodule Mneme.Diff.AST do
 
     sigil_string = {:string, [line: metadata[:line], column: metadata[:column] + 1], sigil}
 
-    {:"~", normalize_metadata(metadata),
-     [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
+    {:"~", normalize_metadata(metadata), [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
   end
 
   defp normalize_interpolation(segments, start_pos) do
@@ -335,7 +331,8 @@ defmodule Mneme.Diff.AST do
   Performs a depth-first, pre-order traversal of quoted expressions.
   """
   def prewalk(ast, fun) when is_function(fun, 1) do
-    prewalk(ast, nil, fn x, nil -> {fun.(x), nil} end)
+    ast
+    |> prewalk(nil, fn x, nil -> {fun.(x), nil} end)
     |> elem(0)
   end
 
@@ -351,7 +348,8 @@ defmodule Mneme.Diff.AST do
   Performs a depth-first, post-order traversal of quoted expressions.
   """
   def postwalk(ast, fun) when is_function(fun, 1) do
-    postwalk(ast, nil, fn x, nil -> {fun.(x), nil} end)
+    ast
+    |> postwalk(nil, fn x, nil -> {fun.(x), nil} end)
     |> elem(0)
   end
 

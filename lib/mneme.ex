@@ -91,7 +91,9 @@ defmodule Mneme do
   defmacro __using__(opts) do
     quote do
       import Mneme, only: :macros
+
       require Mneme.Options
+
       Mneme.Options.register_attributes(unquote(opts))
     end
   end

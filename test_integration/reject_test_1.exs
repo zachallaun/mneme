@@ -1,5 +1,6 @@
 # exit: 2
 defmodule Mneme.Integration.RejectTest1 do
+  @moduledoc false
   use ExUnit.Case
   use Mneme
 

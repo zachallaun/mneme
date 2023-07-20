@@ -1,6 +1,7 @@
 defmodule Mneme.AssertionTest do
   use ExUnit.Case, async: true
   use Mneme
+
   alias Mneme.Assertion
 
   {_formatter, opts} = Mix.Tasks.Format.formatter_for_file(__ENV__.file)
@@ -81,8 +82,7 @@ defmodule Mneme.AssertionTest do
       auto_assert [
                     mneme: "auto_assert_raise ArgumentError, fn -> :ok end",
                     ex_unit: "assert_raise ArgumentError, fn -> :ok end",
-                    eval:
-                      "assert_raise ArgumentError, fn -> raise %ArgumentError{message: \"argument error\"} end"
+                    eval: "assert_raise ArgumentError, fn -> raise %ArgumentError{message: \"argument error\"} end"
                   ] <- targets(ast, %ArgumentError{})
     end
 
@@ -92,8 +92,7 @@ defmodule Mneme.AssertionTest do
       auto_assert [
                     mneme: "auto_assert_raise ArgumentError, \"message\", fn -> :ok end",
                     ex_unit: "assert_raise ArgumentError, \"message\", fn -> :ok end",
-                    eval:
-                      "assert_raise ArgumentError, \"message\", fn -> raise %ArgumentError{message: \"message\"} end"
+                    eval: "assert_raise ArgumentError, \"message\", fn -> raise %ArgumentError{message: \"message\"} end"
                   ] <- targets(ast, %ArgumentError{message: "message"})
     end
 
@@ -101,10 +100,8 @@ defmodule Mneme.AssertionTest do
       ast = quote(do: auto_assert_raise(ArgumentError, "", fn -> :ok end))
 
       auto_assert [
-                    mneme:
-                      "auto_assert_raise ArgumentError, \"This \\\"is\\\" a\\\\nmessage\", fn -> :ok end",
-                    ex_unit:
-                      "assert_raise ArgumentError, \"This \\\"is\\\" a\\nmessage\", fn -> :ok end",
+                    mneme: "auto_assert_raise ArgumentError, \"This \\\"is\\\" a\\\\nmessage\", fn -> :ok end",
+                    ex_unit: "assert_raise ArgumentError, \"This \\\"is\\\" a\\nmessage\", fn -> :ok end",
                     eval: """
                     assert_raise ArgumentError, "This \\"is\\" a\\nmessage", fn ->
                       raise %ArgumentError{message: "This \\"is\\" a\\nmessage"}
@@ -117,8 +114,7 @@ defmodule Mneme.AssertionTest do
       ast = quote(do: auto_assert_raise(ArgumentError, "", fn -> :ok end))
 
       auto_assert [
-                    mneme:
-                      "auto_assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
+                    mneme: "auto_assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
                     ex_unit: "assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
                     eval:
                       "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> raise %ArgumentError{message: \"foo\nbar\nbaz\n\"} end"
@@ -231,16 +227,16 @@ defmodule Mneme.AssertionTest do
 
   defp targets(ast, value, context \\ %{}) do
     assertion =
-      Assertion.new(ast, value, context)
+      ast
+      |> Assertion.new(value, context)
       |> Assertion.prepare_for_patch(ast)
 
     ex_unit_assertion =
-      %{assertion | options: Map.put(assertion.options, :target, :ex_unit)}
-      |> Assertion.prepare_for_patch()
+      Assertion.prepare_for_patch(%{assertion | options: Map.put(assertion.options, :target, :ex_unit)})
 
     [
-      mneme: assertion.code |> Sourceror.to_string(@format_opts),
-      ex_unit: ex_unit_assertion.code |> Sourceror.to_string(@format_opts),
+      mneme: Sourceror.to_string(assertion.code, @format_opts),
+      ex_unit: Sourceror.to_string(ex_unit_assertion.code, @format_opts),
       eval: assertion |> Assertion.code_for_eval() |> Sourceror.to_string(@format_opts)
     ]
   end

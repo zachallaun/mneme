@@ -37,8 +37,7 @@ defmodule Mneme.Integration.FormatTest do
       # y
       auto_assert {:ok,
                    %{
-                     database:
-                       {:literal, "\"my_app_test\#{System.get_env(\"MIX_TEST_PARTITION\")}\""}
+                     database: {:literal, "\"my_app_test\#{System.get_env(\"MIX_TEST_PARTITION\")}\""}
                    }} <- res
     end
   end

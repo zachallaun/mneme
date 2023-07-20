@@ -14,6 +14,7 @@ defmodule Mneme.Integration do
   alias Rewrite.Source
 
   defmodule TestError do
+    @moduledoc false
     defexception [:message]
   end
 
@@ -92,10 +93,8 @@ defmodule Mneme.Integration do
 
     errors =
       [
-        {exit_code == test.expected_exit_code,
-         "Exit code was #{exit_code} (expected #{test.expected_exit_code})"},
-        {code_after_test == test.expected_code,
-         diff("Source", test.expected_code, code_after_test)}
+        {exit_code == test.expected_exit_code, "Exit code was #{exit_code} (expected #{test.expected_exit_code})"},
+        {code_after_test == test.expected_code, diff("Source", test.expected_code, code_after_test)}
       ]
       |> Enum.reject(fn {check, _} -> check end)
       |> Enum.map(fn {_, message} -> message end)
@@ -134,11 +133,10 @@ defmodule Mneme.Integration do
 
   defp debug_output(debug, test, code_after, output) do
     if String.contains?(test.path, debug) do
-      [
+      Owl.IO.puts([
         [Owl.Data.tag("Actual:\n\n", :cyan), code_after, "\n"],
         [Owl.Data.tag("\n\nOutput:\n", :cyan), output, "\n"]
-      ]
-      |> Owl.IO.puts()
+      ])
     end
   end
 
@@ -203,7 +201,8 @@ defmodule Mneme.Integration do
   end
 
   defp required_versions({_, meta, _}) do
-    Enum.flat_map(meta[:leading_comments] || [], fn
+    (meta[:leading_comments] || [])
+    |> Enum.flat_map(fn
       %{text: "# version: " <> version_spec} -> [{:version, version_spec}]
       %{text: "# otp: " <> otp_spec} -> [{:otp, otp_spec}]
       _ -> []
@@ -246,8 +245,7 @@ defmodule Mneme.Integration do
     {:auto_assert_raise, meta, [List.last(args)]}
   end
 
-  defp transform({assert_receive, meta, _})
-       when assert_receive in [:auto_assert_receive, :auto_assert_received] do
+  defp transform({assert_receive, meta, _}) when assert_receive in [:auto_assert_receive, :auto_assert_received] do
     {assert_receive, meta, []}
   end
 
@@ -325,14 +323,13 @@ defmodule Mneme.Integration do
   defp module_metadata(_), do: %{exit_code: 0}
 
   defp diff(header, expected, actual) do
-    [
+    IO.iodata_to_binary([
       """
       #{header} does not match:
 
       """,
       Rewrite.TextDiff.format(expected, actual, format: [separator: "| "])
-    ]
-    |> IO.iodata_to_binary()
+    ])
   end
 
   defp eof_newline(string), do: String.trim_trailing(string) <> "\n"

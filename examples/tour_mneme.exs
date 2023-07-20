@@ -18,13 +18,12 @@ ExUnit.start(seed: 0)
 Mneme.start(dry_run: true)
 
 defmodule Tour do
+  @moduledoc false
   @prefix [Owl.Data.tag(" Tour ", [:magenta_background, :bright]), " "]
   @continue [Owl.Data.tag("      ", :magenta_background), " "]
 
   def await(message, prompt \\ "continue") do
-    [message, "\n\n", Owl.Data.tag("#{prompt} ⏎ ", :faint)]
-    |> puts()
-
+    puts([message, "\n\n", Owl.Data.tag("#{prompt} ⏎ ", :faint)])
     _ = IO.gets("")
 
     IO.puts(IO.ANSI.cursor_up(2))
@@ -36,8 +35,7 @@ defmodule Tour do
     [first | rest] = Owl.Data.lines(message)
 
     data =
-      [[], [@prefix, first] | Enum.map(rest, &[@continue, &1])]
-      |> Owl.Data.unlines()
+      Owl.Data.unlines([[], [@prefix, first] | Enum.map(rest, &[@continue, &1])])
 
     [data, "\n\n"]
     |> Owl.Data.to_ansidata()
@@ -49,6 +47,7 @@ end
 ##
 
 defmodule HTTPParser do
+  @moduledoc false
   def parse_request!(data, header_opt \\ :list) do
     case parse_request(data, header_opt) do
       {:ok, request} -> request
@@ -101,10 +100,12 @@ defmodule HTTPParser do
 end
 
 defmodule HTTPParserNormalizeKeys do
+  @moduledoc false
   def parse_request(data), do: HTTPParser.parse_request(data, :normalize)
 end
 
 defmodule HTTPParserListValues do
+  @moduledoc false
   def parse_request(data), do: HTTPParser.parse_request(data, :list)
 end
 

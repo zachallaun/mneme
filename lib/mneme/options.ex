@@ -221,7 +221,7 @@ defmodule Mneme.Options do
   defp collect_attributes(_), do: %{}
 
   defp collect_attributes(acc, lower_priority) do
-    new =
+    for_result =
       for attrs <- lower_priority, kv <- List.wrap(attrs), reduce: %{} do
         acc ->
           {k, v} =
@@ -232,6 +232,9 @@ defmodule Mneme.Options do
 
           Map.update(acc, k, [v], &[v | &1])
       end
+
+    new =
+      for_result
       |> Enum.map(fn {k, vs} -> {k, Enum.reverse(vs)} end)
       |> Map.new()
 

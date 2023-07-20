@@ -100,7 +100,7 @@ defmodule Mneme.Diff.Zipper do
   def up({_, nil}), do: nil
 
   def up({tree, meta}) do
-    children = Enum.reverse(meta.l || []) ++ [tree] ++ (meta.r || [])
+    children = Enum.reverse(meta.l || [], [tree] ++ (meta.r || []))
     {parent, parent_meta} = meta.ptree
     {make_node(parent, children), parent_meta}
   end
@@ -110,8 +110,7 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the zipper of the left sibling of the node at this zipper, or nil.
   """
-  def left({tree, %{l: [ltree | l], r: r} = meta}),
-    do: {ltree, %{meta | l: l, r: [tree | r || []]}}
+  def left({tree, %{l: [ltree | l], r: r} = meta}), do: {ltree, %{meta | l: l, r: [tree | r || []]}}
 
   def left(_), do: nil
 
@@ -129,8 +128,7 @@ defmodule Mneme.Diff.Zipper do
   @doc """
   Returns the zipper of the right sibling of the node at this zipper, or nil.
   """
-  def right({tree, %{r: [rtree | r]} = meta}),
-    do: {rtree, %{meta | r: r, l: [tree | meta.l || []]}}
+  def right({tree, %{r: [rtree | r]} = meta}), do: {rtree, %{meta | r: r, l: [tree | meta.l || []]}}
 
   def right(_), do: nil
 
@@ -192,8 +190,7 @@ defmodule Mneme.Diff.Zipper do
   moving. Raises an `ArgumentError` when attempting to insert a sibling at the
   top level.
   """
-  def insert_left({_, nil}, _),
-    do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
+  def insert_left({_, nil}, _), do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
 
   def insert_left({tree, meta}, child) do
     {tree, %{meta | l: [child | meta.l || []]}}
@@ -204,8 +201,7 @@ defmodule Mneme.Diff.Zipper do
   moving. Raises an `ArgumentError` when attempting to insert a sibling at the
   top level.
   """
-  def insert_right({_, nil}, _),
-    do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
+  def insert_right({_, nil}, _), do: raise(ArgumentError, message: "Can't insert siblings at the top level.")
 
   def insert_right({tree, meta}, child) do
     {tree, %{meta | r: [child | meta.r || []]}}
@@ -407,8 +403,7 @@ defmodule Mneme.Diff.Zipper do
 
   def find(nil, _direction, _predicate), do: nil
 
-  def find({tree, _} = zipper, direction, predicate)
-      when direction in [:next, :prev] and is_function(predicate) do
+  def find({tree, _} = zipper, direction, predicate) when direction in [:next, :prev] and is_function(predicate) do
     if predicate.(tree) do
       zipper
     else

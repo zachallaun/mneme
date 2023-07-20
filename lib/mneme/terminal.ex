@@ -259,13 +259,15 @@ defmodule Mneme.Terminal do
   end
 
   defp format_input_options(nav) do
-    [
-      [tag("y", :green), " ", tag("yes", :faint)],
-      [tag("n", :red), " ", tag("no", :faint)],
-      [tag("s", :yellow), " ", tag("skip", :faint)],
-      format_nav_options(nav)
-    ]
-    |> Enum.intersperse(["  "])
+    Enum.intersperse(
+      [
+        [tag("y", :green), " ", tag("yes", :faint)],
+        [tag("n", :red), " ", tag("no", :faint)],
+        [tag("s", :yellow), " ", tag("skip", :faint)],
+        format_nav_options(nav)
+      ],
+      ["  "]
+    )
   end
 
   defp format_nav_options({_, 1}), do: ""
