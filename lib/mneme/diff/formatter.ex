@@ -84,17 +84,15 @@ defmodule Mneme.Diff.Formatter do
     instructions
     |> Enum.flat_map(fn
       {op, kind, zipper} ->
-        # dbg({kind, op, Zipper.node(zipper)})
-        to_fmt_instructions(kind, op, Zipper.node(zipper), zipper)
+        to_fmt_instructions(kind, op, zipper)
 
       {op, :node, zipper, edit_script} ->
-        # dbg({:node, op, Zipper.node(zipper)})
-        edit_script_to_fmt_instructions(op, Zipper.node(zipper), edit_script)
+        edit_script_to_fmt_instructions(op, zipper, edit_script)
     end)
     |> Enum.sort_by(&elem(&1, 1), :desc)
   end
 
-  defp to_fmt_instructions(:node, op, {:{}, tuple_meta, [left, right]} = node, _) do
+  defp to_fmt_instructions(:node, op, {{:{}, tuple_meta, [left, right]} = node, _}) do
     case tuple_meta do
       %{closing: _} ->
         [fmt(op, bounds(node))]
@@ -106,7 +104,7 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp to_fmt_instructions(:node, op, {:var, meta, var}, zipper) do
+  defp to_fmt_instructions(:node, op, {{:var, meta, var}, _} = zipper) do
     var_bounds = bounds({:var, meta, var})
     {{l, c}, {l2, c2}} = var_bounds
 
@@ -125,9 +123,9 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp to_fmt_instructions(:node, _op, [], _zipper), do: []
+  defp to_fmt_instructions(:node, _op, {[], _}), do: []
 
-  defp to_fmt_instructions(:node, op, node, _zipper) do
+  defp to_fmt_instructions(:node, op, {node, _}) do
     if bounds = bounds(node) do
       [fmt(op, bounds)]
     else
@@ -135,7 +133,7 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:%, meta, [name, _]}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:%, meta, [name, _]}, _}) do
     [struct_start, struct_end] = delimiter_to_fmt_instructions(op, meta, 1, 1)
     {_, {name_end_l, name_end_c}} = bounds(name)
 
@@ -146,25 +144,25 @@ defmodule Mneme.Diff.Formatter do
     ]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:.., %{line: l, column: c}, [_, _]}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:.., %{line: l, column: c}, [_, _]}, _}) do
     [fmt(op, {{l, c}, {l, c + 2}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:"..//", %{line: l, column: c}, [_, range_end, _]}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:"..//", %{line: l, column: c}, [_, range_end, _]}, _}) do
     {_, {l2, c2}} = bounds(range_end)
 
     [fmt(op, {{l, c}, {l, c + 2}}), fmt(op, {{l2, c2}, {l2, c2 + 2}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:"[]", meta, _}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:"[]", meta, _}, _}) do
     delimiter_to_fmt_instructions(op, meta, 1, 1)
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:{}, meta, _}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:{}, meta, _}, _}) do
     delimiter_to_fmt_instructions(op, meta, 1, 1)
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:%{}, meta, _}, zipper) do
+  defp to_fmt_instructions(:delimiter, op, {{:%{}, meta, _}, _} = zipper) do
     case zipper |> Zipper.up() |> Zipper.node() do
       {:%, %{line: l, column: c}, _} ->
         [fmt(op, {{l, c}, {l, c + 1}}) | delimiter_to_fmt_instructions(op, meta, 1, 1)]
@@ -174,43 +172,43 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp to_fmt_instructions(:delimiter, op, {:"~", %{line: l, column: c}, [{:string, _, sigil}, _, _]}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{:"~", %{line: l, column: c}, [{:string, _, sigil}, _, _]}, _}) do
     [fmt(op, {{l, c}, {l, c + 1 + String.length(sigil)}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _}, _)
+  defp to_fmt_instructions(:delimiter, op, {{call, %{line: l, column: c, closing: %{line: l2, column: c2}}, _}, _})
        when is_atom(call) do
     len = :remote_call |> Macro.inspect_atom(call) |> String.length()
     [fmt(op, {{l, c}, {l, c + len + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {call, %{line: l, column: c}, _}, _) when is_atom(call) do
+  defp to_fmt_instructions(:delimiter, op, {{call, %{line: l, column: c}, _}, _}) when is_atom(call) do
     len = :remote_call |> Macro.inspect_atom(call) |> String.length()
     [fmt(op, {{l, c}, {l, c + len}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{{:., _, [_left, right]}, %{closing: %{line: l2, column: c2}}, _}, _}) do
     {_, {l, c}} = bounds(right)
     [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
-  defp to_fmt_instructions(:delimiter, op, {{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _}, _) do
+  defp to_fmt_instructions(:delimiter, op, {{{:., _, [var]}, %{closing: %{line: l2, column: c2}}, _}, _}) do
     {_, {l, c}} = bounds(var)
     [fmt(op, {{l, c}, {l, c + 1}}), fmt(op, {{l2, c2}, {l2, c2 + 1}})]
   end
 
   # Dot call delimiter with no parens, nothing to highlight
-  defp to_fmt_instructions(:delimiter, _op, {{:., _, _}, _, _}, _), do: []
+  defp to_fmt_instructions(:delimiter, _op, {{{:., _, _}, _, _}, _}), do: []
 
-  defp to_fmt_instructions(:delimiter, op, {atom, %{line: l, column: c}, _}, _) when is_atom(atom) do
+  defp to_fmt_instructions(:delimiter, op, {{atom, %{line: l, column: c}, _}, _}) when is_atom(atom) do
     len = :remote_call |> Macro.inspect_atom(atom) |> String.length()
     [fmt(op, {{l, c}, {l, c + len}})]
   end
 
   # list literals and 2-tuples are structural only in the AST and cannot
   # be highlighted
-  defp to_fmt_instructions(:delimiter, _op, list, _) when is_list(list), do: []
-  defp to_fmt_instructions(:delimiter, _op, {_, _}, _), do: []
+  defp to_fmt_instructions(:delimiter, _op, {list, _}) when is_list(list), do: []
+  defp to_fmt_instructions(:delimiter, _op, {{_, _}, _}), do: []
 
   defp delimiter_to_fmt_instructions(op, meta, start_len, end_len) do
     case meta do
@@ -222,7 +220,7 @@ defmodule Mneme.Diff.Formatter do
     end
   end
 
-  defp edit_script_to_fmt_instructions(op, {_, meta, _}, edit_script) do
+  defp edit_script_to_fmt_instructions(op, {{_, meta, _}, _}, edit_script) do
     %{line: l_start, column: c_start, delimiter: del} = meta
 
     {l, c} =
