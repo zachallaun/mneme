@@ -92,11 +92,15 @@ defmodule Mneme.Patcher do
   end
 
   defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, counter) do
-    diff = %{left: Source.Ex.format(assertion.rich_ast), right: Source.Ex.format(assertion.code)}
+    diff = %{left: format(assertion.rich_ast), right: format(assertion.code)}
     Terminal.prompt!(assertion, counter, diff)
   end
 
   defp prompt_change(%Assertion{options: %{action: action}}, _), do: action
+
+  defp format(ast) do
+    ast |> Source.Ex.format() |> String.trim()
+  end
 
   defp prepare_assertion(assertion, project) do
     source = Rewrite.source!(project, assertion.context.file)
