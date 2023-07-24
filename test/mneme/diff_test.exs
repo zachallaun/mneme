@@ -902,6 +902,62 @@ defmodule Mneme.DiffTest do
                     )
     end
 
+    # https://difftastic.wilfred.me.uk/tricky_cases.html
+    test "tricky cases h/t difftastic" do
+      auto_assert {nil,
+                   [
+                     [
+                       %Tag{data: "[", sequences: [:green]},
+                       "x",
+                       %Tag{data: "]", sequences: [:green]}
+                     ]
+                   ]} <- format("x", "[x]")
+
+      auto_assert {[
+                     [%Tag{data: "{", sequences: [:red]}, "x", %Tag{data: "}", sequences: [:red]}]
+                   ],
+                   [
+                     [
+                       %Tag{data: "[", sequences: [:green]},
+                       "x",
+                       %Tag{data: "]", sequences: [:green]}
+                     ]
+                   ]} <- format("{x}", "[x]")
+
+      auto_assert {[["{[x], ", %Tag{data: "y", sequences: [:red]}, "}"]],
+                   [["{[x, ", %Tag{data: "y", sequences: [:green]}, "]}"]]} <-
+                    format("{[x], y}", "{[x, y]}")
+
+      auto_assert {[["{[x, ", %Tag{data: "y", sequences: [:red]}, "]}"]],
+                   [["{[x], ", %Tag{data: "y", sequences: [:green]}, "}"]]} <-
+                    format("{[x, y]}", "{[x], y}")
+
+      auto_assert {nil, [["[foo, ", %Tag{data: "[new]", sequences: [:green]}, ", [bar]]"]]} <-
+                    format("[foo, [bar]]", "[foo, [new], [bar]]")
+
+      auto_assert {nil,
+                   [
+                     [
+                       "foo(",
+                       %Tag{data: "new(", sequences: [:green]},
+                       "bar(123)",
+                       %Tag{data: ")", sequences: [:green]},
+                       ")"
+                     ]
+                   ]} <- format("foo(bar(123))", "foo(new(bar(123)))")
+
+      auto_assert {nil,
+                   [
+                     [
+                       "foo(",
+                       %Tag{data: "bar(", sequences: [:green]},
+                       "123",
+                       %Tag{data: ")", sequences: [:green]},
+                       ")"
+                     ]
+                   ]} <- format("foo(123)", "foo(bar(123))")
+    end
+
     # TODO: This could possibly be improved.
     test "regression: unnecessary novel nodes" do
       auto_assert {[
