@@ -74,13 +74,18 @@ end
 import Helpers
 ```
 
-## Scratchpad
-
 ````elixir
 defmodule KinoDiff do
   alias Mneme.Diff
   alias Mneme.Diff.Delta
   alias Mneme.Diff.SyntaxNode
+
+  @colors [
+    ins: [:white, :green_background],
+    ins_highlight: [:white, :green_background, :bright],
+    del: [:white, :red_background],
+    del_highlight: [:white, :red_background, :bright]
+  ]
 
   defstruct [:highlighted]
 
@@ -113,7 +118,7 @@ defmodule KinoDiff do
   def highlight(code, instructions) do
     text =
       code
-      |> Diff.format_lines(instructions)
+      |> Diff.Formatter.highlight_lines(instructions, colors: @colors)
       |> Owl.Data.unlines()
       |> Owl.Data.to_ansidata()
       |> IO.iodata_to_binary()
@@ -124,15 +129,11 @@ defmodule KinoDiff do
   def render({left, right}, [delta | _] = path) do
     cost = path |> Enum.map(&Delta.cost/1) |> Enum.sum()
 
-    Kino.Layout.grid(
-      [
-        Kino.Markdown.new("**Current cost:** #{cost}"),
-        render_delta(delta),
-        left,
-        right
-      ],
-      boxed: true
-    )
+    Kino.Layout.grid([
+      Kino.Markdown.new("**Current cost:** #{cost}"),
+      render_delta(delta),
+      Kino.Layout.grid([left, right], columns: 2)
+    ])
   end
 
   defp render_delta(%{changed?: false, kind: kind, node: node}) do
@@ -164,6 +165,8 @@ defmodule KinoDiff do
   end
 end
 ````
+
+## Scratchpad
 
 <!-- livebook:{"reevaluate_automatically":true} -->
 

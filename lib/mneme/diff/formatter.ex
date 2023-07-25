@@ -17,13 +17,18 @@ defmodule Mneme.Diff.Formatter do
 
   @doc """
   Highlights the given code based on the instructions.
+
+  ## Options
+
+    * `:colors` - keyword list with color keys `:ins`, `:ins_highlight`,
+      `:del`, and `:del_highlight`
   """
-  @spec highlight_lines(String.t(), [Diff.instruction()]) :: Owl.Data.t()
-  def highlight_lines(code, instructions) do
+  @spec highlight_lines(String.t(), [Diff.instruction()], keyword()) :: Owl.Data.t()
+  def highlight_lines(code, instructions, opts \\ []) do
     lines = code |> Owl.Data.lines() |> Enum.reverse()
     [last_line | earlier_lines] = lines
     fmt_instructions = to_fmt_instructions(instructions)
-    highlighted = highlight(fmt_instructions, length(lines), last_line, earlier_lines)
+    highlighted = highlight(fmt_instructions, length(lines), last_line, earlier_lines, opts)
 
     Enum.map(highlighted, fn
       list when is_list(list) ->
@@ -41,42 +46,42 @@ defmodule Mneme.Diff.Formatter do
 
   defp fmt(_op, bounds), do: raise(ArgumentError, "invalid bounds: #{inspect(bounds)}")
 
-  defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [])
+  defp highlight(instructions, line_no, current_line, earlier_lines, line_acc \\ [], acc \\ [], opts)
 
-  defp highlight([], _, current_line, earlier_lines, line_acc, acc) do
+  defp highlight([], _, current_line, earlier_lines, line_acc, acc, _) do
     Enum.reverse(earlier_lines, [[current_line | line_acc] | acc])
   end
 
   # no-content highlight
-  defp highlight([{_, {{l, c}, {l, c}}} | rest], l, line, earlier, line_acc, acc) do
-    highlight(rest, l, line, earlier, line_acc, acc)
+  defp highlight([{_, {{l, c}, {l, c}}} | rest], l, line, earlier, line_acc, acc, opts) do
+    highlight(rest, l, line, earlier, line_acc, acc, opts)
   end
 
   # single-line highlight
-  defp highlight([{op, {{l, c}, {l, c2}}} | rest], l, line, earlier, line_acc, acc) do
+  defp highlight([{op, {{l, c}, {l, c2}}} | rest], l, line, earlier, line_acc, acc, opts) do
     {start_line, rest_line} = String.split_at(line, c2 - 1)
     {start_line, token} = String.split_at(start_line, c - 1)
-    highlight(rest, l, start_line, earlier, [tag(token, op), rest_line | line_acc], acc)
+    highlight(rest, l, start_line, earlier, [tag(token, op, opts), rest_line | line_acc], acc, opts)
   end
 
   # bottom of a multi-line highlight
-  defp highlight([{op, {{l, _}, {l2, c2}}} | _] = hl, l2, line, earlier, line_acc, acc) when l2 > l do
+  defp highlight([{op, {{l, _}, {l2, c2}}} | _] = hl, l2, line, earlier, line_acc, acc, opts) when l2 > l do
     {token, rest_line} = String.split_at(line, c2 - 1)
-    lines = earlier |> Enum.take(l2 - l - 1) |> Enum.reverse() |> Enum.map(&tag(&1, op))
+    lines = earlier |> Enum.take(l2 - l - 1) |> Enum.reverse() |> Enum.map(&tag(&1, op, opts))
     [next | rest_earlier] = Enum.drop(earlier, l2 - l - 1)
-    acc = lines ++ [[tag(token, op), rest_line | line_acc] | acc]
+    acc = lines ++ [[tag(token, op, opts), rest_line | line_acc] | acc]
 
-    highlight(hl, l, next, rest_earlier, [], acc)
+    highlight(hl, l, next, rest_earlier, [], acc, opts)
   end
 
   # top of a multi-line highlight
-  defp highlight([{op, {{l, c}, _}} | rest], l, line, earlier, [], acc) do
+  defp highlight([{op, {{l, c}, _}} | rest], l, line, earlier, [], acc, opts) do
     {start_line, token} = String.split_at(line, c - 1)
-    highlight(rest, l, start_line, earlier, [tag(token, op)], acc)
+    highlight(rest, l, start_line, earlier, [tag(token, op, opts)], acc, opts)
   end
 
-  defp highlight(instructions, l, line, [next | rest_earlier], line_acc, acc) do
-    highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc])
+  defp highlight(instructions, l, line, [next | rest_earlier], line_acc, acc, opts) do
+    highlight(instructions, l - 1, next, rest_earlier, [], [[line | line_acc] | acc], opts)
   end
 
   @spec to_fmt_instructions([Diff.instruction()]) :: [fmt_instruction]
@@ -391,9 +396,10 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
-  defp tag(data, :ins), do: Owl.Data.tag(data, [:bright, :green])
-  defp tag(data, :del), do: Owl.Data.tag(data, [:bright, :red])
+  defp tag(data, op, opts), do: Owl.Data.tag(data, get_color(opts, op))
 
-  defp tag(data, {:ins, :highlight}), do: Owl.Data.tag(data, [:bright, :green, :underline])
-  defp tag(data, {:del, :highlight}), do: Owl.Data.tag(data, [:bright, :red, :underline])
+  defp get_color(opts, {:ins, :highlight}), do: opts[:colors][:ins_highlight] || [:bright, :green, :underline]
+  defp get_color(opts, {:del, :highlight}), do: opts[:colors][:del_highlight] || [:bright, :red, :underline]
+  defp get_color(opts, :ins), do: opts[:colors][:ins] || :green
+  defp get_color(opts, :del), do: opts[:colors][:del] || :red
 end
