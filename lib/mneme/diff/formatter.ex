@@ -391,8 +391,8 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
-  defp tag(data, :ins), do: Owl.Data.tag(data, :green)
-  defp tag(data, :del), do: Owl.Data.tag(data, :red)
+  defp tag(data, :ins), do: Owl.Data.tag(data, [:bright, :green])
+  defp tag(data, :del), do: Owl.Data.tag(data, [:bright, :red])
 
   defp tag(data, {:ins, :highlight}), do: Owl.Data.tag(data, [:bright, :green, :underline])
   defp tag(data, {:del, :highlight}), do: Owl.Data.tag(data, [:bright, :red, :underline])

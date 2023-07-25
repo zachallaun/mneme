@@ -6,10 +6,10 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   alias Mneme.Diff.SyntaxNode, warn: false
 
-  @left root!("auto_assert some_call(1, 2, 3)")
-  @right root!("auto_assert :foo <- some_call(1, 2, 3)")
+  @left from_string!("auto_assert some_call(1, 2, 3)")
+  @right from_string!("auto_assert :foo <- some_call(1, 2, 3)")
 
-  describe "root/1" do
+  describe "from_string!/1" do
     test "creates a syntax node with a stable id and hash" do
       auto_assert %SyntaxNode{
                     branch?: true,
@@ -122,8 +122,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   describe "similar?/2" do
     test "compares syntax nodes based on content, not location in ast" do
-      node1 = root!("1")
-      node2 = "[1]" |> root!() |> next_child()
+      node1 = from_string!("1")
+      node2 = "[1]" |> from_string!() |> next_child()
 
       assert similar?(node1, node2)
     end
@@ -131,12 +131,12 @@ defmodule Mneme.Diff.SyntaxNodeTest do
 
   describe "similar_branch?/1" do
     test "compares syntax nodes based on branch" do
-      assert similar_branch?(root!("foo.bar"), root!("baz.buzz"))
-      assert similar_branch?(root!("foo(1)"), root!("foo(1, 2, 3)"))
-      assert similar_branch?(root!("[1, 2]"), root!("[3, 4, 5]"))
+      assert similar_branch?(from_string!("foo.bar"), from_string!("baz.buzz"))
+      assert similar_branch?(from_string!("foo(1)"), from_string!("foo(1, 2, 3)"))
+      assert similar_branch?(from_string!("[1, 2]"), from_string!("[3, 4, 5]"))
 
-      refute similar_branch?(root!("foo"), root!("foo"))
-      refute similar_branch?(root!("[1, 2]"), root!("{1, 2}"))
+      refute similar_branch?(from_string!("foo"), from_string!("foo"))
+      refute similar_branch?(from_string!("[1, 2]"), from_string!("{1, 2}"))
     end
   end
 end

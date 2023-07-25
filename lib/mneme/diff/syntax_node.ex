@@ -69,15 +69,17 @@ defmodule Mneme.Diff.SyntaxNode do
   def terminal_parent?({_, p}), do: next_sibling(p).terminal?
 
   @doc false
-  def root!(string) when is_binary(string) do
+  def from_string!(string) when is_binary(string) do
     string |> AST.parse_string!() |> root()
   end
 
-  @doc false
-  def roots!(left, right), do: {root!(left), root!(right)}
+  @doc """
+  Generate a syntax node by parsing the given strings.
+  """
+  def from_strings!(left, right), do: {from_string!(left), from_string!(right)}
 
   @doc false
-  def minimized_roots!(left, right), do: minimize_nodes(root!(left), root!(right))
+  def minimized_roots!(left, right), do: minimize_nodes(from_string!(left), from_string!(right))
 
   @doc """
   Creates a root syntax node from the given tree.

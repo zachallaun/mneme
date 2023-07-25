@@ -1,0 +1,174 @@
+# Diff Experiments
+
+```elixir
+Mix.install(
+  [
+    :kino,
+    :owl,
+    {:mneme, path: Path.expand("../../", __DIR__)}
+  ],
+  consolidate_protocols: false
+)
+```
+
+## Introduction
+
+This notebook is intended as a development aid for understanding what's going on under the hood when a semantic diff is performed. In particular, I'd like to:
+
+* Better understand & improve the cost model
+  * See multiple diff possibilities along with their costs (this will require some changes to the diff algo)
+  * Connect cost constants to some dynamic input such that it can be iterated on while providing visibility into how those changes affect the result
+* Fix cases where the diff algo allows syntactic transformations that create confusing diffs, like removing a branch, removing some nodes, "sliding an existing node" and adding the same branch back.
+
+```elixir
+alias Mneme.Diff
+alias Mneme.Diff.{AST, Delta, Formatter, SyntaxNode}
+alias Mneme.Diff.Zipper, as: Z
+Kino.nothing()
+```
+
+### An example to work with
+
+I'm going to start with a simplified version of the example from [gh#45](https://github.com/zachallaun/mneme/issues/45), where the current diff algorithm does some weird stuff.
+
+```elixir
+original = """
+{:"::", [line: 1, column: 5],
+ [
+   {{:., [line: 1, column: 5], [Kernel, :to_string]},
+    [closing: [line: 1, column: 10], line: 1, column: 5], [{:var, [line: 1, column: 5], :binary}]}
+ ]}
+"""
+
+modified = """
+{:"::", [line: 1, column: 5, closing: [line: 1, column: 10]],
+ [{:var, [line: 1, column: 5], :binary}]}
+"""
+
+{:ok, {left, right}} = Diff.format(original, modified)
+
+left
+|> Owl.Data.unlines()
+|> Owl.IO.puts()
+
+right
+|> Owl.Data.unlines()
+|> Owl.IO.puts()
+
+Kino.nothing()
+```
+
+## Helpers
+
+```elixir
+defmodule Helpers do
+  def kino_pagination(renderables) do
+    renderables
+    |> Enum.with_index(&{&2 + 1, &1})
+    |> Kino.Layout.tabs()
+  end
+end
+```
+
+```elixir
+import Helpers
+```
+
+## Scratchpad
+
+````elixir
+defmodule KinoDiff do
+  alias Mneme.Diff
+  alias Mneme.Diff.Delta
+  alias Mneme.Diff.SyntaxNode
+
+  defstruct [:highlighted]
+
+  def diff(left_code, right_code) do
+    {left, right} = SyntaxNode.from_strings!(left_code, right_code)
+    path = Diff.shortest_path({left, right, nil})
+
+    path
+    |> Enum.reverse()
+    |> diff_steps(left_code, right_code)
+    |> Enum.reverse()
+    |> Enum.with_index(&{&2 + 1, &1})
+    |> Kino.Layout.tabs()
+  end
+
+  defp diff_steps([_ | rest] = path, left_code, right_code) do
+    {left_changed, right_changed} = Diff.split_changed(path)
+    left_ins = Diff.to_instructions(left_changed, :del)
+    right_ins = Diff.to_instructions(right_changed, :ins)
+
+    step =
+      {highlight(left_code, left_ins), highlight(right_code, right_ins)}
+      |> render(path)
+
+    [step | diff_steps(rest, left_code, right_code)]
+  end
+
+  defp diff_steps([], _, _), do: []
+
+  def highlight(code, instructions) do
+    text =
+      code
+      |> Diff.format_lines(instructions)
+      |> Owl.Data.unlines()
+      |> Owl.Data.to_ansidata()
+      |> IO.iodata_to_binary()
+
+    %__MODULE__{highlighted: text}
+  end
+
+  def render({left, right}, [delta | _] = path) do
+    cost = path |> Enum.map(&Delta.cost/1) |> Enum.sum()
+
+    Kino.Layout.grid(
+      [
+        Kino.Markdown.new("**Current cost:** #{cost}"),
+        render_delta(delta),
+        left,
+        right
+      ],
+      boxed: true
+    )
+  end
+
+  defp render_delta(%{changed?: false, kind: kind, node: node}) do
+    """
+    **Matched #{kind}**
+    #{format_node(node)}
+    """
+    |> Kino.Markdown.new()
+  end
+
+  defp render_delta(%{kind: kind, side: side, node: node} = delta) do
+    """
+    **Changed #{kind}** (#{side}, cost #{Delta.cost(delta)})
+    #{format_node(node)}
+    """
+    |> Kino.Markdown.new()
+  end
+
+  defp format_node(%{form: form}) do
+    """
+    ```elixir
+    #{inspect(form, pretty: true)}
+    ```
+    """
+  end
+
+  defimpl Kino.Render do
+    def to_livebook(%{highlighted: text}), do: {:text, text}
+  end
+end
+````
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+KinoDiff.diff(original, modified)
+```
+
+

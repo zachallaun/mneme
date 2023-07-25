@@ -80,26 +80,28 @@ defmodule Mneme.Diff do
   @doc false
   @spec compute(String.t(), String.t()) :: {[instruction], [instruction]}
   def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
-    {left, right} = SyntaxNode.roots!(left_code, right_code)
+    {left, right} = SyntaxNode.from_strings!(left_code, right_code)
     path = shortest_path({left, right, nil})
 
     if debug?() do
       debug_inspect(summarize_path(path), "path")
     end
 
-    path
-    |> split_changed()
-    |> to_instructions()
+    {left_changed, right_changed} = split_changed(path)
+    {to_instructions(left_changed, :del), to_instructions(right_changed, :ins)}
   end
 
+  @doc false
   @spec shortest_path(vertex) :: [Delta.t()]
-  defp shortest_path(root) do
+  def shortest_path(root) do
+    # The root 3-tuple doesn't have a delta, so we ignore it
     [_root | path] = Pathfinding.lazy_dijkstra(root, &vertex_id/1, &neighbors/1)
     Enum.map(path, fn {_v1, _v2, delta} -> delta end)
   end
 
+  @doc false
   @spec split_changed([Delta.t()]) :: {[Delta.t()], [Delta.t()]}
-  defp split_changed(path) do
+  def split_changed(path) do
     path
     |> Stream.flat_map(fn
       %Delta{changed?: true} = delta -> [delta]
@@ -115,12 +117,9 @@ defmodule Mneme.Diff do
     end
   end
 
-  @spec to_instructions({[Delta.t()], [Delta.t()]}) :: {[instruction], [instruction]}
-  defp to_instructions({left_changed, right_changed}) do
-    {to_instructions(left_changed, :del), to_instructions(right_changed, :ins)}
-  end
-
-  defp to_instructions(changed_deltas, ins_kind) do
+  @doc false
+  @spec to_instructions(Delta.t(), instruction_kind) :: [instruction]
+  def to_instructions(changed_deltas, ins_kind) do
     changed_deltas
     |> coalesce()
     |> Enum.map(fn
@@ -203,14 +202,14 @@ defmodule Mneme.Diff do
   end
 
   defp add_unchanged_node(neighbors, {left, right, _} = v) do
-    delta = Delta.unchanged(:node, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+    delta = Delta.unchanged(:node, left, right, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
     add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
   end
 
   defp maybe_add_unchanged_branch(neighbors, {%{branch?: true} = left, %{branch?: true} = right, _} = v) do
     if SyntaxNode.similar_branch?(left, right) do
       delta =
-        Delta.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+        Delta.unchanged(:branch, left, right, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
 
       v2 =
         {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), delta}
@@ -229,8 +228,8 @@ defmodule Mneme.Diff do
       {{:string, _, s1}, {:string, _, s2}} when is_binary(s1) and is_binary(s2) ->
         if String.bag_distance(s1, s2) > 0.5 do
           {left_edit, right_edit} = myers_edit_scripts(s1, s2)
-          left_delta = Delta.changed(:node, :left, left, left_edit)
-          right_delta = Delta.changed(:node, :right, right, right_edit)
+          left_delta = Delta.changed(:node, :left, left, right, left_edit)
+          right_delta = Delta.changed(:node, :right, right, left, right_edit)
 
           v2 = {
             SyntaxNode.next_sibling(left),
@@ -257,7 +256,7 @@ defmodule Mneme.Diff do
     v2 = {
       SyntaxNode.next_sibling(left),
       SyntaxNode.next_sibling(right),
-      [Delta.changed(:node, :left, left), Delta.changed(:node, :right, right)]
+      [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, right, left)]
     }
 
     add_edge(neighbors, v, v2)
@@ -272,31 +271,31 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_left(neighbors, {left, %{null?: true} = right, _} = v) do
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
   end
 
   defp add_changed_left(neighbors, {%{branch?: true} = left, right, _} = v) do
     neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
-    |> add_edge(v, {SyntaxNode.next_child(left), right, Delta.changed(:branch, :left, left)})
+    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
+    |> add_edge(v, {SyntaxNode.next_child(left), right, Delta.changed(:branch, :left, left, right)})
   end
 
   defp add_changed_left(neighbors, {%{branch?: false} = left, right, _} = v) do
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left)})
+    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
   end
 
   defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: true} = right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
-    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, right)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
+    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, right, left)})
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: false} = right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
   end
 
   defp add_edge(neighbors, _v1, {left, right, delta}) do
