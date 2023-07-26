@@ -47,7 +47,7 @@ defmodule Mneme.Diff do
           {instruction_kind, :node | :delimiter, Zipper.t()}
           | {instruction_kind, :node, Zipper.t(), edit_script}
 
-  @type instruction_kind :: :ins | :del
+  @type instruction_kind :: :ins | :del | :match
 
   @type edit_script :: [{:eq | :changed, String.t()}]
 
@@ -59,7 +59,7 @@ defmodule Mneme.Diff do
   @spec format(String.t(), String.t()) :: {:ok, {Owl.Data.t(), Owl.Data.t()}} | {:error, term()}
   def format(left, right) when is_binary(left) and is_binary(right) do
     result =
-      case compute(left, right) do
+      case compute_changes(left, right) do
         {[], []} -> {nil, nil}
         {[], ins} -> {nil, format_lines(right, ins)}
         {del, []} -> {format_lines(left, del), nil}
@@ -78,21 +78,26 @@ defmodule Mneme.Diff do
   end
 
   @doc false
-  @spec compute(String.t(), String.t()) :: {[instruction], [instruction]}
-  def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
+  @spec compute_changes(String.t(), String.t()) :: {[instruction], [instruction]}
+  def compute_changes(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
     {left, right} = SyntaxNode.from_strings!(left_code, right_code)
-    path = shortest_path({left, right, nil})
+
+    changes =
+      {left, right, nil}
+      |> shortest_path()
+      |> Stream.flat_map(&List.wrap/1)
+      |> Enum.filter(& &1.changed?)
 
     if debug?() do
-      debug_inspect(summarize_path(path), "path")
+      debug_inspect(summarize_path(changes), "change path")
     end
 
-    {left_changed, right_changed} = split_changed(path)
+    {left_changed, right_changed} = split_sides(changes)
     {to_instructions(left_changed, :del), to_instructions(right_changed, :ins)}
   end
 
   @doc false
-  @spec shortest_path(vertex) :: [Delta.t()]
+  @spec shortest_path(vertex) :: [Delta.t() | [Delta.t(), ...]]
   def shortest_path(root) do
     # The root 3-tuple doesn't have a delta, so we ignore it
     [_root | path] = Pathfinding.lazy_dijkstra(root, &vertex_id/1, &neighbors/1)
@@ -100,84 +105,44 @@ defmodule Mneme.Diff do
   end
 
   @doc false
-  @spec split_changed([Delta.t()]) :: {[Delta.t()], [Delta.t()]}
-  def split_changed(path) do
-    path
-    |> Stream.flat_map(fn
-      %Delta{changed?: true} = delta -> [delta]
-      changed when is_list(changed) -> changed
-      _ -> []
-    end)
-    |> Enum.group_by(& &1.side)
-    |> case do
-      %{left: left, right: right} -> {left, right}
-      %{left: left} -> {left, []}
-      %{right: right} -> {[], right}
-      _ -> {[], []}
-    end
+  @spec split_sides([Delta.t()]) :: {[Delta.t()], [Delta.t()]}
+  def split_sides(path) do
+    {left, right} =
+      path
+      |> Stream.flat_map(&List.wrap/1)
+      |> Enum.reduce({[], []}, fn
+        %Delta{changed?: true, side: :left} = delta, {left, right} ->
+          {[delta | left], right}
+
+        %Delta{changed?: true, side: :right} = delta, {left, right} ->
+          {left, [delta | right]}
+
+        %Delta{changed?: false} = delta, {left, right} ->
+          {[%{delta | side: :left} | left], [%{delta | side: :right} | right]}
+      end)
+
+    {Enum.reverse(left), Enum.reverse(right)}
   end
 
   @doc false
   @spec to_instructions(Delta.t(), instruction_kind) :: [instruction]
-  def to_instructions(changed_deltas, ins_kind) do
-    changed_deltas
-    |> coalesce()
-    |> Enum.map(fn
-      {kind, node} -> {ins_kind, kind, node.zipper}
-      {kind, node, edit_script} -> {ins_kind, kind, node.zipper, edit_script}
+  def to_instructions(deltas, ins_kind) do
+    Enum.map(deltas, fn
+      %{changed?: false, kind: :branch} = delta ->
+        {:match, :delimiter, Delta.node(delta).zipper}
+
+      %{changed?: false, kind: :node} = delta ->
+        {:match, :node, Delta.node(delta).zipper}
+
+      %{changed?: true, edit_script: edit_script} = delta when edit_script != [] ->
+        {ins_kind, :node, Delta.node(delta).zipper, edit_script}
+
+      %{changed?: true, kind: :node} = delta ->
+        {ins_kind, :node, Delta.node(delta).zipper}
+
+      %{changed?: true, kind: :branch} = delta ->
+        {ins_kind, :delimiter, Delta.node(delta).zipper}
     end)
-  end
-
-  defp coalesce(changed_deltas) do
-    for_result =
-      for %{kind: :node} = delta <- changed_deltas,
-          node = Delta.node(delta) do
-        node.id
-      end
-
-    changed_node_ids =
-      MapSet.new(for_result)
-
-    changed_ids =
-      for %{kind: :branch} = delta <- Enum.reverse(changed_deltas),
-          branch = Delta.node(delta),
-          reduce: changed_node_ids do
-        ids ->
-          if all_child_ids_in?(branch, ids) do
-            MapSet.put(ids, branch.id)
-          else
-            ids
-          end
-      end
-
-    Enum.flat_map(changed_deltas, fn %{kind: kind, edit_script: edit_script} = delta ->
-      node = Delta.node(delta)
-      branch? = kind == :branch
-      parent = SyntaxNode.parent(node)
-
-      cond do
-        parent && parent.id in changed_ids ->
-          []
-
-        !branch? && edit_script != [] ->
-          [{:node, node, edit_script}]
-
-        !branch? ->
-          [{:node, node}]
-
-        all_child_ids_in?(node, changed_ids) ->
-          [{:node, node}]
-
-        true ->
-          [{:delimiter, node}]
-      end
-    end)
-  end
-
-  defp all_child_ids_in?(branch, ids) do
-    branch
-    |> SyntaxNode.child_ids()
-    |> Enum.all?(&(&1 in ids))
   end
 
   defp neighbors({l, r, e} = v) do

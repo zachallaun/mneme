@@ -7,7 +7,7 @@ defmodule Mneme.Diff.Formatter do
 
   @type fmt_instruction :: {op, bounds}
 
-  @type op :: :ins | :del | {:ins, :highlight} | {:del, :highlight}
+  @type op :: :match | :ins | :del | {:ins, :highlight} | {:del, :highlight}
 
   @type bounds :: {start_bound :: bound, end_bound :: bound}
 
@@ -396,10 +396,17 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
-  defp tag(data, op, opts), do: Owl.Data.tag(data, get_color(opts, op))
+  defp tag(data, op, opts) do
+    if tag = get_tag(opts, op) do
+      Owl.Data.tag(data, tag)
+    else
+      data
+    end
+  end
 
-  defp get_color(opts, {:ins, :highlight}), do: opts[:colors][:ins_highlight] || [:bright, :green, :underline]
-  defp get_color(opts, {:del, :highlight}), do: opts[:colors][:del_highlight] || [:bright, :red, :underline]
-  defp get_color(opts, :ins), do: opts[:colors][:ins] || :green
-  defp get_color(opts, :del), do: opts[:colors][:del] || :red
+  defp get_tag(opts, {:ins, :highlight}), do: opts[:colors][:ins_highlight] || [:bright, :green, :underline]
+  defp get_tag(opts, {:del, :highlight}), do: opts[:colors][:del_highlight] || [:bright, :red, :underline]
+  defp get_tag(opts, :ins), do: opts[:colors][:ins] || :green
+  defp get_tag(opts, :del), do: opts[:colors][:del] || :red
+  defp get_tag(opts, :match), do: opts[:colors][:match] || nil
 end

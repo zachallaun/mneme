@@ -6,18 +6,8 @@ defmodule Mneme.DiffTestHelpers do
   Generates a diff as Owl data for the given pair of strings.
   """
   def format(left, right) do
-    case Diff.compute(left, right) do
-      {[], []} ->
-        {nil, nil}
-
-      {[], insertions} ->
-        {nil, Diff.format_lines(right, insertions)}
-
-      {deletions, []} ->
-        {Diff.format_lines(left, deletions), nil}
-
-      {deletions, insertions} ->
-        {Diff.format_lines(left, deletions), Diff.format_lines(right, insertions)}
+    with {:ok, result} <- Diff.format(left, right) do
+      result
     end
   end
 

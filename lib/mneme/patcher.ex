@@ -111,6 +111,10 @@ defmodule Mneme.Patcher do
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
+    unless zipper do
+      raise "couldn't find assertion: #{inspect(assertion)}"
+    end
+
     {rich_ast, comments} =
       zipper
       |> Zipper.node()

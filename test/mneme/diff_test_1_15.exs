@@ -2,7 +2,7 @@
 defmodule Mneme.DiffTest_1_15 do
   @moduledoc false
   use ExUnit.Case, async: true
-  use Mneme, default_pattern: :last, diff: :text
+  use Mneme, default_pattern: :last
 
   import Mneme.DiffTestHelpers
 

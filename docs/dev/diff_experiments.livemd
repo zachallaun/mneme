@@ -74,7 +74,7 @@ end
 import Helpers
 ```
 
-````elixir
+```elixir
 defmodule KinoDiff do
   alias Mneme.Diff
   alias Mneme.Diff.Delta
@@ -84,7 +84,8 @@ defmodule KinoDiff do
     ins: [:white, :green_background],
     ins_highlight: [:white, :green_background, :bright],
     del: [:white, :red_background],
-    del_highlight: [:white, :red_background, :bright]
+    del_highlight: [:white, :red_background, :bright],
+    match: [:white, :light_black_background]
   ]
 
   defstruct [:highlighted]
@@ -106,7 +107,8 @@ defmodule KinoDiff do
   end
 
   defp diff_steps([_ | rest] = path, left_code, right_code) do
-    {left_changed, right_changed} = Diff.split_changed(path)
+    {left_changed, right_changed} = Diff.split_sides(path)
+
     left_ins = Diff.to_instructions(left_changed, :del)
     right_ins = Diff.to_instructions(right_changed, :ins)
 
@@ -140,35 +142,25 @@ defmodule KinoDiff do
     ])
   end
 
-  defp render_delta(%{changed?: false, kind: kind, node: node}) do
+  defp render_delta(%{changed?: false, kind: kind}) do
     """
     **Matched #{kind}**
-    #{format_node(node)}
     """
     |> Kino.Markdown.new()
   end
 
-  defp render_delta(%{kind: kind, side: side, node: node} = delta) do
+  defp render_delta(%{changed?: true, kind: kind, side: side} = delta) do
     """
     **Changed #{kind}** (#{side}, cost #{Delta.cost(delta)})
-    #{format_node(node)}
     """
     |> Kino.Markdown.new()
-  end
-
-  defp format_node(%{form: form}) do
-    """
-    ```elixir
-    #{inspect(form, pretty: true)}
-    ```
-    """
   end
 
   defimpl Kino.Render do
     def to_livebook(%{highlighted: text}), do: {:text, text}
   end
 end
-````
+```
 
 ```elixir
 defmodule KinoDiffLive do
