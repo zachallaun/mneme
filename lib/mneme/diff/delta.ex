@@ -6,7 +6,16 @@ defmodule Mneme.Diff.Delta do
   alias __MODULE__
   alias Mneme.Diff.SyntaxNode
 
-  defstruct [:changed?, :kind, :side, :left_node, :right_node, depth_difference: 0, edit_script: []]
+  defstruct [
+    :changed?,
+    :kind,
+    :side,
+    :left_node,
+    :right_node,
+    :adjacent?,
+    depth_difference: 0,
+    edit_script: []
+  ]
 
   @type t :: %Delta{
           changed?: boolean(),
@@ -31,15 +40,21 @@ defmodule Mneme.Diff.Delta do
   end
 
   @doc "Construct a delta representing an unchanged node."
-  def unchanged(kind, left_node, right_node, depth_difference \\ 0) do
+  def unchanged(kind, left_node, right_node, depth_difference, prev_delta) do
     %Delta{
       changed?: false,
       kind: kind,
       left_node: left_node,
       right_node: right_node,
-      depth_difference: depth_difference
+      depth_difference: depth_difference,
+      adjacent?: adjacent_unchanged?(prev_delta)
     }
   end
+
+  defp adjacent_unchanged?(nil), do: false
+  defp adjacent_unchanged?([%Delta{changed?: true} | _]), do: false
+  defp adjacent_unchanged?(%Delta{changed?: true}), do: false
+  defp adjacent_unchanged?(%Delta{changed?: false}), do: true
 
   @doc "Returns the syntax node associated with this delta."
   def node(%Delta{side: :left, left_node: node}), do: node
@@ -47,6 +62,9 @@ defmodule Mneme.Diff.Delta do
 
   @doc "The cost of this delta, used for pathfinding."
   def cost(edge)
+
+  # def cost(%Delta{changed?: false, kind: :node, depth_difference: dd, adjacent?: false}),
+  #   do: dd + 100
 
   def cost(%Delta{changed?: false, kind: :node, depth_difference: dd}), do: dd + 1
   def cost(%Delta{changed?: false, kind: :branch, depth_difference: dd}), do: dd + 10

@@ -79,7 +79,8 @@ defmodule Mneme.Diff do
 
   @doc false
   @spec compute_changes(String.t(), String.t()) :: {[instruction], [instruction]}
-  def compute_changes(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
+  def compute_changes(left_code, right_code)
+      when is_binary(left_code) and is_binary(right_code) do
     {left, right} = SyntaxNode.from_strings!(left_code, right_code)
 
     changes =
@@ -169,15 +170,32 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp add_unchanged_node(neighbors, {left, right, _} = v) do
-    delta = Delta.unchanged(:node, left, right, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+  defp add_unchanged_node(neighbors, {left, right, prev} = v) do
+    delta =
+      Delta.unchanged(
+        :node,
+        left,
+        right,
+        abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)),
+        prev
+      )
+
     add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
   end
 
-  defp maybe_add_unchanged_branch(neighbors, {%{branch?: true} = left, %{branch?: true} = right, _} = v) do
+  defp maybe_add_unchanged_branch(
+         neighbors,
+         {%{branch?: true} = left, %{branch?: true} = right, prev} = v
+       ) do
     if SyntaxNode.similar_branch?(left, right) do
       delta =
-        Delta.unchanged(:branch, left, right, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
+        Delta.unchanged(
+          :branch,
+          left,
+          right,
+          abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)),
+          prev
+        )
 
       v2 =
         {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), delta}
@@ -219,7 +237,8 @@ defmodule Mneme.Diff do
   # changed together to avoid arguments "sliding", e.g. `2 + 1` and `1 + 2`
   defp add_changed_edges(
          neighbors,
-         {%{parent: {_, %{binary_op?: true}}} = left, right, %Delta{changed?: false, kind: :branch}} = v
+         {%{parent: {_, %{binary_op?: true}}} = left, right,
+          %Delta{changed?: false, kind: :branch}} = v
        ) do
     v2 = {
       SyntaxNode.next_sibling(left),
@@ -230,7 +249,32 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, v2)
   end
 
-  defp add_changed_edges(neighbors, v), do: add_changed_left_right(neighbors, v)
+  defp add_changed_edges(neighbors, {left, right, _} = v) do
+    # When nodes are similar branches, prevent marking them as separately
+    # changed
+    if SyntaxNode.similar_branch?(left, right) do
+      neighbors
+    else
+      add_changed_left_right(neighbors, v)
+    end
+
+    # When nodes are similar branches, allow marking the branches as changed,
+    # but ensure they're popped together
+    # if SyntaxNode.similar_branch?(left, right) do
+    #   left_delta = Delta.changed(:branch, :left, left, right)
+    #   right_delta = Delta.changed(:branch, :right, left, right)
+
+    #   v2 = {
+    #     SyntaxNode.next_child(left, :pop_both),
+    #     SyntaxNode.next_child(right, :pop_both),
+    #     [left_delta, right_delta]
+    #   }
+
+    #   add_edge(neighbors, v, v2)
+    # else
+    #   add_changed_left_right(neighbors, v)
+    # end
+  end
 
   defp add_changed_left_right(neighbors, v) do
     neighbors
@@ -239,31 +283,59 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_left(neighbors, {left, %{null?: true} = right, _} = v) do
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
+    add_edge(
+      neighbors,
+      v,
+      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+    )
   end
 
   defp add_changed_left(neighbors, {%{branch?: true} = left, right, _} = v) do
     neighbors
-    |> add_edge(v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
-    |> add_edge(v, {SyntaxNode.next_child(left), right, Delta.changed(:branch, :left, left, right)})
+    |> add_edge(
+      v,
+      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+    )
+    |> add_edge(
+      v,
+      {SyntaxNode.next_child(left), right, Delta.changed(:branch, :left, left, right)}
+    )
   end
 
   defp add_changed_left(neighbors, {%{branch?: false} = left, right, _} = v) do
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)})
+    add_edge(
+      neighbors,
+      v,
+      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+    )
   end
 
   defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
+    add_edge(
+      neighbors,
+      v,
+      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+    )
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: true} = right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
-    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, left, right)})
+    |> add_edge(
+      v,
+      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+    )
+    |> add_edge(
+      v,
+      {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, left, right)}
+    )
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: false} = right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
+    add_edge(
+      neighbors,
+      v,
+      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+    )
   end
 
   defp add_edge(neighbors, _v1, {left, right, delta}) do
