@@ -89,7 +89,13 @@ defmodule KinoDiff do
 
   defstruct [:highlighted]
 
-  def diff(left_code, right_code) do
+  def new(left_code, right_code) do
+    diff_steps(left_code, right_code)
+    |> Enum.with_index(&{&2 + 1, &1})
+    |> Kino.Layout.tabs()
+  end
+
+  def diff_steps(left_code, right_code) do
     {left, right} = SyntaxNode.from_strings!(left_code, right_code)
     path = Diff.shortest_path({left, right, nil})
 
@@ -97,8 +103,6 @@ defmodule KinoDiff do
     |> Enum.reverse()
     |> diff_steps(left_code, right_code)
     |> Enum.reverse()
-    |> Enum.with_index(&{&2 + 1, &1})
-    |> Kino.Layout.tabs()
   end
 
   defp diff_steps([_ | rest] = path, left_code, right_code) do
@@ -166,12 +170,65 @@ defmodule KinoDiff do
 end
 ````
 
-## Scratchpad
-
-<!-- livebook:{"reevaluate_automatically":true} -->
-
 ```elixir
-KinoDiff.diff(original, modified)
+defmodule KinoDiffLive do
+  alias Kino.Frame
+
+  def new(original, modified) do
+    frame = Frame.new()
+
+    controls = [keyboard: Kino.Control.keyboard([:keydown])]
+    Kino.render(controls[:keyboard])
+
+    state = %{
+      frame: frame,
+      steps: KinoDiff.diff_steps(original, modified),
+      current: 0
+    }
+
+    controls
+    |> Kino.Control.tagged_stream()
+    |> Kino.listen(state, &handle_event/2)
+
+    render!(state)
+
+    frame
+  end
+
+  def handle_event({:keyboard, event}, state) do
+    state =
+      case event do
+        %{type: :keydown, key: "ArrowRight"} ->
+          Map.update!(state, :current, &min(&1 + 1, length(state.steps) - 1))
+
+        %{type: :keydown, key: "ArrowLeft"} ->
+          Map.update!(state, :current, &max(&1 - 1, 0))
+
+        _ ->
+          state
+      end
+
+    render!(state)
+
+    {:cont, state}
+  end
+
+  defp render!(%{frame: frame, steps: steps, current: idx}) do
+    step = Enum.at(steps, idx)
+
+    content =
+      Kino.Layout.grid([
+        Kino.Text.new("<- #{idx + 1} of #{length(steps)} ->"),
+        step
+      ])
+
+    Frame.render(frame, content)
+  end
+end
 ```
 
+## Scratchpad
 
+```elixir
+KinoDiffLive.new(original, modified)
+```
