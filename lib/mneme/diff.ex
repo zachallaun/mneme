@@ -130,7 +130,8 @@ defmodule Mneme.Diff do
 
   defp coalesce(changed_deltas) do
     for_result =
-      for %{kind: :node, node: node} <- changed_deltas do
+      for %{kind: :node} = delta <- changed_deltas,
+          node = Delta.node(delta) do
         node.id
       end
 
@@ -138,7 +139,8 @@ defmodule Mneme.Diff do
       MapSet.new(for_result)
 
     changed_ids =
-      for %{kind: :branch, node: branch} <- Enum.reverse(changed_deltas),
+      for %{kind: :branch} = delta <- Enum.reverse(changed_deltas),
+          branch = Delta.node(delta),
           reduce: changed_node_ids do
         ids ->
           if all_child_ids_in?(branch, ids) do
@@ -148,7 +150,8 @@ defmodule Mneme.Diff do
           end
       end
 
-    Enum.flat_map(changed_deltas, fn %{kind: kind, node: node, edit_script: edit_script} ->
+    Enum.flat_map(changed_deltas, fn %{kind: kind, edit_script: edit_script} = delta ->
+      node = Delta.node(delta)
       branch? = kind == :branch
       parent = SyntaxNode.parent(node)
 
@@ -229,7 +232,7 @@ defmodule Mneme.Diff do
         if String.bag_distance(s1, s2) > 0.5 do
           {left_edit, right_edit} = myers_edit_scripts(s1, s2)
           left_delta = Delta.changed(:node, :left, left, right, left_edit)
-          right_delta = Delta.changed(:node, :right, right, left, right_edit)
+          right_delta = Delta.changed(:node, :right, left, right, right_edit)
 
           v2 = {
             SyntaxNode.next_sibling(left),
@@ -256,7 +259,7 @@ defmodule Mneme.Diff do
     v2 = {
       SyntaxNode.next_sibling(left),
       SyntaxNode.next_sibling(right),
-      [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, right, left)]
+      [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, left, right)]
     }
 
     add_edge(neighbors, v, v2)
@@ -285,17 +288,17 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: true} = right, _} = v) do
     neighbors
-    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
-    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, right, left)})
+    |> add_edge(v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
+    |> add_edge(v, {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, left, right)})
   end
 
   defp add_changed_right(neighbors, {left, %{branch?: false} = right, _} = v) do
-    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, right, left)})
+    add_edge(neighbors, v, {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)})
   end
 
   defp add_edge(neighbors, _v1, {left, right, delta}) do
@@ -324,7 +327,7 @@ defmodule Mneme.Diff do
 
   defp delta_id(nil), do: nil
   defp delta_id(list) when is_list(list), do: Enum.map(list, &delta_id/1)
-  defp delta_id(d), do: {d.changed?, d.node.id}
+  defp delta_id(d), do: {d.changed?, d.side, d.left_node.id, d.right_node.id}
 
   defp myers_edit_scripts(s1, s2) do
     s1
@@ -347,11 +350,14 @@ defmodule Mneme.Diff do
   @doc false
   def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
 
-  defp summarize_delta(%Delta{changed?: changed?, kind: :node, side: side, node: node}) do
+  defp summarize_delta(%Delta{changed?: changed?, kind: :node, side: side} = delta) do
+    node = Delta.node(delta)
     {changed?, side, :node, summarize_node(node)}
   end
 
-  defp summarize_delta(%Delta{changed?: changed?, kind: :branch, side: side, node: node}) do
+  defp summarize_delta(%Delta{changed?: changed?, kind: :branch, side: side} = delta) do
+    node = Delta.node(delta)
+
     ast =
       case SyntaxNode.ast(node) do
         {{:., _, _}, _, _} -> {{:., [], "..."}, [], "..."}
