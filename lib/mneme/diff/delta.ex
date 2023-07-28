@@ -12,8 +12,10 @@ defmodule Mneme.Diff.Delta do
     :side,
     :left_node,
     :left_node_after,
+    :left_node_before,
     :right_node,
     :right_node_after,
+    :right_node_before,
     :adjacent?,
     depth_difference: 0,
     edit_script: []
@@ -63,7 +65,9 @@ defmodule Mneme.Diff.Delta do
   def node(%Delta{side: :right, right_node: node}), do: node
 
   @doc "The cost of this delta, used for pathfinding."
-  def cost(edge)
+  def cost(delta)
+
+  def cost(deltas) when is_list(deltas), do: deltas |> Enum.map(&cost/1) |> Enum.sum()
 
   # def cost(%Delta{changed?: false, kind: :node, depth_difference: dd, adjacent?: false}),
   #   do: dd + 100

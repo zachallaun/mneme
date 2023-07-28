@@ -45,17 +45,17 @@ modified = """
  [{:var, [line: 1, column: 5], :binary}]}
 """
 
-{:ok, {left, right}} = Diff.format(original, modified)
+# {:ok, {left, right}} = Diff.format(original, modified)
 
-left
-|> Owl.Data.unlines()
-|> Owl.IO.puts()
+# left
+# |> Owl.Data.unlines()
+# |> Owl.IO.puts()
 
-right
-|> Owl.Data.unlines()
-|> Owl.IO.puts()
+# right
+# |> Owl.Data.unlines()
+# |> Owl.IO.puts()
 
-Kino.nothing()
+# Kino.nothing()
 ```
 
 ## Helpers
@@ -137,16 +137,21 @@ defmodule KinoDiff do
 
     Kino.Layout.grid([
       Kino.Markdown.new("**Current cost:** #{cost}"),
-      render_delta(delta),
+      Kino.Markdown.new(render_delta(delta)),
       Kino.Layout.grid([left, right], columns: 2)
     ])
+  end
+
+  defp render_delta(deltas) when is_list(deltas) do
+    deltas
+    |> Enum.map(&render_delta/1)
+    |> Enum.join("\n")
   end
 
   defp render_delta(%{changed?: false, kind: kind}) do
     """
     **Matched #{kind}**
     """
-    |> Kino.Markdown.new()
   end
 
   defp render_delta(%{changed?: true, kind: kind, side: side} = delta) do
@@ -156,7 +161,6 @@ defmodule KinoDiff do
     """
     **Changed #{kind}** (#{side}, cost #{Delta.cost(delta)}, parent #{tag})
     """
-    |> Kino.Markdown.new()
   end
 
   defimpl Kino.Render do
@@ -225,24 +229,28 @@ end
 ## Scratchpad
 
 ```elixir
-KinoDiffLive.new(original, modified)
+# KinoDiffLive.new(original, modified)
 ```
+
+The following example is creating a really confusing diff, where it's skipping over an entire section of the `modified` code (the second nested list with the tag in it).
+
+I think this has somethign to do with the `:pop_both` etc. implementation, because changing the shape of the nested list such that it doesn't match the shape of the original yields a proper diff.
 
 ```elixir
 original = """
-auto_assert {:foo,
-             [
-               [
-                 %Tag{data: "~", sequences: [:green]},
-                 %Tag{data: "X", sequences: [:green]},
-                 "\\"foo\\""
-               ]
-             ]} <- format(~S|"foo"|, ~S|~X"foo"|)
+{nil,
+ [
+   {:sequences, :uhh},
+   {:sequences, :green},
+   :this_must_be_here
+ ]} <- foo()
 """
 
 modified = """
-auto_assert {[[%Tag{data: "\\"foo\\"", sequences: [:red]}]],
-             [[%Tag{data: "~X\\"foo\\"", sequences: [:green]}]]} <- format(~S|"foo"|, ~S|~X"foo"|)
+{
+  [{:sequences, :red}],
+  [{:sequences, :uhh}]
+} <- foo()
 """
 
 KinoDiffLive.new(original, modified)
@@ -289,14 +297,24 @@ summarize_z = fn z ->
   end
 end
 
+summarize_parent = fn
+  nil ->
+    nil
+
+  {tag, parent} ->
+    {tag, summarize_z.(parent.zipper)}
+end
+
 log_nodes = fn d ->
   [
     changed?: d.changed?,
     side: d.side,
     left_before: summarize_z.(d.left_node.zipper),
-    left_after: summarize_z.(d.left_node.zipper),
+    left_after: summarize_z.(d.left_node_after.zipper),
+    left_parent_after: summarize_parent.(d.left_node_after.parent),
     right_before: summarize_z.(d.right_node.zipper),
-    right_after: summarize_z.(d.right_node.zipper)
+    right_after: summarize_z.(d.right_node_after.zipper),
+    right_parent_after: summarize_parent.(d.right_node_after.parent)
   ]
   |> IO.inspect()
 end
@@ -306,7 +324,7 @@ end
 {left, right} = SyntaxNode.from_strings!(original, modified)
 path = Diff.shortest_path({left, right, nil})
 
-d = Enum.at(path, 19)
+d = Enum.at(path, 9)
 
 log_nodes.(d)
 
@@ -326,6 +344,6 @@ log_nodes.(d)
 ```
 
 ```elixir
-{_, p} = d.right_node.parent
-p.zipper |> Z.up()
+{hmm, p} = d.right_node.parent
+Z.node(p.zipper |> Z.up())
 ```

@@ -386,7 +386,13 @@ defmodule Mneme.Diff do
       if is_list(delta) do
         delta
       else
-        %{delta | left_node_after: l, right_node_after: r}
+        %{
+          delta
+          | left_node_before: left,
+            left_node_after: l,
+            right_node_before: right,
+            right_node_after: r
+        }
       end
 
     [{{l, r, delta}, delta_cost(delta)} | neighbors]
@@ -416,19 +422,20 @@ defmodule Mneme.Diff do
   defp delta_cost(%Delta{} = delta), do: Delta.cost(delta)
   defp delta_cost(list) when is_list(list), do: list |> Enum.map(&Delta.cost/1) |> Enum.sum()
 
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do
+  @doc false
+  def vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do
     {l_id, r_id, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, delta}) do
+  def vertex_id({%{id: l_id, parent: {entry, _}}, %{id: r_id, parent: nil}, delta}) do
     {l_id, r_id, entry, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, delta}) do
+  def vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: {entry, _}}, delta}) do
     {l_id, r_id, entry, delta_id(delta)}
   end
 
-  defp vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, delta}) do
+  def vertex_id({%{id: l_id, parent: {e1, _}}, %{id: r_id, parent: {e2, _}}, delta}) do
     {l_id, r_id, e1, e2, delta_id(delta)}
   end
 
