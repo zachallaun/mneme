@@ -230,20 +230,102 @@ KinoDiffLive.new(original, modified)
 
 ```elixir
 original = """
-auto_assert {nil,                                     
-             [                                        
-               [                                      
+auto_assert {:foo,
+             [
+               [
                  %Tag{data: "~", sequences: [:green]},
                  %Tag{data: "X", sequences: [:green]},
-                 "\\"foo\\""                            
-               ]                                      
+                 "\\"foo\\""
+               ]
              ]} <- format(~S|"foo"|, ~S|~X"foo"|)
 """
 
 modified = """
-auto_assert {[[%Tag{data: "\\"foo\\"", sequences: [:red]}]],                                      
+auto_assert {[[%Tag{data: "\\"foo\\"", sequences: [:red]}]],
              [[%Tag{data: "~X\\"foo\\"", sequences: [:green]}]]} <- format(~S|"foo"|, ~S|~X"foo"|)
 """
 
 KinoDiffLive.new(original, modified)
+```
+
+```elixir
+alias Mneme.Diff
+alias Mneme.Diff.{SyntaxNode, Delta}
+alias Mneme.Diff.Zipper, as: Z
+
+next_once = fn l, r ->
+  {l_popall, r_popall} = {SyntaxNode.pop_all(l), SyntaxNode.pop_all(r)}
+
+  case {l_popall, r_popall} do
+    {%{null?: true, parent: {:pop_both, p1}} = left,
+     %{null?: true, parent: {:pop_both, p2}} = right} ->
+      if SyntaxNode.similar_branch?(p1, p2) do
+        {SyntaxNode.next_sibling(p1), SyntaxNode.next_sibling(p2)}
+      else
+        {left, right}
+      end
+
+    {left, right} ->
+      {left, right}
+  end
+end
+
+summarize_z = fn z ->
+  case Z.node(z) do
+    {form, meta, list} when is_list(list) ->
+      {form, Map.take(meta, [:line, :column]), :...}
+
+    {form, meta, val} ->
+      {form, Map.take(meta, [:line, :column]), val}
+
+    list when is_list(list) ->
+      [:...]
+
+    {_, _} ->
+      {:..., :...}
+
+    other ->
+      other
+  end
+end
+
+log_nodes = fn d ->
+  [
+    changed?: d.changed?,
+    side: d.side,
+    left_before: summarize_z.(d.left_node.zipper),
+    left_after: summarize_z.(d.left_node.zipper),
+    right_before: summarize_z.(d.right_node.zipper),
+    right_after: summarize_z.(d.right_node.zipper)
+  ]
+  |> IO.inspect()
+end
+```
+
+```elixir
+{left, right} = SyntaxNode.from_strings!(original, modified)
+path = Diff.shortest_path({left, right, nil})
+
+d = Enum.at(path, 19)
+
+log_nodes.(d)
+
+# next_l = SyntaxNode.next_sibling(d.left_node)
+
+# {l1, r1} = next_once.(next_l, d.right_node)
+# {l1, r1} = next_once.(l1, r1)
+# {l1, r1} = next_once.(l1, r1)
+# {l1, r1} = next_once.(l1, r1)
+# {l, r} = next_once.(l1, r1)
+
+# IO.puts(l == l1 && r == r1)
+
+# d2 = Enum.at(path, 18)
+
+# d2.right_node
+```
+
+```elixir
+{_, p} = d.right_node.parent
+p.zipper |> Z.up()
 ```

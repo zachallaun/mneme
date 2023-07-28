@@ -154,10 +154,47 @@ defmodule Mneme.Diff do
       IO.puts("")
     end
 
-    get_neighbors(v)
+    case get_neighbors(v) do
+      {:cont, neighbors} ->
+        for {{newl, newr, newd}, _} <- neighbors do
+          case Zipper.node(newr.zipper) do
+            {_, %{line: 2, column: 67}, _} ->
+              if i = Process.get(:hmm) do
+                IO.puts(i)
+
+                if i == 2 do
+                  require IEx
+
+                  IEx.pry()
+                end
+
+                Process.put(:hmm, i + 1)
+              else
+                IO.puts(1)
+                Process.put(:hmm, 2)
+              end
+
+            # require IEx
+
+            # IEx.pry()
+
+            _ ->
+              :ok
+          end
+        end
+
+        {:cont, neighbors}
+
+      :halt ->
+        :halt
+    end
   end
 
   defp get_neighbors({%{terminal?: true}, %{terminal?: true}, _}), do: :halt
+
+  # TODO:
+  # Do we need this?
+  defp get_neighbors({%{null?: true}, %{null?: true}, _}), do: {:cont, []}
 
   defp get_neighbors({left, right, _} = v) do
     if SyntaxNode.similar?(left, right) do
@@ -183,10 +220,7 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
   end
 
-  defp maybe_add_unchanged_branch(
-         neighbors,
-         {%{branch?: true} = left, %{branch?: true} = right, prev} = v
-       ) do
+  defp maybe_add_unchanged_branch(neighbors, {left, right, prev} = v) do
     if SyntaxNode.similar_branch?(left, right) do
       delta =
         Delta.unchanged(
@@ -197,16 +231,17 @@ defmodule Mneme.Diff do
           prev
         )
 
-      v2 =
-        {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), delta}
+      v2 = {
+        SyntaxNode.next_child(left, :pop_both),
+        SyntaxNode.next_child(right, :pop_both),
+        delta
+      }
 
       add_edge(neighbors, v, v2)
     else
       neighbors
     end
   end
-
-  defp maybe_add_unchanged_branch(neighbors, _v), do: neighbors
 
   # When both nodes are strings, we may want to include a Myers edit script
   defp add_changed_edges(neighbors, {%{form: :string} = left, %{form: :string} = right, _} = v) do
@@ -250,8 +285,7 @@ defmodule Mneme.Diff do
   end
 
   defp add_changed_edges(neighbors, {left, right, _} = v) do
-    # When nodes are similar branches, prevent marking them as separately
-    # changed
+    # Don't mark similar branches as changed
     if SyntaxNode.similar_branch?(left, right) do
       neighbors
     else
@@ -282,6 +316,8 @@ defmodule Mneme.Diff do
     |> add_changed_right(v)
   end
 
+  defp add_changed_left(neighbors, {%{null?: true}, _, _}), do: neighbors
+
   defp add_changed_left(neighbors, {left, %{null?: true} = right, _} = v) do
     add_edge(
       neighbors,
@@ -309,6 +345,8 @@ defmodule Mneme.Diff do
       {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
     )
   end
+
+  defp add_changed_right(neighbors, {_, %{null?: true}, _}), do: neighbors
 
   defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
     add_edge(
@@ -338,9 +376,41 @@ defmodule Mneme.Diff do
     )
   end
 
-  defp add_edge(neighbors, _v1, {left, right, delta}) do
-    {left, right} = SyntaxNode.pop(left, right)
-    [{{left, right, delta}, delta_cost(delta)} | neighbors]
+  defp add_edge(neighbors, {l1, r1, _}, {left, right, delta}) do
+    {l, r} = SyntaxNode.next(left, right)
+
+    # log_node(:right_before, r1)
+    # log_node(:right_after, r)
+
+    delta =
+      if is_list(delta) do
+        delta
+      else
+        %{delta | left_node_after: l, right_node_after: r}
+      end
+
+    [{{l, r, delta}, delta_cost(delta)} | neighbors]
+  end
+
+  defp log_node(side, %{zipper: nil}), do: IO.inspect({side, nil})
+
+  defp log_node(side, %{zipper: z}) do
+    case Zipper.node(z) do
+      {form, meta, list} when is_list(list) ->
+        IO.inspect({side, {form, Map.take(meta, [:line, :column]), :...}})
+
+      {form, meta, val} ->
+        IO.inspect({side, {form, Map.take(meta, [:line, :column]), val}})
+
+      list when is_list(list) ->
+        IO.inspect({side, [:...]})
+
+      {_, _} ->
+        IO.inspect({side, {:..., :...}})
+
+      other ->
+        IO.inspect({side, other})
+    end
   end
 
   defp delta_cost(%Delta{} = delta), do: Delta.cost(delta)
@@ -387,12 +457,13 @@ defmodule Mneme.Diff do
   @doc false
   def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
 
-  defp summarize_delta(%Delta{changed?: changed?, kind: :node, side: side} = delta) do
+  @doc false
+  def summarize_delta(%Delta{changed?: changed?, kind: :node, side: side} = delta) do
     node = Delta.node(delta)
     {changed?, side, :node, summarize_node(node)}
   end
 
-  defp summarize_delta(%Delta{changed?: changed?, kind: :branch, side: side} = delta) do
+  def summarize_delta(%Delta{changed?: changed?, kind: :branch, side: side} = delta) do
     node = Delta.node(delta)
 
     ast =
@@ -406,16 +477,17 @@ defmodule Mneme.Diff do
     {changed?, side, :branch, ast}
   end
 
-  defp summarize_delta(nil), do: nil
+  def summarize_delta(nil), do: nil
 
-  defp summarize_node(%SyntaxNode{terminal?: true}), do: "TERMINAL"
-  defp summarize_node(%SyntaxNode{null?: true}), do: "NULL"
+  @doc false
+  def summarize_node(%SyntaxNode{terminal?: true}), do: "TERMINAL"
+  def summarize_node(%SyntaxNode{null?: true}), do: "NULL"
 
-  defp summarize_node(node) do
+  def summarize_node(node) do
     node
     |> SyntaxNode.ast()
     |> AST.prewalk(fn
-      {form, _meta, args} -> {form, [], args}
+      {form, meta, args} -> {form, Map.take(meta, [:line, :column]), args}
       quoted -> quoted
     end)
   end

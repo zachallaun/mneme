@@ -11,7 +11,9 @@ defmodule Mneme.Diff.Delta do
     :kind,
     :side,
     :left_node,
+    :left_node_after,
     :right_node,
+    :right_node_after,
     :adjacent?,
     depth_difference: 0,
     edit_script: []

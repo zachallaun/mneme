@@ -137,7 +137,8 @@ defmodule Mneme.Diff.SyntaxNode do
         _ -> {[l_k, l_v], [r_k, r_v]}
       end
 
-    {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
+    {with_children(l, Enum.map(l_children, &ast/1)),
+     with_children(r, Enum.map(r_children, &ast/1))}
   end
 
   def minimize_nodes(%{branch?: true, form: f} = l, %{branch?: true, form: f} = r) do
@@ -149,7 +150,8 @@ defmodule Mneme.Diff.SyntaxNode do
         {l_child, r_child}
 
       {l_children, r_children} ->
-        {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
+        {with_children(l, Enum.map(l_children, &ast/1)),
+         with_children(r, Enum.map(r_children, &ast/1))}
     end
   end
 
@@ -199,15 +201,16 @@ defmodule Mneme.Diff.SyntaxNode do
   @doc """
   Continues traversal for two potentially null nodes.
   """
-  def pop(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
+  def next(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
     {l, r}
   end
 
-  def pop(left, right) do
+  def next(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {:pop_both, p1}} = left, %{null?: true, parent: {:pop_both, p2}} = right} ->
+      {%{null?: true, parent: {:pop_both, p1}} = left,
+       %{null?: true, parent: {:pop_both, p2}} = right} ->
         if similar_branch?(p1, p2) do
-          pop(next_sibling(p1), next_sibling(p2))
+          next(next_sibling(p1), next_sibling(p2))
         else
           {left, right}
         end
@@ -217,11 +220,12 @@ defmodule Mneme.Diff.SyntaxNode do
     end
   end
 
-  defp pop_all(%{null?: true, parent: {:pop_either, parent}}) do
+  @doc false
+  def pop_all(%{null?: true, parent: {:pop_either, parent}}) do
     parent |> next_sibling() |> pop_all()
   end
 
-  defp pop_all(node), do: node
+  def pop_all(node), do: node
 
   @doc "Returns the first child of the current syntax node."
   def next_child(%SyntaxNode{zipper: z} = node, entry \\ :pop_either) do
@@ -246,8 +250,7 @@ defmodule Mneme.Diff.SyntaxNode do
   def child_ids(%SyntaxNode{zipper: z}), do: get_child_ids(z)
 
   @doc """
-  Returns true if both nodes have the same content, despite location in
-  the ast.
+  Returns true for non-null nodes with the same content.
   """
   def similar?(%SyntaxNode{null?: false, hash: h}, %SyntaxNode{null?: false, hash: h}), do: true
   def similar?(_, _), do: false
