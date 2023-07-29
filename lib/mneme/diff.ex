@@ -101,7 +101,7 @@ defmodule Mneme.Diff do
   @spec shortest_path(vertex) :: [Delta.t() | [Delta.t(), ...]]
   def shortest_path(root) do
     # The root 3-tuple doesn't have a delta, so we ignore it
-    [_root | path] = Pathfinding.lazy_dijkstra(root, &vertex_id/1, &neighbors/1)
+    {:ok, [_root | path]} = Pathfinding.uniform_cost_search(root, &neighbors/1, id: &vertex_id/1)
     Enum.map(path, fn {_v1, _v2, delta} -> delta end)
   end
 
@@ -185,12 +185,12 @@ defmodule Mneme.Diff do
 
         {:cont, neighbors}
 
-      :halt ->
-        :halt
+      {:halt, v} ->
+        {:halt, v}
     end
   end
 
-  defp get_neighbors({%{terminal?: true}, %{terminal?: true}, _}), do: :halt
+  defp get_neighbors({%{terminal?: true}, %{terminal?: true}, _} = v), do: {:halt, v}
 
   # TODO:
   # Do we need this?

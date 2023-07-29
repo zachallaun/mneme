@@ -14,6 +14,16 @@ defmodule Mneme.Diff.PriorityQueue do
   end
 
   @doc """
+  Creates a new priority queue with initial values and priorities.
+  """
+  @spec new([{term(), priority}]) :: t
+  def new(list) when is_list(list) do
+    Enum.reduce(list, new(), fn {value, priority}, pqueue ->
+      push(pqueue, value, priority)
+    end)
+  end
+
+  @doc """
   Push a new element into the queue with a given priority.
   """
   @spec push(t, term(), priority) :: t
@@ -31,21 +41,21 @@ defmodule Mneme.Diff.PriorityQueue do
   end
 
   @doc """
-  Pop an element out of the queue, returning `{:ok, value, queue}` or
-  `:error` if there is not an element to pop.
+  Pop an element out of the queue, returning `{:value, value, queue}` or
+  `:empty` if there is not an element to pop.
   """
-  @spec pop(t) :: {:ok, term(), t} | :error
+  @spec pop(t) :: {:value, term(), t} | :empty
   def pop(pqueue) do
     if :gb_trees.is_empty(pqueue) do
-      :error
+      :empty
     else
       {priority, queue, pqueue} = :gb_trees.take_smallest(pqueue)
       {{:value, value}, queue} = :queue.out(queue)
 
       if :queue.is_empty(queue) do
-        {:ok, value, pqueue}
+        {:value, value, pqueue}
       else
-        {:ok, value, :gb_trees.insert(priority, queue, pqueue)}
+        {:value, value, :gb_trees.insert(priority, queue, pqueue)}
       end
     end
   end

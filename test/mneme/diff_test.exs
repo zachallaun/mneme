@@ -33,8 +33,8 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats term reordering" do
-      auto_assert {[["[:foo, ", %Tag{data: ":bar", sequences: [:red]}, ", :baz]"]],
-                   [["[", %Tag{data: ":bar", sequences: [:green]}, ", :foo, :baz]"]]} <-
+      auto_assert {[["[", %Tag{data: ":foo", sequences: [:red]}, ", :bar, :baz]"]],
+                   [["[:bar, ", %Tag{data: ":foo", sequences: [:green]}, ", :baz]"]]} <-
                     format("[:foo, :bar, :baz]", "[:bar, :foo, :baz]")
     end
 
@@ -80,7 +80,8 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats strings" do
-      auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]], [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <-
+      auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]],
+                   [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <-
                     format(~s("foo"), ~s("bar"))
 
       auto_assert {[
@@ -802,10 +803,12 @@ defmodule Mneme.DiffTest do
       auto_assert {[[]], [[%Tag{data: "1..10//2", sequences: [:green]}]]} <-
                     format("", "1..10//2")
 
-      auto_assert {[[%Tag{data: "1", sequences: [:red]}, "..10"]], [[%Tag{data: "2", sequences: [:green]}, "..10"]]} <-
+      auto_assert {[[%Tag{data: "1", sequences: [:red]}, "..10"]],
+                   [[%Tag{data: "2", sequences: [:green]}, "..10"]]} <-
                     format("1..10", "2..10")
 
-      auto_assert {[["1..10//", %Tag{data: "1", sequences: [:red]}]], [["1..10//", %Tag{data: "2", sequences: [:green]}]]} <-
+      auto_assert {[["1..10//", %Tag{data: "1", sequences: [:red]}]],
+                   [["1..10//", %Tag{data: "2", sequences: [:green]}]]} <-
                     format("1..10//1", "1..10//2")
 
       auto_assert {[
@@ -1004,8 +1007,8 @@ defmodule Mneme.DiffTest do
                        %Tag{data: "]", sequences: [:red]},
                        ", [{:var, ",
                        %Tag{data: "[", sequences: [:red]},
-                       "line: 1, ",
-                       %Tag{data: "column: 2", sequences: [:red]},
+                       %Tag{data: "line: 1", sequences: [:red]},
+                       ", column: 2",
                        %Tag{data: "]", sequences: [:red]},
                        ", :x}]}"
                      ]
@@ -1021,8 +1024,8 @@ defmodule Mneme.DiffTest do
                        %Tag{data: "}", sequences: [:green]},
                        ", [{:var, ",
                        %Tag{data: "%{", sequences: [:green]},
-                       %Tag{data: "column: 2", sequences: [:green]},
-                       ", line: 1",
+                       "column: 2, ",
+                       %Tag{data: "line: 1", sequences: [:green]},
                        %Tag{data: "}", sequences: [:green]},
                        ", :x}]}"
                      ]
