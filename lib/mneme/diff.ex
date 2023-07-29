@@ -156,32 +156,32 @@ defmodule Mneme.Diff do
 
     case get_neighbors(v) do
       {:cont, neighbors} ->
-        for {{newl, newr, newd}, _} <- neighbors do
-          case Zipper.node(newr.zipper) do
-            {_, %{line: 2, column: 67}, _} ->
-              if i = Process.get(:hmm) do
-                IO.puts(i)
+        # for {{newl, newr, newd}, _} <- neighbors do
+        #   case newr.parent do
+        #     {:pop_both, %{zipper: {{_, %{line: 3, column: 3}, _}, _}}} ->
+        #       if i = Process.get(:hmm) do
+        #         IO.puts(i)
 
-                if i == 2 do
-                  require IEx
+        #         if i == 10 do
+        #           require IEx
 
-                  IEx.pry()
-                end
+        #           IEx.pry()
+        #         end
 
-                Process.put(:hmm, i + 1)
-              else
-                IO.puts(1)
-                Process.put(:hmm, 2)
-              end
+        #         Process.put(:hmm, i + 1)
+        #       else
+        #         IO.puts(1)
+        #         Process.put(:hmm, 2)
+        #       end
 
-            # require IEx
+        #     # require IEx
 
-            # IEx.pry()
+        #     # IEx.pry()
 
-            _ ->
-              :ok
-          end
-        end
+        #     _ ->
+        #       :ok
+        #   end
+        # end
 
         {:cont, neighbors}
 
@@ -200,10 +200,7 @@ defmodule Mneme.Diff do
     if SyntaxNode.similar?(left, right) do
       {:cont, add_unchanged_node([], v)}
     else
-      {:cont,
-       []
-       |> maybe_add_unchanged_branch(v)
-       |> add_changed_edges(v)}
+      {:cont, [] |> add_changed_edges(v) |> maybe_add_unchanged_branch(v)}
     end
   end
 
@@ -284,16 +281,40 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, v2)
   end
 
-  defp add_changed_edges(neighbors, {left, right, _} = v) do
-    # Don't mark similar branches as changed
-    if SyntaxNode.similar_branch?(left, right) do
-      neighbors
-    else
-      add_changed_left_right(neighbors, v)
+  defp add_changed_edges(neighbors, {left, right, prev} = v) do
+    case prev do
+      %{
+        changed?: false,
+        left_node: %{parent: {:pop_both, p1}},
+        right_node: %{parent: {:pop_both, p2}}
+      } ->
+        if SyntaxNode.similar_branch?(p1, p2) do
+          v2 = {
+            SyntaxNode.next_sibling(left),
+            SyntaxNode.next_sibling(right),
+            [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, left, right)]
+          }
+
+          add_edge(neighbors, v, v2)
+        else
+          add_changed_left_right(neighbors, v)
+        end
+
+      _ ->
+        add_changed_left_right(neighbors, v)
     end
 
-    # When nodes are similar branches, allow marking the branches as changed,
-    # but ensure they're popped together
+    add_changed_left_right(neighbors, v)
+
+    # Don't mark similar branches as changed
+    # if SyntaxNode.similar_branch?(left, right) do
+    #   neighbors
+    # else
+    #   add_changed_left_right(neighbors, v)
+    # end
+
+    # # When nodes are similar branches, allow marking the branches as changed,
+    # # but ensure they're popped together
     # if SyntaxNode.similar_branch?(left, right) do
     #   left_delta = Delta.changed(:branch, :left, left, right)
     #   right_delta = Delta.changed(:branch, :right, left, right)

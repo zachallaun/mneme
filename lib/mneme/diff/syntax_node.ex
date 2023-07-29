@@ -198,58 +198,91 @@ defmodule Mneme.Diff.SyntaxNode do
     %{node | zipper: Zipper.replace_children(node.zipper, children)}
   end
 
-  @doc """
-  Continues traversal for two potentially null nodes.
-  """
-  def next(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
-    {l, r}
+  # @doc """
+  # Continues traversal for two potentially null nodes.
+  # """
+  # def next(%SyntaxNode{terminal?: true} = l, %SyntaxNode{terminal?: true} = r) do
+  #   {l, r}
+  # end
+
+  # def next(left, right) do
+  #   case pop_either(left, right) do
+  #     {%{null?: true, parent: {:pop_both, p1}} = left,
+  #      %{null?: true, parent: {:pop_both, p2}} = right} ->
+  #       if similar_branch?(p1, p2) do
+  #         next(next_sibling(p1), next_sibling(p2))
+  #       else
+  #         {left, right}
+  #       end
+
+  #     {%{null?: false, parent: {:pop_both, %{parent: {:pop_both, gp1}}}} = left,
+  #      %{null?: true, parent: {:pop_both, p2}} = right} ->
+  #       if similar_branch?(gp1, p2) do
+  #         next(left, next_sibling(p2))
+  #       else
+  #         {left, right}
+  #       end
+
+  #     {%{null?: true, parent: {:pop_both, p1}} = left,
+  #      %{null?: false, parent: {:pop_both, %{parent: {:pop_both, gp2}}}} = right} ->
+  #       if similar_branch?(p1, gp2) do
+  #         next(next_sibling(p1), right)
+  #       else
+  #         {left, right}
+  #       end
+
+  #     {left, right} ->
+  #       {left, right}
+  #   end
+  # end
+
+  def next(left, right), do: pop_all(left, right)
+
+  defp pop_all(%{terminal?: true} = left, %{terminal?: true} = right), do: {left, right}
+
+  defp pop_all(%{null?: true, parent: {:pop_either, p1}}, right) do
+    pop_all(next_sibling(p1), right)
   end
 
-  def next(left, right) do
-    case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {:pop_both, p1}} = left,
-       %{null?: true, parent: {:pop_both, p2}} = right} ->
-        if similar_branch?(p1, p2) do
-          next(next_sibling(p1), next_sibling(p2))
-        else
-          {left, right}
-        end
+  defp pop_all(left, %{null?: true, parent: {:pop_either, p2}}) do
+    pop_all(left, next_sibling(p2))
+  end
 
-      {%{null?: false, parent: {:pop_both, p1}} = left,
-       %{null?: true, parent: {:pop_both, p2}} = right} ->
-        if similar_branch?(p1, p2) do
-          next(left, next_sibling(p2))
-        else
-          {left, right}
-        end
-
-      {%{null?: true, parent: {:pop_both, p1}} = left,
-       %{null?: false, parent: {:pop_both, p2}} = right} ->
-        if similar_branch?(p1, p2) do
-          next(next_sibling(p1), right)
-        else
-          {left, right}
-        end
-
-      {left, right} ->
-        {left, right}
+  defp pop_all(
+         %{null?: true, parent: {:pop_both, p1}} = left,
+         %{null?: true, parent: {:pop_both, p2}} = right
+       ) do
+    if similar_branch?(p1, p2) do
+      pop_all(next_sibling(p1), next_sibling(p2))
+    else
+      {left, right}
     end
   end
 
-  defp similar_ancestors?(%{parent: {:pop_both, p1}}, %{parent: {:pop_both, p2}}) do
-    similar_branch?(p1, p2) and similar_ancestors?(p1, p2)
+  defp pop_all(%{null?: true, parent: {:pop_both, p1}} = left, right) do
+    if matching_ancestors?(p1, right) do
+      pop_all(next_sibling(p1), right)
+    else
+      {left, right}
+    end
   end
 
-  defp similar_ancestors?(%{parent: {:pop_both, _}}, _), do: false
-  defp similar_ancestors?(_, %{parent: {:pop_both, _}}), do: false
-  defp similar_ancestors?(_, _), do: true
-
-  @doc false
-  def pop_all(%{null?: true, parent: {:pop_either, parent}}) do
-    parent |> next_sibling() |> pop_all()
+  defp pop_all(left, %{null?: true, parent: {:pop_both, p2}} = right) do
+    if matching_ancestors?(left, p2) do
+      pop_all(left, next_sibling(p2))
+    else
+      {left, right}
+    end
   end
 
-  def pop_all(node), do: node
+  defp pop_all(left, right), do: {left, right}
+
+  # @doc false
+  # def pop_all(%{null?: true, parent: {:pop_either, parent}}) do
+  #   parent |> next_sibling() |> pop_all()
+  # end
+
+  # def pop_all(node), do: node
 
   @doc "Returns the first child of the current syntax node."
   def next_child(%SyntaxNode{zipper: z} = node, entry \\ :pop_either) do
@@ -280,14 +313,29 @@ defmodule Mneme.Diff.SyntaxNode do
   def similar?(_, _), do: false
 
   @doc """
-  Returns true if both branches have similar delimiters.
+  Returns true if branches can be considered matching.
   """
-  def similar_branch?(%SyntaxNode{} = left, %SyntaxNode{} = right) do
-    case {left, right} do
-      {%{branch?: true, form: f}, %{branch?: true, form: f}} -> true
-      _ -> false
-    end
+  def similar_branch?(%SyntaxNode{branch?: true} = left, %SyntaxNode{branch?: true} = right) do
+    left.form == right.form && matching_ancestors?(left, right)
   end
+
+  def similar_branch?(_, _), do: false
+
+  defp matching_ancestors?(%{parent: {:pop_both, p1}}, %{parent: {:pop_both, p2}}) do
+    p1.form == p2.form && matching_ancestors?(p1, p2)
+  end
+
+  defp matching_ancestors?(%{parent: {:pop_both, _}} = left, %{parent: {:pop_either, p2}}) do
+    matching_ancestors?(left, p2)
+  end
+
+  defp matching_ancestors?(%{parent: {:pop_either, p1}}, %{parent: {:pop_both, _}} = right) do
+    matching_ancestors?(p1, right)
+  end
+
+  defp matching_ancestors?(%{parent: {:pop_both, _}}, _), do: false
+  defp matching_ancestors?(_, %{parent: {:pop_both, _}}), do: false
+  defp matching_ancestors?(_, _), do: true
 
   @doc """
   Returns the depth of the current syntax node relative to the root.

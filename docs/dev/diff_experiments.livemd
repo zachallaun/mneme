@@ -138,7 +138,8 @@ defmodule KinoDiff do
     Kino.Layout.grid([
       Kino.Markdown.new("**Current cost:** #{cost}"),
       Kino.Markdown.new(render_delta(delta)),
-      Kino.Layout.grid([left, right], columns: 2)
+      Kino.Layout.grid([left, right], columns: 2),
+      log_nodes(delta)
     ])
   end
 
@@ -161,6 +162,47 @@ defmodule KinoDiff do
     """
     **Changed #{kind}** (#{side}, cost #{Delta.cost(delta)}, parent #{tag})
     """
+  end
+
+  defp summarize_z(z) do
+    case Z.node(z) do
+      {form, meta, list} when is_list(list) ->
+        {form, Map.take(meta, [:line, :column]), :...}
+
+      {form, meta, val} ->
+        {form, Map.take(meta, [:line, :column]), val}
+
+      list when is_list(list) ->
+        [:...]
+
+      {_, _} ->
+        {:..., :...}
+
+      other ->
+        other
+    end
+  end
+
+  defp summarize_parent(nil), do: nil
+  defp summarize_parent({tag, parent}), do: {tag, summarize_z(parent.zipper)}
+
+  defp log_nodes(deltas) when is_list(deltas) do
+    for d <- deltas, do: log_nodes(d)
+  end
+
+  defp log_nodes(d) do
+    [
+      left_node_______: summarize_z(d.left_node.zipper),
+      left_pre_next___: summarize_z(d.left_node_before.zipper),
+      left_post_next__: summarize_z(d.left_node_after.zipper),
+      left_pre_parent_: summarize_parent(d.left_node_before.parent),
+      left_post_parent: summarize_parent(d.left_node_after.parent),
+      right_node_____: summarize_z(d.right_node.zipper),
+      right_pre_next_: summarize_z(d.right_node_before.zipper),
+      right_post_next: summarize_z(d.right_node_after.zipper),
+      right_pre_parent_: summarize_parent(d.right_node_before.parent),
+      right_post_parent: summarize_parent(d.right_node_after.parent)
+    ]
   end
 
   defimpl Kino.Render do
@@ -229,7 +271,7 @@ end
 ## Scratchpad
 
 ```elixir
-# KinoDiffLive.new(original, modified)
+KinoDiffLive.new(original, modified)
 ```
 
 The following example is creating a really confusing diff, where it's skipping over an entire section of the `modified` code (the second nested list with the tag in it).
@@ -238,12 +280,10 @@ I think this has somethign to do with the `:pop_both` etc. implementation, becau
 
 ```elixir
 original = """
-{nil,
- [
-   {:sequences, :uhh},
-   {:sequences, :green},
-   :this_must_be_here
- ]} <- foo()
+{
+  nil,
+  [{:sequences, :uhh}, {:sequences, :green}, :this_must_be_here]
+} <- foo()
 """
 
 modified = """
