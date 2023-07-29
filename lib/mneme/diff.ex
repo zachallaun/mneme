@@ -100,8 +100,12 @@ defmodule Mneme.Diff do
   @doc false
   @spec shortest_path(vertex) :: [Delta.t() | [Delta.t(), ...]]
   def shortest_path(root) do
+    heuristic = :persistent_term.get(:delta_heuristic_fun, fn _, _ -> 0 end)
+
     # The root 3-tuple doesn't have a delta, so we ignore it
-    {:ok, [_root | path]} = Pathfinding.uniform_cost_search(root, &neighbors/1, id: &vertex_id/1)
+    {:ok, [_root | path]} =
+      Pathfinding.uniform_cost_search(root, &neighbors/1, id: &vertex_id/1, heuristic: heuristic)
+
     Enum.map(path, fn {_v1, _v2, delta} -> delta end)
   end
 
@@ -440,8 +444,12 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp delta_cost(%Delta{} = delta), do: Delta.cost(delta)
-  defp delta_cost(list) when is_list(list), do: list |> Enum.map(&Delta.cost/1) |> Enum.sum()
+  defp delta_cost(list) when is_list(list), do: list |> Enum.map(&delta_cost/1) |> Enum.sum()
+
+  defp delta_cost(%Delta{} = delta) do
+    cost_fun = :persistent_term.get(:delta_cost_fun, &Delta.cost/1)
+    cost_fun.(delta)
+  end
 
   @doc false
   def vertex_id({%{id: l_id, parent: nil}, %{id: r_id, parent: nil}, delta}) do

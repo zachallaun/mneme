@@ -54,14 +54,18 @@ defmodule Mneme.Diff.Pathfinding do
       neighbors
       |> Enum.reduce({pqueue, costs}, fn {neighbor, cost}, {pqueue, costs} ->
         id = funs.id.(neighbor)
-        acc_cost = acc_cost + cost + funs.heuristic.(current, neighbor)
+
+        # The accumulated cost should not contain the heuristic value
+        # to prevent it from compounding on subsequent nodes.
+        acc_cost = acc_cost + cost
+        priority_cost = acc_cost + funs.heuristic.(current, neighbor)
 
         case Map.fetch(costs, id) do
           {:ok, {_, prev_cost}} when acc_cost > prev_cost ->
             {pqueue, costs}
 
           _ ->
-            pqueue = PriorityQueue.push(pqueue, {neighbor, acc_cost}, acc_cost)
+            pqueue = PriorityQueue.push(pqueue, {neighbor, acc_cost}, priority_cost)
             costs = Map.put(costs, id, {current, acc_cost})
             {pqueue, costs}
         end

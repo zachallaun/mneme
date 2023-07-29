@@ -61,20 +61,6 @@ modified = """
 ## Helpers
 
 ```elixir
-defmodule Helpers do
-  def kino_pagination(renderables) do
-    renderables
-    |> Enum.with_index(&{&2 + 1, &1})
-    |> Kino.Layout.tabs()
-  end
-end
-```
-
-```elixir
-import Helpers
-```
-
-```elixir
 defmodule KinoDiff do
   alias Mneme.Diff
   alias Mneme.Diff.Delta
@@ -274,9 +260,25 @@ end
 KinoDiffLive.new(original, modified)
 ```
 
-The following example is creating a really confusing diff, where it's skipping over an entire section of the `modified` code (the second nested list with the tag in it).
+### Example 1
 
-I think this has somethign to do with the `:pop_both` etc. implementation, because changing the shape of the nested list such that it doesn't match the shape of the original yields a proper diff.
+We're going to compare these two code blocks:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+{
+  nil,
+  [{:sequences, :uhh}, {:sequences, :green}, :this_must_be_here]
+} <- foo()
+
+# compare to
+
+{
+  [{:sequences, :red}],
+  [{:sequences, :uhh}]
+} <- foo()
+```
 
 ```elixir
 original = """
@@ -293,8 +295,80 @@ modified = """
 } <- foo()
 """
 
+:persistent_term.erase(:delta_cost_fun)
+:persistent_term.erase(:delta_heuristic_fun)
 KinoDiffLive.new(original, modified)
 ```
+
+Let's modify the cost function:
+
+```elixir
+alias Mneme.Diff.Delta
+
+non_adjacent_penalty = fn
+  %{adjacent?: true} -> 0
+  %{adjacent?: false} -> 10
+end
+
+cost = fn %Delta{} = delta ->
+  case delta do
+    %{changed?: false, kind: :node, depth_difference: dd} ->
+      dd + 1 + non_adjacent_penalty.(delta)
+
+    %{changed?: false, kind: :branch, depth_difference: dd} ->
+      dd + 10 + non_adjacent_penalty.(delta)
+
+    %{changed?: true, kind: :branch} ->
+      300
+
+    %{changed?: true, kind: :node} = delta ->
+      290 + 160 * Delta.node(delta).n_descendants
+  end
+end
+
+:persistent_term.put(:delta_cost_fun, cost)
+KinoDiffLive.new(original, modified)
+```
+
+Let's modify the heuristic, keeping the new cost function:
+
+```elixir
+heuristic = fn {_, _, d1}, {_, _, d2} ->
+  case {d1, d2} do
+    # penalize changing the same side repeatedly
+    {%{changed?: true, side: :left}, %{changed?: true, side: :left}} -> 10
+    {%{changed?: true, side: :right}, %{changed?: true, side: :right}} -> 10
+    # default
+    _ -> 0
+  end
+end
+
+:persistent_term.put(:delta_heuristic_fun, heuristic)
+KinoDiffLive.new(original, modified)
+```
+
+### Example 2
+
+Let's try with the cost/heuristic functions above.
+
+```elixir
+original = """
+{:"::", [line: 1, column: 5],
+ [
+   {{:., [line: 1, column: 5], [Kernel, :to_string]},
+    [closing: [line: 1, column: 10], line: 1, column: 5], [{:var, [line: 1, column: 5], :binary}]}
+ ]}
+"""
+
+modified = """
+{:"::", [line: 1, column: 5, closing: [line: 1, column: 10]],
+ [{:var, [line: 1, column: 5], :binary}]}
+"""
+
+KinoDiffLive.new(original, modified)
+```
+
+## Section
 
 ```elixir
 alias Mneme.Diff

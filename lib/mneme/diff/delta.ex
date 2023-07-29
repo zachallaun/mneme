@@ -67,8 +67,6 @@ defmodule Mneme.Diff.Delta do
   @doc "The cost of this delta, used for pathfinding."
   def cost(delta)
 
-  def cost(deltas) when is_list(deltas), do: deltas |> Enum.map(&cost/1) |> Enum.sum()
-
   # def cost(%Delta{changed?: false, kind: :node, depth_difference: dd, adjacent?: false}),
   #   do: dd + 100
 
