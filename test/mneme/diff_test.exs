@@ -11,12 +11,12 @@ defmodule Mneme.DiffTest do
   end
 
   describe "format/2" do
-    test "formats insertions/deletions from nothing" do
+    test "insertions/deletions from nothing" do
       auto_assert {[[]], [[%Tag{data: "123", sequences: [:green]}]]} <- format("", "123")
       auto_assert {[[%Tag{data: "123", sequences: [:red]}]], [[]]} <- format("123", "")
     end
 
-    test "formats list insertions" do
+    test "list insertions" do
       auto_assert {nil,
                    [
                      [
@@ -32,13 +32,13 @@ defmodule Mneme.DiffTest do
                     format("[]", "[:foo]")
     end
 
-    test "formats term reordering" do
+    test "term reordering" do
       auto_assert {[["[", %Tag{data: ":foo", sequences: [:red]}, ", :bar, :baz]"]],
                    [["[:bar, ", %Tag{data: ":foo", sequences: [:green]}, ", :baz]"]]} <-
                     format("[:foo, :bar, :baz]", "[:bar, :foo, :baz]")
     end
 
-    test "formats term renesting" do
+    test "term renesting" do
       auto_assert {[["[[", %Tag{data: ":bar", sequences: [:red]}, "]]"]],
                    [["[[], ", %Tag{data: ":bar", sequences: [:green]}, "]"]]} <-
                     format("[[:bar]]", "[[], :bar]")
@@ -79,7 +79,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats strings" do
+    test "strings" do
       auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]],
                    [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <-
                     format(~s("foo"), ~s("bar"))
@@ -167,7 +167,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats strings using myers diff when they are similar" do
+    test "strings using myers diff when they are similar" do
       auto_assert {[
                      [
                        %Tag{data: "\"", sequences: [:red]},
@@ -307,7 +307,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format(~s("""\n  foo\n  bar\n  """), ~s("""\n  soa \n  baz\n  """))
     end
 
-    test "formats charlists" do
+    test "charlists" do
       auto_assert {nil, [["[", %Tag{data: "~c(foo)", sequences: [:green]}, "]"]]} <-
                     format("[]", "[~c(foo)]")
 
@@ -315,7 +315,7 @@ defmodule Mneme.DiffTest do
                     format("[]", "['foo']")
     end
 
-    test "formats strings to sigil charlists" do
+    test "strings to sigil charlists" do
       auto_assert {nil,
                    [
                      [
@@ -334,17 +334,17 @@ defmodule Mneme.DiffTest do
                    ], nil} <- format(~S(~c"foo"), ~S("foo"))
     end
 
-    test "formats integer insertions" do
+    test "integer insertions" do
       auto_assert {nil, [["[1, ", %Tag{data: "2_000", sequences: [:green]}, "]"]]} <-
                     format("[1]", "[1, 2_000]")
     end
 
-    test "formats over multiple lines" do
+    test "over multiple lines" do
       auto_assert {nil, ["[", "  1,", ["  ", %Tag{data: "2_000", sequences: [:green]}], ["]"]]} <-
                     format("[\n  1\n]", "[\n  1,\n  2_000\n]")
     end
 
-    test "formats tuple to list" do
+    test "tuple to list" do
       auto_assert {[
                      [
                        %Tag{data: "{", sequences: [:red]},
@@ -361,7 +361,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("{1, 2}", "[1, 2]")
     end
 
-    test "formats map to kw" do
+    test "map to kw" do
       auto_assert {[
                      [
                        %Tag{data: "%{", sequences: [:red]},
@@ -378,7 +378,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("%{foo: 1}", "[foo: 1]")
     end
 
-    test "formats map key insertion" do
+    test "map key insertion" do
       auto_assert {nil,
                    [
                      [
@@ -410,7 +410,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats entire collections" do
+    test "entire collections" do
       auto_assert {nil,
                    [
                      [
@@ -463,7 +463,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats map to struct" do
+    test "map to struct" do
       auto_assert {[
                      [
                        %Tag{data: "%{", sequences: [:red]},
@@ -532,7 +532,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats aliases" do
+    test "aliases" do
       auto_assert {[["Foo.", %Tag{data: "Bar.", sequences: [:red]}, "Baz"]],
                    [["Foo.", %Tag{data: "Buzz.", sequences: [:green]}, "Baz"]]} <-
                     format("Foo.Bar.Baz", "Foo.Buzz.Baz")
@@ -544,7 +544,7 @@ defmodule Mneme.DiffTest do
                     format("Bar.Baz", "Foo.Bar.Baz")
     end
 
-    test "formats calls without parens" do
+    test "calls without parens" do
       auto_assert {nil,
                    [
                      [
@@ -563,7 +563,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats calls with parens" do
+    test "calls with parens" do
       auto_assert {nil,
                    [
                      [
@@ -574,7 +574,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("x", "foo(x)")
     end
 
-    test "formats qualified calls" do
+    test " qualified calls" do
       auto_assert {[[%Tag{data: "foo", sequences: [:red]}, ".bar()"]],
                    [[%Tag{data: "foo.()", sequences: [:green]}, ".bar()"]]} <-
                     format("foo.bar()", "foo.().bar()")
@@ -627,11 +627,11 @@ defmodule Mneme.DiffTest do
                     format("Foo.Bar.baz()", "Foo.Buzz.baz()")
     end
 
-    test "formats unary operators" do
+    test "unary operators" do
       auto_assert {nil, [[%Tag{data: "-", sequences: [:green]}, "x"]]} <- format("x", "-x")
     end
 
-    test "formats binary operators" do
+    test "binary operators" do
       auto_assert {[["x ", %Tag{data: "+", sequences: [:red]}, " y"]],
                    [["x ", %Tag{data: "-", sequences: [:green]}, " y"]]} <-
                     format("x + y", "x - y")
@@ -669,7 +669,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("1 + 2", "2 - 1")
     end
 
-    test "formats pins" do
+    test "pins" do
       auto_assert {nil,
                    [
                      [
@@ -692,7 +692,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("me", "^foo(me) <- me")
     end
 
-    test "formats structs" do
+    test "structs" do
       auto_assert {nil, [["%MyStruct{", %Tag{data: "foo: 1", sequences: [:green]}, "}"]]} <-
                     format("%MyStruct{}", "%MyStruct{foo: 1}")
 
@@ -760,7 +760,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats guards" do
+    test "guards" do
       auto_assert {nil,
                    [
                      [
@@ -774,7 +774,7 @@ defmodule Mneme.DiffTest do
                     format("auto_assert self()", "auto_assert pid when is_pid(pid) <- self()")
     end
 
-    test "formats ex_unit targets" do
+    test "ex_unit targets" do
       auto_assert {[
                      [
                        %Tag{data: "auto_assert pid when is_pid(pid) <- self()", sequences: [:red]}
@@ -797,7 +797,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats ranges" do
+    test "ranges" do
       auto_assert {[[]], [[%Tag{data: "1..10", sequences: [:green]}]]} <- format("", "1..10")
 
       auto_assert {[[]], [[%Tag{data: "1..10//2", sequences: [:green]}]]} <-
@@ -833,7 +833,7 @@ defmodule Mneme.DiffTest do
                    ]} <- format("1..10", "1..10//2")
     end
 
-    test "formats anonymous functions" do
+    test "anonymous functions" do
       auto_assert {nil,
                    [
                      [
@@ -888,7 +888,7 @@ defmodule Mneme.DiffTest do
                     )
     end
 
-    test "formats captured functiosn" do
+    test "captured functiosn" do
       auto_assert {nil,
                    [
                      [
@@ -902,6 +902,50 @@ defmodule Mneme.DiffTest do
                     format(
                       "auto_assert_raise &foo/0",
                       "auto_assert_raise Some.Exception, \"with a message\", &foo/0"
+                    )
+    end
+
+    test "prefers matches in similar location" do
+      auto_assert {[
+                     "{",
+                     ["  ", %Tag{data: "nil", sequences: [:red]}, ","],
+                     [
+                       "  ",
+                       %Tag{data: "[", sequences: [:red]},
+                       "{:sequences, :uhh}, ",
+                       %Tag{data: "{:sequences, :green}", sequences: [:red]},
+                       ", ",
+                       %Tag{data: ":this_must_be_here", sequences: [:red]},
+                       %Tag{data: "]", sequences: [:red]}
+                     ],
+                     ["} <- foo()"],
+                     []
+                   ],
+                   [
+                     "{",
+                     ["  ", %Tag{data: "[{:sequences, :red}]", sequences: [:green]}, ","],
+                     [
+                       "  ",
+                       %Tag{data: "[", sequences: [:green]},
+                       "{:sequences, :uhh}",
+                       %Tag{data: "]", sequences: [:green]}
+                     ],
+                     ["} <- foo()"],
+                     []
+                   ]} <-
+                    format(
+                      """
+                      {
+                        nil,
+                        [{:sequences, :uhh}, {:sequences, :green}, :this_must_be_here]
+                      } <- foo()
+                      """,
+                      """
+                      {
+                        [{:sequences, :red}],
+                        [{:sequences, :uhh}]
+                      } <- foo()
+                      """
                     )
     end
 
