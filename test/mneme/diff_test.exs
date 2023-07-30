@@ -1062,15 +1062,15 @@ defmodule Mneme.DiffTest do
                      ["               ["],
                      ["                 \"[1, \","],
                      [
-                       "                 %Tag{data: ",
-                       %Tag{data: "\"[\"", sequences: [:red]},
-                       ", sequences: [:green]},"
+                       "                 ",
+                       %Tag{data: "%Tag{data: \"[\", sequences: [:green]}", sequences: [:red]},
+                       ","
                      ],
                      ["                 ", %Tag{data: "\"2_000\"", sequences: [:red]}, ","],
                      [
-                       "                 ",
-                       %Tag{data: "%Tag{data: \"]\", sequences: [:green]}", sequences: [:red]},
-                       ","
+                       "                 %Tag{data: ",
+                       %Tag{data: "\"]\"", sequences: [:red]},
+                       ", sequences: [:green]},"
                      ],
                      ["                 \"]\""],
                      ["               ]"],
