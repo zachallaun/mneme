@@ -15,7 +15,8 @@ if Code.ensure_loaded?(Kino) do
       ins_highlight: [:white, :green_background, :bright],
       del: [:white, :red_background],
       del_highlight: [:white, :red_background, :bright],
-      match: [:white, :light_black_background]
+      match: [:white, :light_black_background],
+      next: [:light_yellow_background]
     ]
 
     @doc """
@@ -83,11 +84,15 @@ if Code.ensure_loaded?(Kino) do
       |> Enum.reverse()
     end
 
-    defp diff_steps([_ | rest] = path, left_code, right_code) do
+    defp diff_steps([next | rest] = path, left_code, right_code) do
       {left_changed, right_changed} = Diff.split_sides(path)
 
       left_ins = Diff.to_instructions(left_changed, :del)
       right_ins = Diff.to_instructions(right_changed, :ins)
+
+      {left_ins, right_ins} =
+        {with_next_highlighted(next.left_node_after, left_ins),
+         with_next_highlighted(next.right_node_after, right_ins)}
 
       step =
         render_step({highlight(left_code, left_ins), highlight(right_code, right_ins)}, path)
@@ -96,6 +101,12 @@ if Code.ensure_loaded?(Kino) do
     end
 
     defp diff_steps([], _, _), do: []
+
+    defp with_next_highlighted(%SyntaxNode{null?: true}, instructions), do: instructions
+
+    defp with_next_highlighted(%SyntaxNode{zipper: z}, instructions) do
+      [{:next, :node, z} | instructions]
+    end
 
     @doc false
     def highlight(code, instructions) do

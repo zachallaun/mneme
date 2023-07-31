@@ -50,6 +50,17 @@ modified = """
 KinoDiff.new(original, modified)
 ```
 
+```elixir
+KinoDiff.new(
+  """
+  [[1, 2, 3], 5]
+  """,
+  """
+  [[1, 2, 3, 4], 5]
+  """
+)
+```
+
 ### Example 1
 
 We're going to compare these two code blocks:
