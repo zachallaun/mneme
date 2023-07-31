@@ -24,7 +24,7 @@ This notebook is intended as a development aid for understanding what's going on
 alias Mneme.Diff
 alias Mneme.Diff.{AST, Delta, Formatter, SyntaxNode}
 alias Mneme.Diff.Zipper, as: Z
-Kino.nothing()
+:ok
 ```
 
 ### An example to work with
@@ -44,220 +44,10 @@ modified = """
 {:"::", [line: 1, column: 5, closing: [line: 1, column: 10]],
  [{:var, [line: 1, column: 5], :binary}]}
 """
-
-# {:ok, {left, right}} = Diff.format(original, modified)
-
-# left
-# |> Owl.Data.unlines()
-# |> Owl.IO.puts()
-
-# right
-# |> Owl.Data.unlines()
-# |> Owl.IO.puts()
-
-# Kino.nothing()
-```
-
-## Helpers
-
-```elixir
-defmodule KinoDiff do
-  alias Mneme.Diff
-  alias Mneme.Diff.Delta
-  alias Mneme.Diff.SyntaxNode
-
-  @colors [
-    ins: [:white, :green_background],
-    ins_highlight: [:white, :green_background, :bright],
-    del: [:white, :red_background],
-    del_highlight: [:white, :red_background, :bright],
-    match: [:white, :light_black_background]
-  ]
-
-  defstruct [:highlighted]
-
-  def new(left_code, right_code) do
-    diff_steps(left_code, right_code)
-    |> Enum.with_index(&{&2 + 1, &1})
-    |> Kino.Layout.tabs()
-  end
-
-  def diff_steps(left_code, right_code) do
-    {left, right} = SyntaxNode.from_strings!(left_code, right_code)
-    path = Diff.shortest_path({left, right, nil})
-
-    path
-    |> Enum.reverse()
-    |> diff_steps(left_code, right_code)
-    |> Enum.reverse()
-  end
-
-  defp diff_steps([_ | rest] = path, left_code, right_code) do
-    {left_changed, right_changed} = Diff.split_sides(path)
-
-    left_ins = Diff.to_instructions(left_changed, :del)
-    right_ins = Diff.to_instructions(right_changed, :ins)
-
-    step =
-      {highlight(left_code, left_ins), highlight(right_code, right_ins)}
-      |> render(path)
-
-    [step | diff_steps(rest, left_code, right_code)]
-  end
-
-  defp diff_steps([], _, _), do: []
-
-  def highlight(code, instructions) do
-    text =
-      code
-      |> Diff.Formatter.highlight_lines(instructions, colors: @colors)
-      |> Owl.Data.unlines()
-      |> Owl.Data.to_ansidata()
-      |> IO.iodata_to_binary()
-
-    %__MODULE__{highlighted: text}
-  end
-
-  def render({left, right}, [delta | _] = path) do
-    cost = path |> Enum.map(&Delta.cost/1) |> Enum.sum()
-
-    Kino.Layout.grid([
-      Kino.Markdown.new("**Current cost:** #{cost}"),
-      Kino.Markdown.new(render_delta(delta)),
-      Kino.Layout.grid([left, right], columns: 2),
-      log_nodes(delta)
-    ])
-  end
-
-  defp render_delta(deltas) when is_list(deltas) do
-    deltas
-    |> Enum.map(&render_delta/1)
-    |> Enum.join("\n")
-  end
-
-  defp render_delta(%{changed?: false, kind: kind}) do
-    """
-    **Matched #{kind}**
-    """
-  end
-
-  defp render_delta(%{changed?: true, kind: kind, side: side} = delta) do
-    node = Delta.node(delta)
-    tag = node.parent && elem(node.parent, 0)
-
-    """
-    **Changed #{kind}** (#{side}, cost #{Delta.cost(delta)}, parent #{tag})
-    """
-  end
-
-  defp summarize_z(z) do
-    case Z.node(z) do
-      {form, meta, list} when is_list(list) ->
-        {form, Map.take(meta, [:line, :column]), :...}
-
-      {form, meta, val} ->
-        {form, Map.take(meta, [:line, :column]), val}
-
-      list when is_list(list) ->
-        [:...]
-
-      {_, _} ->
-        {:..., :...}
-
-      other ->
-        other
-    end
-  end
-
-  defp summarize_parent(nil), do: nil
-  defp summarize_parent({tag, parent}), do: {tag, summarize_z(parent.zipper)}
-
-  defp log_nodes(deltas) when is_list(deltas) do
-    for d <- deltas, do: log_nodes(d)
-  end
-
-  defp log_nodes(d) do
-    [
-      left_node_______: summarize_z(d.left_node.zipper),
-      left_pre_next___: summarize_z(d.left_node_before.zipper),
-      left_post_next__: summarize_z(d.left_node_after.zipper),
-      left_pre_parent_: summarize_parent(d.left_node_before.parent),
-      left_post_parent: summarize_parent(d.left_node_after.parent),
-      right_node_____: summarize_z(d.right_node.zipper),
-      right_pre_next_: summarize_z(d.right_node_before.zipper),
-      right_post_next: summarize_z(d.right_node_after.zipper),
-      right_pre_parent_: summarize_parent(d.right_node_before.parent),
-      right_post_parent: summarize_parent(d.right_node_after.parent)
-    ]
-  end
-
-  defimpl Kino.Render do
-    def to_livebook(%{highlighted: text}), do: {:text, text}
-  end
-end
 ```
 
 ```elixir
-defmodule KinoDiffLive do
-  alias Kino.Frame
-
-  def new(original, modified) do
-    frame = Frame.new()
-
-    controls = [keyboard: Kino.Control.keyboard([:keydown])]
-    Kino.render(controls[:keyboard])
-
-    state = %{
-      frame: frame,
-      steps: KinoDiff.diff_steps(original, modified),
-      current: 0
-    }
-
-    controls
-    |> Kino.Control.tagged_stream()
-    |> Kino.listen(state, &handle_event/2)
-
-    render!(state)
-
-    frame
-  end
-
-  def handle_event({:keyboard, event}, state) do
-    state =
-      case event do
-        %{type: :keydown, key: "ArrowRight"} ->
-          Map.update!(state, :current, &min(&1 + 1, length(state.steps) - 1))
-
-        %{type: :keydown, key: "ArrowLeft"} ->
-          Map.update!(state, :current, &max(&1 - 1, 0))
-
-        _ ->
-          state
-      end
-
-    render!(state)
-
-    {:cont, state}
-  end
-
-  defp render!(%{frame: frame, steps: steps, current: idx}) do
-    step = Enum.at(steps, idx)
-
-    content =
-      Kino.Layout.grid([
-        Kino.Text.new("<- #{idx + 1} of #{length(steps)} ->"),
-        step
-      ])
-
-    Frame.render(frame, content)
-  end
-end
-```
-
-## Scratchpad
-
-```elixir
-KinoDiffLive.new(original, modified)
+KinoDiff.new(original, modified)
 ```
 
 ### Example 1
@@ -297,14 +87,12 @@ modified = """
 
 :persistent_term.erase(:delta_cost_fun)
 :persistent_term.erase(:delta_heuristic_fun)
-KinoDiffLive.new(original, modified)
+KinoDiff.new(original, modified)
 ```
 
 Let's modify the cost function:
 
 ```elixir
-alias Mneme.Diff.Delta
-
 non_adjacent_penalty = fn
   %{adjacent?: true} -> 0
   %{adjacent?: false} -> 10
@@ -327,7 +115,7 @@ cost = fn %Delta{} = delta ->
 end
 
 :persistent_term.put(:delta_cost_fun, cost)
-KinoDiffLive.new(original, modified)
+KinoDiff.new(original, modified)
 ```
 
 Let's modify the heuristic, keeping the new cost function:
@@ -344,7 +132,7 @@ heuristic = fn {_, _, d1}, {_, _, d2} ->
 end
 
 :persistent_term.put(:delta_heuristic_fun, heuristic)
-KinoDiffLive.new(original, modified)
+KinoDiff.new(original, modified)
 ```
 
 ### Example 2
@@ -365,99 +153,5 @@ modified = """
  [{:var, [line: 1, column: 5], :binary}]}
 """
 
-KinoDiffLive.new(original, modified)
-```
-
-## Section
-
-```elixir
-alias Mneme.Diff
-alias Mneme.Diff.{SyntaxNode, Delta}
-alias Mneme.Diff.Zipper, as: Z
-
-next_once = fn l, r ->
-  {l_popall, r_popall} = {SyntaxNode.pop_all(l), SyntaxNode.pop_all(r)}
-
-  case {l_popall, r_popall} do
-    {%{null?: true, parent: {:pop_both, p1}} = left,
-     %{null?: true, parent: {:pop_both, p2}} = right} ->
-      if SyntaxNode.similar_branch?(p1, p2) do
-        {SyntaxNode.next_sibling(p1), SyntaxNode.next_sibling(p2)}
-      else
-        {left, right}
-      end
-
-    {left, right} ->
-      {left, right}
-  end
-end
-
-summarize_z = fn z ->
-  case Z.node(z) do
-    {form, meta, list} when is_list(list) ->
-      {form, Map.take(meta, [:line, :column]), :...}
-
-    {form, meta, val} ->
-      {form, Map.take(meta, [:line, :column]), val}
-
-    list when is_list(list) ->
-      [:...]
-
-    {_, _} ->
-      {:..., :...}
-
-    other ->
-      other
-  end
-end
-
-summarize_parent = fn
-  nil ->
-    nil
-
-  {tag, parent} ->
-    {tag, summarize_z.(parent.zipper)}
-end
-
-log_nodes = fn d ->
-  [
-    changed?: d.changed?,
-    side: d.side,
-    left_before: summarize_z.(d.left_node.zipper),
-    left_after: summarize_z.(d.left_node_after.zipper),
-    left_parent_after: summarize_parent.(d.left_node_after.parent),
-    right_before: summarize_z.(d.right_node.zipper),
-    right_after: summarize_z.(d.right_node_after.zipper),
-    right_parent_after: summarize_parent.(d.right_node_after.parent)
-  ]
-  |> IO.inspect()
-end
-```
-
-```elixir
-{left, right} = SyntaxNode.from_strings!(original, modified)
-path = Diff.shortest_path({left, right, nil})
-
-d = Enum.at(path, 9)
-
-log_nodes.(d)
-
-# next_l = SyntaxNode.next_sibling(d.left_node)
-
-# {l1, r1} = next_once.(next_l, d.right_node)
-# {l1, r1} = next_once.(l1, r1)
-# {l1, r1} = next_once.(l1, r1)
-# {l1, r1} = next_once.(l1, r1)
-# {l, r} = next_once.(l1, r1)
-
-# IO.puts(l == l1 && r == r1)
-
-# d2 = Enum.at(path, 18)
-
-# d2.right_node
-```
-
-```elixir
-{hmm, p} = d.right_node.parent
-Z.node(p.zipper |> Z.up())
+KinoDiff.new(original, modified)
 ```
