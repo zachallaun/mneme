@@ -18,8 +18,6 @@ if Code.ensure_loaded?(Kino) do
       match: [:white, :light_black_background]
     ]
 
-    defstruct [:highlighted]
-
     @doc """
     Creates an interactive diff that can be stepped through.
     """
@@ -101,14 +99,12 @@ if Code.ensure_loaded?(Kino) do
 
     @doc false
     def highlight(code, instructions) do
-      text =
-        code
-        |> Diff.Formatter.highlight_lines(instructions, colors: @colors)
-        |> Owl.Data.unlines()
-        |> Owl.Data.to_ansidata()
-        |> IO.iodata_to_binary()
-
-      %__MODULE__{highlighted: text}
+      code
+      |> Diff.Formatter.highlight_lines(instructions, colors: @colors)
+      |> Owl.Data.unlines()
+      |> Owl.Data.to_ansidata()
+      |> IO.iodata_to_binary()
+      |> KinoDiff.Text.new()
     end
 
     defp render_step({left, right}, [delta | _] = path) do
@@ -181,9 +177,20 @@ if Code.ensure_loaded?(Kino) do
         right_post_parent: summarize_parent(d.right_node_after.parent)
       ]
     end
+  end
+
+  defmodule KinoDiff.Text do
+    @moduledoc false
+
+    defstruct [:text]
+
+    @doc """
+    Create a text Kino that supports ANSI escape sequences.
+    """
+    def new(text) when is_binary(text), do: %__MODULE__{text: text}
 
     defimpl Kino.Render do
-      def to_livebook(%{highlighted: text}), do: {:text, text}
+      def to_livebook(%{text: text}), do: {:text, text}
     end
   end
 end
