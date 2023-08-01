@@ -90,9 +90,12 @@ if Code.ensure_loaded?(Kino) do
       left_ins = Diff.to_instructions(left_changed, :del)
       right_ins = Diff.to_instructions(right_changed, :ins)
 
+      {_, left_post_next} = next.next_left
+      {_, right_post_next} = next.next_right
+
       {left_ins, right_ins} =
-        {with_next_highlighted(next.left_node_after, left_ins),
-         with_next_highlighted(next.right_node_after, right_ins)}
+        {with_next_instruction(left_post_next, left_ins),
+         with_next_instruction(right_post_next, right_ins)}
 
       step =
         render_step({highlight(left_code, left_ins), highlight(right_code, right_ins)}, path)
@@ -102,9 +105,9 @@ if Code.ensure_loaded?(Kino) do
 
     defp diff_steps([], _, _), do: []
 
-    defp with_next_highlighted(%SyntaxNode{null?: true}, instructions), do: instructions
+    defp with_next_instruction(%SyntaxNode{null?: true}, instructions), do: instructions
 
-    defp with_next_highlighted(%SyntaxNode{zipper: z}, instructions) do
+    defp with_next_instruction(%SyntaxNode{zipper: z}, instructions) do
       [{:next, :node, z} | instructions]
     end
 
@@ -175,17 +178,20 @@ if Code.ensure_loaded?(Kino) do
     end
 
     defp log_nodes(d) do
+      {left_pre_next, left_post_next} = d.next_left
+      {right_pre_next, right_post_next} = d.next_right
+
       [
-        left_node_______: summarize_z(d.left_node.zipper),
-        left_pre_next___: summarize_z(d.left_node_before.zipper),
-        left_post_next__: summarize_z(d.left_node_after.zipper),
-        left_pre_parent_: summarize_parent(d.left_node_before.parent),
-        left_post_parent: summarize_parent(d.left_node_after.parent),
-        right_node_____: summarize_z(d.right_node.zipper),
-        right_pre_next_: summarize_z(d.right_node_before.zipper),
-        right_post_next: summarize_z(d.right_node_after.zipper),
-        right_pre_parent_: summarize_parent(d.right_node_before.parent),
-        right_post_parent: summarize_parent(d.right_node_after.parent)
+        left_node_______: summarize_z(d.left.zipper),
+        left_pre_next___: summarize_z(left_pre_next.zipper),
+        left_post_next__: summarize_z(left_post_next.zipper),
+        left_pre_parent_: summarize_parent(left_pre_next.parent),
+        left_post_parent: summarize_parent(left_post_next.parent),
+        right_node_____: summarize_z(d.right.zipper),
+        right_pre_next_: summarize_z(right_pre_next.zipper),
+        right_post_next: summarize_z(right_post_next.zipper),
+        right_pre_parent_: summarize_parent(right_pre_next.parent),
+        right_post_parent: summarize_parent(right_post_next.parent)
       ]
     end
   end

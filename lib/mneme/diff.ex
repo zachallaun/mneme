@@ -208,37 +208,29 @@ defmodule Mneme.Diff do
     end
   end
 
-  defp add_unchanged_node(neighbors, {left, right, prev} = v) do
+  defp add_unchanged_node(neighbors, {left, right, _}) do
     delta =
-      Delta.unchanged(
-        :node,
-        left,
-        right,
-        abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)),
-        prev
-      )
+      Delta.unchanged(:node, left, right, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
 
-    add_edge(neighbors, v, {SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta})
+    add_edge(neighbors, SyntaxNode.next_sibling(left), SyntaxNode.next_sibling(right), delta)
   end
 
-  defp maybe_add_unchanged_branch(neighbors, {left, right, prev} = v) do
+  defp maybe_add_unchanged_branch(neighbors, {left, right, _}) do
     if SyntaxNode.similar_branch?(left, right) do
       delta =
         Delta.unchanged(
           :branch,
           left,
           right,
-          abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)),
-          prev
+          abs(SyntaxNode.depth(left) - SyntaxNode.depth(right))
         )
 
-      v2 = {
+      add_edge(
+        neighbors,
         SyntaxNode.next_child(left, :pop_both),
         SyntaxNode.next_child(right, :pop_both),
         delta
-      }
-
-      add_edge(neighbors, v, v2)
+      )
     else
       neighbors
     end
@@ -253,13 +245,12 @@ defmodule Mneme.Diff do
           left_delta = Delta.changed(:node, :left, left, right, left_edit)
           right_delta = Delta.changed(:node, :right, left, right, right_edit)
 
-          v2 = {
+          add_edge(
+            neighbors,
             SyntaxNode.next_sibling(left),
             SyntaxNode.next_sibling(right),
             [left_delta, right_delta]
-          }
-
-          add_edge(neighbors, v, v2)
+          )
         else
           add_changed_left_right(neighbors, v)
         end
@@ -274,32 +265,30 @@ defmodule Mneme.Diff do
   defp add_changed_edges(
          neighbors,
          {%{parent: {_, %{binary_op?: true}}} = left, right,
-          %Delta{changed?: false, kind: :branch}} = v
+          %Delta{changed?: false, kind: :branch}}
        ) do
-    v2 = {
+    add_edge(
+      neighbors,
       SyntaxNode.next_sibling(left),
       SyntaxNode.next_sibling(right),
       [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, left, right)]
-    }
-
-    add_edge(neighbors, v, v2)
+    )
   end
 
   defp add_changed_edges(neighbors, {left, right, prev} = v) do
     case prev do
-      %{
+      %Delta{
         changed?: false,
-        left_node: %{parent: {:pop_both, p1}},
-        right_node: %{parent: {:pop_both, p2}}
+        left: %{parent: {:pop_both, p1}},
+        right: %{parent: {:pop_both, p2}}
       } ->
         if SyntaxNode.similar_branch?(p1, p2) do
-          v2 = {
+          add_edge(
+            neighbors,
             SyntaxNode.next_sibling(left),
             SyntaxNode.next_sibling(right),
             [Delta.changed(:node, :left, left, right), Delta.changed(:node, :right, left, right)]
-          }
-
-          add_edge(neighbors, v, v2)
+          )
         else
           add_changed_left_right(neighbors, v)
         end
@@ -309,30 +298,6 @@ defmodule Mneme.Diff do
     end
 
     add_changed_left_right(neighbors, v)
-
-    # Don't mark similar branches as changed
-    # if SyntaxNode.similar_branch?(left, right) do
-    #   neighbors
-    # else
-    #   add_changed_left_right(neighbors, v)
-    # end
-
-    # # When nodes are similar branches, allow marking the branches as changed,
-    # # but ensure they're popped together
-    # if SyntaxNode.similar_branch?(left, right) do
-    #   left_delta = Delta.changed(:branch, :left, left, right)
-    #   right_delta = Delta.changed(:branch, :right, left, right)
-
-    #   v2 = {
-    #     SyntaxNode.next_child(left, :pop_both),
-    #     SyntaxNode.next_child(right, :pop_both),
-    #     [left_delta, right_delta]
-    #   }
-
-    #   add_edge(neighbors, v, v2)
-    # else
-    #   add_changed_left_right(neighbors, v)
-    # end
   end
 
   defp add_changed_left_right(neighbors, v) do
@@ -343,105 +308,85 @@ defmodule Mneme.Diff do
 
   defp add_changed_left(neighbors, {%{null?: true}, _, _}), do: neighbors
 
-  defp add_changed_left(neighbors, {left, %{null?: true} = right, _} = v) do
+  defp add_changed_left(neighbors, {left, %{null?: true} = right, _}) do
     add_edge(
       neighbors,
-      v,
-      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+      SyntaxNode.next_sibling(left),
+      right,
+      Delta.changed(:node, :left, left, right)
     )
   end
 
-  defp add_changed_left(neighbors, {%{branch?: true} = left, right, _} = v) do
+  defp add_changed_left(neighbors, {%{branch?: true} = left, right, _}) do
     neighbors
     |> add_edge(
-      v,
-      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+      SyntaxNode.next_sibling(left),
+      right,
+      Delta.changed(:node, :left, left, right)
     )
     |> add_edge(
-      v,
-      {SyntaxNode.next_child(left), right, Delta.changed(:branch, :left, left, right)}
+      SyntaxNode.next_child(left),
+      right,
+      Delta.changed(:branch, :left, left, right)
     )
   end
 
-  defp add_changed_left(neighbors, {%{branch?: false} = left, right, _} = v) do
+  defp add_changed_left(neighbors, {%{branch?: false} = left, right, _}) do
     add_edge(
       neighbors,
-      v,
-      {SyntaxNode.next_sibling(left), right, Delta.changed(:node, :left, left, right)}
+      SyntaxNode.next_sibling(left),
+      right,
+      Delta.changed(:node, :left, left, right)
     )
   end
 
   defp add_changed_right(neighbors, {_, %{null?: true}, _}), do: neighbors
 
-  defp add_changed_right(neighbors, {%{null?: true} = left, right, _} = v) do
+  defp add_changed_right(neighbors, {%{null?: true} = left, right, _}) do
     add_edge(
       neighbors,
-      v,
-      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+      left,
+      SyntaxNode.next_sibling(right),
+      Delta.changed(:node, :right, left, right)
     )
   end
 
-  defp add_changed_right(neighbors, {left, %{branch?: true} = right, _} = v) do
+  defp add_changed_right(neighbors, {left, %{branch?: true} = right, _}) do
     neighbors
     |> add_edge(
-      v,
-      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+      left,
+      SyntaxNode.next_sibling(right),
+      Delta.changed(:node, :right, left, right)
     )
     |> add_edge(
-      v,
-      {left, SyntaxNode.next_child(right), Delta.changed(:branch, :right, left, right)}
+      left,
+      SyntaxNode.next_child(right),
+      Delta.changed(:branch, :right, left, right)
     )
   end
 
-  defp add_changed_right(neighbors, {left, %{branch?: false} = right, _} = v) do
+  defp add_changed_right(neighbors, {left, %{branch?: false} = right, _}) do
     add_edge(
       neighbors,
-      v,
-      {left, SyntaxNode.next_sibling(right), Delta.changed(:node, :right, left, right)}
+      left,
+      SyntaxNode.next_sibling(right),
+      Delta.changed(:node, :right, left, right)
     )
   end
 
-  defp add_edge(neighbors, {l1, r1, _}, {left, right, delta}) do
+  defp add_edge(neighbors, left, right, delta) do
     {l, r} = SyntaxNode.next(left, right)
-
-    # log_node(:right_before, r1)
-    # log_node(:right_after, r)
 
     delta =
       if is_list(delta) do
-        delta
+        for delta <- delta do
+          %{delta | next_left: {left, l}, next_right: {right, r}}
+        end
       else
-        %{
-          delta
-          | left_node_before: left,
-            left_node_after: l,
-            right_node_before: right,
-            right_node_after: r
-        }
+        %{delta | next_left: {left, l}, next_right: {right, r}}
       end
 
     [{{l, r, delta}, delta_cost(delta)} | neighbors]
-  end
-
-  defp log_node(side, %{zipper: nil}), do: IO.inspect({side, nil})
-
-  defp log_node(side, %{zipper: z}) do
-    case Zipper.node(z) do
-      {form, meta, list} when is_list(list) ->
-        IO.inspect({side, {form, Map.take(meta, [:line, :column]), :...}})
-
-      {form, meta, val} ->
-        IO.inspect({side, {form, Map.take(meta, [:line, :column]), val}})
-
-      list when is_list(list) ->
-        IO.inspect({side, [:...]})
-
-      {_, _} ->
-        IO.inspect({side, {:..., :...}})
-
-      other ->
-        IO.inspect({side, other})
-    end
   end
 
   defp delta_cost(list) when is_list(list), do: list |> Enum.map(&delta_cost/1) |> Enum.sum()
@@ -470,7 +415,7 @@ defmodule Mneme.Diff do
 
   defp delta_id(nil), do: nil
   defp delta_id(list) when is_list(list), do: Enum.map(list, &delta_id/1)
-  defp delta_id(d), do: {d.changed?, d.side, d.left_node.id, d.right_node.id}
+  defp delta_id(d), do: {d.changed?, d.side, d.left.id, d.right.id}
 
   defp myers_edit_scripts(s1, s2) do
     s1
