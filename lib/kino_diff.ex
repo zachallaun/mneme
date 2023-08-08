@@ -22,19 +22,21 @@ if Code.ensure_loaded?(Kino) do
     @doc """
     Creates an interactive diff that can be stepped through.
     """
-    def new(original, modified) do
+    def new(original, modified, opts \\ []) do
       frame = Frame.new()
 
-      controls = [keyboard: Kino.Control.keyboard([:keydown])]
-      Kino.render(controls[:keyboard])
+      keyboard =
+        [:keydown]
+        |> Kino.Control.keyboard(default_handlers: :on)
+        |> Kino.render()
 
       state = %{
         frame: frame,
-        steps: KinoDiff.diff_steps(original, modified),
+        steps: KinoDiff.diff_steps(original, modified, opts),
         current: 0
       }
 
-      controls
+      [keyboard: keyboard]
       |> Kino.Control.tagged_stream()
       |> Kino.listen(state, &handle_event/2)
 
@@ -46,10 +48,10 @@ if Code.ensure_loaded?(Kino) do
     defp handle_event({:keyboard, event}, state) do
       state =
         case event do
-          %{type: :keydown, key: "ArrowRight"} ->
+          %{type: :keydown, key: "l"} ->
             Map.update!(state, :current, &min(&1 + 1, length(state.steps) - 1))
 
-          %{type: :keydown, key: "ArrowLeft"} ->
+          %{type: :keydown, key: "h"} ->
             Map.update!(state, :current, &max(&1 - 1, 0))
 
           _ ->
@@ -74,17 +76,17 @@ if Code.ensure_loaded?(Kino) do
     end
 
     @doc false
-    def diff_steps(left_code, right_code) do
+    def diff_steps(left_code, right_code, opts) do
       {left, right} = SyntaxNode.from_strings!(left_code, right_code)
       path = Diff.shortest_path({left, right, nil})
 
       path
       |> Enum.reverse()
-      |> diff_steps(left_code, right_code)
+      |> diff_steps(left_code, right_code, opts)
       |> Enum.reverse()
     end
 
-    defp diff_steps([next | rest] = path, left_code, right_code) do
+    defp diff_steps([next | rest] = path, left_code, right_code, opts) do
       {left_changed, right_changed} = Diff.split_sides(path)
 
       left_ins = Diff.to_instructions(left_changed, :del)
@@ -98,12 +100,16 @@ if Code.ensure_loaded?(Kino) do
          with_next_instruction(right_post_next, right_ins)}
 
       step =
-        render_step({highlight(left_code, left_ins), highlight(right_code, right_ins)}, path)
+        render_step(
+          {highlight(left_code, left_ins), highlight(right_code, right_ins)},
+          path,
+          opts
+        )
 
-      [step | diff_steps(rest, left_code, right_code)]
+      [step | diff_steps(rest, left_code, right_code, opts)]
     end
 
-    defp diff_steps([], _, _), do: []
+    defp diff_steps([], _, _, _), do: []
 
     defp with_next_instruction(%SyntaxNode{null?: true}, instructions), do: instructions
 
@@ -121,15 +127,23 @@ if Code.ensure_loaded?(Kino) do
       |> KinoDiff.Text.new()
     end
 
-    defp render_step({left, right}, [delta | _] = path) do
+    defp render_step({left, right}, [delta | _] = path, opts) do
       cost = path |> Enum.map(&Delta.cost/1) |> Enum.sum()
 
-      Kino.Layout.grid([
-        Kino.Markdown.new("**Current cost:** #{cost}"),
-        Kino.Markdown.new(render_delta(delta)),
-        Kino.Layout.grid([left, right], columns: 2),
-        log_nodes(delta)
-      ])
+      grid =
+        if opts[:debug] do
+          [log_nodes(delta)]
+        else
+          []
+        end
+
+      Kino.Layout.grid(
+        [
+          Kino.Markdown.new("**Current cost:** #{cost}"),
+          Kino.Markdown.new(render_delta(delta)),
+          Kino.Layout.grid([left, right], columns: 2)
+        ] ++ grid
+      )
     end
 
     defp render_delta(deltas) when is_list(deltas) do

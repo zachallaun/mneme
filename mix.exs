@@ -43,7 +43,8 @@ defmodule Mneme.MixProject do
       {:rewrite, "~> 0.7"},
 
       # Integrations
-      {:kino, "~> 0.10.0", optional: true},
+      # {:kino, "~> 0.10.0", optional: true},
+      {:kino, path: Path.expand("~/dev/kino"), optional: true},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},

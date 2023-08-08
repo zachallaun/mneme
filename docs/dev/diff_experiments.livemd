@@ -1,11 +1,13 @@
+<!-- livebook:{"app_settings":{"access_type":"public","slug":"test-app"}} -->
+
 # Diff Experiments
 
 ```elixir
 Mix.install(
   [
-    :kino,
     :owl,
-    {:mneme, path: Path.expand("../../", __DIR__)}
+    {:kino, path: Path.expand("~/dev/kino"), override: true},
+    {:mneme, path: Path.expand("~/dev/mneme")}
   ],
   consolidate_protocols: false
 )
@@ -57,7 +59,8 @@ KinoDiff.new(
   """,
   """
   [[1, 2, 3, 4], 5]
-  """
+  """,
+  debug: true
 )
 ```
 
@@ -104,18 +107,13 @@ KinoDiff.new(original, modified)
 Let's modify the cost function:
 
 ```elixir
-non_adjacent_penalty = fn
-  %{adjacent?: true} -> 0
-  %{adjacent?: false} -> 10
-end
-
 cost = fn %Delta{} = delta ->
   case delta do
     %{changed?: false, kind: :node, depth_difference: dd} ->
-      dd + 1 + non_adjacent_penalty.(delta)
+      dd + 1
 
     %{changed?: false, kind: :branch, depth_difference: dd} ->
-      dd + 10 + non_adjacent_penalty.(delta)
+      dd + 10
 
     %{changed?: true, kind: :branch} ->
       300
