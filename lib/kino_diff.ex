@@ -124,7 +124,7 @@ if Code.ensure_loaded?(Kino) do
       |> Owl.Data.unlines()
       |> Owl.Data.to_ansidata()
       |> IO.iodata_to_binary()
-      |> KinoDiff.Text.new()
+      |> Kino.Text.new(terminal: true)
     end
 
     defp render_step({left, right}, [delta | _] = path, opts) do
@@ -207,21 +207,6 @@ if Code.ensure_loaded?(Kino) do
         right_pre_parent_: summarize_parent(right_pre_next.parent),
         right_post_parent: summarize_parent(right_post_next.parent)
       ]
-    end
-  end
-
-  defmodule KinoDiff.Text do
-    @moduledoc false
-
-    defstruct [:text]
-
-    @doc """
-    Create a text Kino that supports ANSI escape sequences.
-    """
-    def new(text) when is_binary(text), do: %__MODULE__{text: text}
-
-    defimpl Kino.Render do
-      def to_livebook(%{text: text}), do: {:text, text}
     end
   end
 end
