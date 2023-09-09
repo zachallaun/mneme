@@ -57,7 +57,7 @@ $ elixir tour_mneme.exs
     ```elixir
     defp deps do
       [
-        {:mneme, ">= 0.0.0", only: :test}
+        {:mneme, ">= 0.0.0", only: [:dev, :test]}
       ]
     end
     ```
