@@ -76,6 +76,10 @@ defmodule Mneme.MixProject do
       "coveralls.html": [
         &export_integration_coverage/1,
         "coveralls.html --import-cover cover"
+      ],
+      "test.mneme_not_started": [
+        fn _ -> System.put_env("START_MNEME", "false") end,
+        "test --only mneme_not_started test/mneme_not_started_test.exs"
       ]
     ]
   end
@@ -83,7 +87,8 @@ defmodule Mneme.MixProject do
   defp preferred_cli_env do
     [
       coveralls: :test,
-      "coveralls.html": :test
+      "coveralls.html": :test,
+      "test.mneme_not_started": :test
     ]
   end
 

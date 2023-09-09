@@ -215,7 +215,7 @@ defmodule Mneme.Options do
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
     |> collect_attributes(Map.get(attrs, @module_attr, []))
-    |> collect_attributes([:persistent_term.get(@config_cache)])
+    |> collect_attributes([persistent_term_get!(@config_cache)])
   end
 
   defp collect_attributes(_), do: %{}
@@ -239,5 +239,12 @@ defmodule Mneme.Options do
       |> Map.new()
 
     Map.merge(acc, new, fn _, vs1, vs2 -> vs1 ++ vs2 end)
+  end
+
+  defp persistent_term_get!(key) do
+    :persistent_term.get(key)
+  rescue
+    ArgumentError ->
+      raise "Config key not found (#{inspect(@config_cache)}). Did you start Mneme in test_helper.exs?"
   end
 end
