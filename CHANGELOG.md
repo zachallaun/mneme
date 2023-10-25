@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.1 (2023-10-25)
+
+### Fixed
+
+  * Fix a crash that could occur when diffing sigils.
+
 ## v0.4.0 (2023-07-04)
 
 ### Added
