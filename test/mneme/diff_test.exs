@@ -80,7 +80,8 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats strings" do
-      auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]], [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <-
+      auto_assert {[[%Tag{data: "\"foo\"", sequences: [:red]}]],
+                   [[%Tag{data: "\"bar\"", sequences: [:green]}]]} <-
                     format(~s("foo"), ~s("bar"))
 
       auto_assert {[
@@ -823,10 +824,12 @@ defmodule Mneme.DiffTest do
       auto_assert {[[]], [[%Tag{data: "1..10//2", sequences: [:green]}]]} <-
                     format("", "1..10//2")
 
-      auto_assert {[[%Tag{data: "1", sequences: [:red]}, "..10"]], [[%Tag{data: "2", sequences: [:green]}, "..10"]]} <-
+      auto_assert {[[%Tag{data: "1", sequences: [:red]}, "..10"]],
+                   [[%Tag{data: "2", sequences: [:green]}, "..10"]]} <-
                     format("1..10", "2..10")
 
-      auto_assert {[["1..10//", %Tag{data: "1", sequences: [:red]}]], [["1..10//", %Tag{data: "2", sequences: [:green]}]]} <-
+      auto_assert {[["1..10//", %Tag{data: "1", sequences: [:red]}]],
+                   [["1..10//", %Tag{data: "2", sequences: [:green]}]]} <-
                     format("1..10//1", "1..10//2")
 
       auto_assert {[

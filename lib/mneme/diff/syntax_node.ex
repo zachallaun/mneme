@@ -135,7 +135,8 @@ defmodule Mneme.Diff.SyntaxNode do
         _ -> {[l_k, l_v], [r_k, r_v]}
       end
 
-    {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
+    {with_children(l, Enum.map(l_children, &ast/1)),
+     with_children(r, Enum.map(r_children, &ast/1))}
   end
 
   def minimize_nodes(%{branch?: true, form: f} = l, %{branch?: true, form: f} = r) do
@@ -147,7 +148,8 @@ defmodule Mneme.Diff.SyntaxNode do
         {l_child, r_child}
 
       {l_children, r_children} ->
-        {with_children(l, Enum.map(l_children, &ast/1)), with_children(r, Enum.map(r_children, &ast/1))}
+        {with_children(l, Enum.map(l_children, &ast/1)),
+         with_children(r, Enum.map(r_children, &ast/1))}
     end
   end
 
@@ -203,7 +205,8 @@ defmodule Mneme.Diff.SyntaxNode do
 
   def pop(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {:pop_both, p1}} = left, %{null?: true, parent: {:pop_both, p2}} = right} ->
+      {%{null?: true, parent: {:pop_both, p1}} = left,
+       %{null?: true, parent: {:pop_both, p2}} = right} ->
         if similar_branch?(p1, p2) do
           pop(next_sibling(p1), next_sibling(p2))
         else

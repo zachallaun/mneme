@@ -18,7 +18,9 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                     null?: false,
                     terminal?: false,
                     zipper:
-                      {{:auto_assert, %{}, [{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}]}, nil}
+                      {{:auto_assert, %{},
+                        [{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}]},
+                       nil}
                   } <- @left
     end
   end
@@ -41,7 +43,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
     end
 
     test "discards identical children" do
-      auto_assert {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 3}]}, {:"[]", %{}, [{:atom, %{}, :foo}, {:atom, %{}, :bar}]}} <-
+      auto_assert {{:"[]", %{}, [{:int, %{}, 1}, {:int, %{}, 3}]},
+                   {:"[]", %{}, [{:atom, %{}, :foo}, {:atom, %{}, :bar}]}} <-
                     minimize!("[1, 2, 3]", "[:foo, 2, :bar]")
 
       auto_assert {{:%{}, %{},
@@ -49,7 +52,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
                       {{:atom, %{}, :foo}, {:int, %{}, 1}},
                       {{:atom, %{}, :bar}, {:{}, %{}, [{:int, %{}, 3}]}}
                     ]},
-                   {:%{}, %{}, [{{:atom, %{}, :foo}, {:int, %{}, 2}}, {{:atom, %{}, :bar}, {:{}, %{}, []}}]}} <-
+                   {:%{}, %{},
+                    [{{:atom, %{}, :foo}, {:int, %{}, 2}}, {{:atom, %{}, :bar}, {:{}, %{}, []}}]}} <-
                     minimize!("%{foo: 1, bar: {2, 3}}", "%{foo: 2, bar: {2}}")
 
       auto_assert {{:"[]", %{}, [{:"[]", %{}, [{:atom, %{}, :bar}]}]},
@@ -78,7 +82,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
       auto_assert %SyntaxNode{
                     parent: {:pop_both, %SyntaxNode{}},
                     terminal?: false,
-                    zipper: {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                    zipper:
+                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
                   } <- left
 
       auto_assert %SyntaxNode{
@@ -104,7 +109,8 @@ defmodule Mneme.Diff.SyntaxNodeTest do
       auto_assert %SyntaxNode{
                     parent: {:pop_either, %SyntaxNode{}},
                     terminal?: false,
-                    zipper: {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
+                    zipper:
+                      {{:some_call, %{}, [{:int, %{}, 1}, {:int, %{}, 2}, {:int, %{}, 3}]}, %{}}
                   } <- right
 
       right = right |> next_child() |> next_sibling() |> next_sibling() |> next_sibling()

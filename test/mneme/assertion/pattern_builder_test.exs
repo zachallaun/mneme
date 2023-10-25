@@ -63,7 +63,9 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       self = self()
       auto_assert(["pid when is_pid(pid)"] <- to_pattern_strings(self))
 
-      auto_assert(["^me", "pid when is_pid(pid)"] <- to_pattern_strings(self, binding: [me: self]))
+      auto_assert(
+        ["^me", "pid when is_pid(pid)"] <- to_pattern_strings(self, binding: [me: self])
+      )
 
       {:ok, port} = :gen_tcp.listen(0, [])
 

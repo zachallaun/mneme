@@ -140,7 +140,9 @@ defmodule Mneme.Diff.AST do
   end
 
   # Handles :"atoms#{with_interpolation}"
-  defp normalize_node({{:., _, [:erlang, :binary_to_atom]}, metadata, [{:<<>>, _, segments}, :utf8]}) do
+  defp normalize_node(
+         {{:., _, [:erlang, :binary_to_atom]}, metadata, [{:<<>>, _, segments}, :utf8]}
+       ) do
     metadata = normalize_metadata(metadata)
     start_pos = Keyword.take(metadata, [:line, :column])
 
@@ -233,7 +235,8 @@ defmodule Mneme.Diff.AST do
 
     sigil_string = {:string, [line: metadata[:line], column: metadata[:column] + 1], sigil}
 
-    {:"~", normalize_metadata(metadata), [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
+    {:"~", normalize_metadata(metadata),
+     [sigil_string, normalize_interpolation(args, start_pos), modifiers]}
   end
 
   defp normalize_interpolation(segments, start_pos) do

@@ -296,7 +296,10 @@ defmodule Mneme.Assertion do
     build_and_select_pattern(assertion, :first)
   end
 
-  defp build_and_select_pattern(%{stage: :update, value: value, rich_ast: ast} = assertion, :infer) do
+  defp build_and_select_pattern(
+         %{stage: :update, value: value, rich_ast: ast} = assertion,
+         :infer
+       ) do
     subexpressions =
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
@@ -421,7 +424,8 @@ defmodule Mneme.Assertion do
   end
 
   defp build_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
-    {:auto_assert, meta(ast), [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
+    {:auto_assert, meta(ast),
+     [{:<-, meta(value_expr(ast)), [maybe_when(pattern), value_expr(ast)]}]}
   end
 
   defp build_call(:mneme, %{kind: :auto_assert_raise, rich_ast: ast}, {exception, nil}) do
@@ -447,7 +451,8 @@ defmodule Mneme.Assertion do
     {:auto_assert_received, Keyword.delete(meta(ast), :closing), [maybe_when(pattern)]}
   end
 
-  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil}) when falsy in [false, nil] do
+  defp build_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast, value: falsy}, {expr, nil})
+       when falsy in [false, nil] do
     {:assert, meta(ast), [{:==, meta(value_expr(ast)), [value_expr(ast), expr]}]}
   end
 
@@ -509,7 +514,8 @@ defmodule Mneme.Assertion do
 
   # ExUnit assert arguments must evaluate to a truthy value, so we eval
   # a comparison instead of pattern match
-  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy) when falsy in [nil, false] do
+  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy)
+      when falsy in [nil, false] do
     {:assert, [], [{:==, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 

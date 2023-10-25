@@ -112,13 +112,15 @@ defmodule Mneme.Diff.ASTTest do
       auto_assert {{:<<>>, :string}, [delimiter: "\"", line: 1, column: 1],
                    [
                      {:string, [line: 1, column: 2], "foo"},
-                     {:"::", [line: 1, column: 5, closing: [line: 1, column: 10]], [{:var, [line: 1, column: 7], :bar}]}
+                     {:"::", [line: 1, column: 5, closing: [line: 1, column: 10]],
+                      [{:var, [line: 1, column: 7], :bar}]}
                    ]} <- parse_string!(~S|"foo#{bar}"|)
 
       auto_assert {{:<<>>, :atom}, [delimiter: "\"", line: 1, column: 1],
                    [
                      {:string, [line: 1, column: 3], "foo"},
-                     {:"::", [line: 1, column: 6, closing: [line: 1, column: 11]], [{:var, [line: 1, column: 8], :bar}]}
+                     {:"::", [line: 1, column: 6, closing: [line: 1, column: 11]],
+                      [{:var, [line: 1, column: 8], :bar}]}
                    ]} <- parse_string!(~S|:"foo#{bar}"|)
     end
 
@@ -159,12 +161,14 @@ defmodule Mneme.Diff.ASTTest do
                    [
                      {:int, [token: "1", line: 1, column: 2], 1},
                      {:int, [token: "2", line: 1, column: 5], 2},
-                     {{:atom, [format: :keyword, line: 1, column: 8], :foo}, {:int, [token: "3", line: 1, column: 13], 3}}
+                     {{:atom, [format: :keyword, line: 1, column: 8], :foo},
+                      {:int, [token: "3", line: 1, column: 13], 3}}
                    ]} <- parse_string!("[1, 2, foo: 3]")
 
       auto_assert {:"[]", [closing: [line: 1, column: 16], line: 1, column: 1],
                    [
-                     {{:atom, [format: :keyword, line: 1, column: 2], :foo}, {:int, [token: "1", line: 1, column: 7], 1}},
+                     {{:atom, [format: :keyword, line: 1, column: 2], :foo},
+                      {:int, [token: "1", line: 1, column: 7], 1}},
                      {{:atom, [format: :keyword, line: 1, column: 10], :bar},
                       {:int, [token: "2", line: 1, column: 15], 2}}
                    ]} <- parse_string!("[foo: 1, bar: 2]")
@@ -190,12 +194,14 @@ defmodule Mneme.Diff.ASTTest do
 
       auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: 2],
                    [
-                     {{:atom, [line: 1, column: 3], :foo}, {:int, [token: "1", line: 1, column: 11], 1}}
+                     {{:atom, [line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 11], 1}}
                    ]} <- parse_string!("%{:foo => 1}")
 
       auto_assert {:%{}, [closing: [line: 1, column: 9], line: 1, column: 2],
                    [
-                     {{:atom, [format: :keyword, line: 1, column: 3], :foo}, {:int, [token: "1", line: 1, column: 8], 1}}
+                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 8], 1}}
                    ]} <- parse_string!("%{foo: 1}")
     end
 
@@ -302,7 +308,8 @@ defmodule Mneme.Diff.ASTTest do
     end
 
     test "aliases" do
-      auto_assert {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1], [{:var, [line: 1, column: 1], :Foo}]} <-
+      auto_assert {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
+                   [{:var, [line: 1, column: 1], :Foo}]} <-
                     parse_string!("Foo")
 
       auto_assert {:__aliases__, [last: [line: 1, column: 5], line: 1, column: 1],
@@ -337,7 +344,8 @@ defmodule Mneme.Diff.ASTTest do
                    [
                      {:int, [token: "1", line: 1, column: 8], 1},
                      [
-                       {{:atom, [format: :keyword, line: 1, column: 11], :foo}, {:var, [line: 1, column: 16], :bar}}
+                       {{:atom, [format: :keyword, line: 1, column: 11], :foo},
+                        {:var, [line: 1, column: 16], :bar}}
                      ]
                    ]} <- parse_string!("is_pid(1, foo: bar)")
 
@@ -358,7 +366,8 @@ defmodule Mneme.Diff.ASTTest do
                    [
                      {:int, [token: "1", line: 1, column: 8], 1},
                      [
-                       {{:atom, [format: :keyword, line: 1, column: 11], :foo}, {:var, [line: 1, column: 16], :bar}}
+                       {{:atom, [format: :keyword, line: 1, column: 11], :foo},
+                        {:var, [line: 1, column: 16], :bar}}
                      ]
                    ]} <- parse_string!("is_pid 1, foo: bar")
     end
@@ -366,18 +375,22 @@ defmodule Mneme.Diff.ASTTest do
     test "qualified calls" do
       # anonymous fn syntax has a single arg
       auto_assert {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
-                   [closing: [line: 1, column: 6], line: 1, column: 4], []} <- parse_string!("foo.()")
+                   [closing: [line: 1, column: 6], line: 1, column: 4],
+                   []} <- parse_string!("foo.()")
 
       # usual chaining has 2 args
-      auto_assert {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
-                   [closing: [line: 1, column: 9], line: 1, column: 5], []} <- parse_string!("foo.bar()")
+      auto_assert {{:., [line: 1, column: 4],
+                    [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
+                   [closing: [line: 1, column: 9], line: 1, column: 5],
+                   []} <- parse_string!("foo.bar()")
 
       auto_assert {{:., [line: 1, column: 4],
                     [
                       {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
                        [{:var, [line: 1, column: 1], :Foo}]},
                       {:var, [line: 1, column: 5], :bar}
-                    ]}, [closing: [line: 1, column: 9], line: 1, column: 5], []} <- parse_string!("Foo.bar()")
+                    ]}, [closing: [line: 1, column: 9], line: 1, column: 5],
+                   []} <- parse_string!("Foo.bar()")
 
       # rightmost . is on the outside and has meta about parens, e.g. `:closing`
       # note that `{:., [], []}` is always at the head of a call, e.g. `{{:., [], []}, [], []}`
@@ -387,7 +400,8 @@ defmodule Mneme.Diff.ASTTest do
                         [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
                        [no_parens: true, line: 1, column: 5], []},
                       {:var, [line: 1, column: 9], :baz}
-                    ]}, [closing: [line: 1, column: 13], line: 1, column: 9], []} <- parse_string!("foo.bar.baz()")
+                    ]}, [closing: [line: 1, column: 13], line: 1, column: 9],
+                   []} <- parse_string!("foo.bar.baz()")
 
       # example without parens, no `:closing` meta
       auto_assert {{:., [line: 1, column: 8],
@@ -407,7 +421,8 @@ defmodule Mneme.Diff.ASTTest do
                         [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
                        [closing: [line: 1, column: 9], line: 1, column: 5], []},
                       {:var, [line: 1, column: 11], :baz}
-                    ]}, [closing: [line: 1, column: 15], line: 1, column: 11], []} <- parse_string!("foo.bar().baz()")
+                    ]}, [closing: [line: 1, column: 15], line: 1, column: 11],
+                   []} <- parse_string!("foo.bar().baz()")
 
       # the inner `:.` tuple has a single arg and its call has closing meta, indicating
       # a `foo.()`
@@ -416,7 +431,8 @@ defmodule Mneme.Diff.ASTTest do
                       {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
                        [closing: [line: 1, column: 6], line: 1, column: 4], []},
                       {:var, [line: 1, column: 8], :bar}
-                    ]}, [closing: [line: 1, column: 12], line: 1, column: 8], []} <- parse_string!("foo.().bar()")
+                    ]}, [closing: [line: 1, column: 12], line: 1, column: 8],
+                   []} <- parse_string!("foo.().bar()")
     end
 
     test "unary operators" do
@@ -432,7 +448,8 @@ defmodule Mneme.Diff.ASTTest do
 
     # note: includes `|>`
     test "binary operators" do
-      auto_assert {:+, [line: 1, column: 3], [{:var, [line: 1, column: 1], :x}, {:var, [line: 1, column: 5], :y}]} <-
+      auto_assert {:+, [line: 1, column: 3],
+                   [{:var, [line: 1, column: 1], :x}, {:var, [line: 1, column: 5], :y}]} <-
                     parse_string!("x + y")
 
       auto_assert {:when, [line: 1, column: 5],
@@ -471,7 +488,8 @@ defmodule Mneme.Diff.ASTTest do
 
       auto_assert {[
                      ^ast,
-                     {{:atom, [format: :keyword, line: 1, column: 3], :foo}, {:int, [token: "1", line: 1, column: 8], 1}},
+                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 8], 1}},
                      {:atom, [format: :keyword, line: 1, column: 3], :foo},
                      {:int, [token: "1", line: 1, column: 8], 1},
                      {{:atom, [format: :keyword, line: 1, column: 11], :bar},
@@ -482,7 +500,8 @@ defmodule Mneme.Diff.ASTTest do
                    [
                      {:atom, [format: :keyword, line: 1, column: 3], :foo},
                      {:int, [token: "1", line: 1, column: 8], 1},
-                     {{:atom, [format: :keyword, line: 1, column: 3], :foo}, {:int, [token: "1", line: 1, column: 8], 1}},
+                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 8], 1}},
                      {:atom, [format: :keyword, line: 1, column: 11], :bar},
                      {:int, [token: "2", line: 1, column: 16], 2},
                      {{:atom, [format: :keyword, line: 1, column: 11], :bar},

@@ -93,8 +93,10 @@ defmodule Mneme.Integration do
 
     errors =
       [
-        {exit_code == test.expected_exit_code, "Exit code was #{exit_code} (expected #{test.expected_exit_code})"},
-        {code_after_test == test.expected_code, diff("Source", test.expected_code, code_after_test)}
+        {exit_code == test.expected_exit_code,
+         "Exit code was #{exit_code} (expected #{test.expected_exit_code})"},
+        {code_after_test == test.expected_code,
+         diff("Source", test.expected_code, code_after_test)}
       ]
       |> Enum.reject(fn {check, _} -> check end)
       |> Enum.map(fn {_, message} -> message end)
@@ -245,7 +247,8 @@ defmodule Mneme.Integration do
     {:auto_assert_raise, meta, [List.last(args)]}
   end
 
-  defp transform({assert_receive, meta, _}) when assert_receive in [:auto_assert_receive, :auto_assert_received] do
+  defp transform({assert_receive, meta, _})
+       when assert_receive in [:auto_assert_receive, :auto_assert_received] do
     {assert_receive, meta, []}
   end
 
