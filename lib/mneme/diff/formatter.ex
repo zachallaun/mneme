@@ -221,12 +221,14 @@ defmodule Mneme.Diff.Formatter do
   end
 
   defp edit_script_to_fmt_instructions(op, {{_, meta, _}, _}, edit_script) do
-    %{line: l_start, column: c_start, delimiter: del} = meta
+    %{line: l_start, column: c_start} = meta
+    del = Map.get(meta, :delimiter, "")
 
     {l, c} =
       case del do
         ~s(") -> {l_start, c_start + 1}
         ~s(""") -> {l_start + 1, meta.indentation + 1}
+        "" -> {l_start, c_start}
       end
 
     {ops, {l_end, c_end, _}} =

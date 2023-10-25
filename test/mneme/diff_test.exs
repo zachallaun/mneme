@@ -306,6 +306,27 @@ defmodule Mneme.DiffTest do
                    ]} <- format(~s("""\n  foo\n  bar\n  """), ~s("""\n  soa \n  baz\n  """))
     end
 
+    test "formats sigils using myers diff when they are similar" do
+      auto_assert {[
+                     [
+                       "~D[",
+                       %Tag{data: "200", sequences: [:red]},
+                       %Tag{data: "0", sequences: [:bright, :red, :underline]},
+                       %Tag{data: "-01-01", sequences: [:red]},
+                       "]"
+                     ]
+                   ],
+                   [
+                     [
+                       "~D[",
+                       %Tag{data: "200", sequences: [:green]},
+                       %Tag{data: "1", sequences: [:bright, :green, :underline]},
+                       %Tag{data: "-01-01", sequences: [:green]},
+                       "]"
+                     ]
+                   ]} <- format("~D[2000-01-01]", "~D[2001-01-01]")
+    end
+
     test "formats charlists" do
       auto_assert {nil, [["[", %Tag{data: "~c(foo)", sequences: [:green]}, "]"]]} <-
                     format("[]", "[~c(foo)]")
