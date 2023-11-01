@@ -50,8 +50,14 @@ defmodule Mneme.Patcher do
           {{:ok, Assertion.t()} | {:error, term()}, state}
   def patch!(%Rewrite{} = project, %Assertion{} = assertion, counter) do
     project = load_source!(project, assertion.context.file)
-    {assertion, node} = prepare_assertion(assertion, project)
-    patch!(project, assertion, counter, node)
+
+    case prepare_assertion(assertion, project) do
+      {:ok, {assertion, node}} ->
+        patch!(project, assertion, counter, node)
+
+      {:error, :not_found} ->
+        {{:error, :file_changed}, project}
+    end
   rescue
     error ->
       {{:error, {:internal, error, __STACKTRACE__}}, project}
@@ -111,12 +117,16 @@ defmodule Mneme.Patcher do
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
-    {rich_ast, comments} =
-      zipper
-      |> Zipper.node()
-      |> Sourceror.Comments.extract_comments()
+    if zipper do
+      {rich_ast, comments} =
+        zipper
+        |> Zipper.node()
+        |> Sourceror.Comments.extract_comments()
 
-    {Assertion.prepare_for_patch(assertion, rich_ast), {zipper, comments}}
+      {:ok, {Assertion.prepare_for_patch(assertion, rich_ast), {zipper, comments}}}
+    else
+      {:error, :not_found}
+    end
   end
 
   defp replace_assertion_node({zipper, comments}, ast) do

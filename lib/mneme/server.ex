@@ -36,7 +36,8 @@ defmodule Mneme.Server do
       skipped: 0,
       rejected: 0,
       wip: 0
-    }
+    },
+    not_saved: MapSet.new()
   ]
 
   @type t :: %__MODULE__{
@@ -173,11 +174,25 @@ defmodule Mneme.Server do
 
     state =
       case {reply, assertion.stage} do
-        {{:ok, _}, :new} -> inc_stat(state, :new)
-        {{:ok, _}, :update} -> inc_stat(state, :updated)
-        {{:error, :skipped}, _} -> inc_stat(state, :skipped)
-        {{:error, :rejected}, _} -> inc_stat(state, :rejected)
-        _ -> state
+        {{:ok, _}, :new} ->
+          inc_stat(state, :new)
+
+        {{:ok, _}, :update} ->
+          inc_stat(state, :updated)
+
+        {{:error, :skipped}, _} ->
+          inc_stat(state, :skipped)
+
+        {{:error, :rejected}, _} ->
+          inc_stat(state, :rejected)
+
+        {{:error, :file_changed}, _} ->
+          state
+          |> inc_stat(:skipped)
+          |> update_in([Access.key(:not_saved)], &MapSet.put(&1, assertion.context.file))
+
+        _ ->
+          state
       end
 
     state
@@ -210,9 +225,14 @@ defmodule Mneme.Server do
   defp current_module?(_state, _mod), do: false
 
   defp finalize(%{stats: stats} = state) do
-    case Patcher.finalize!(state.patch_state) do
-      :ok -> :ok
-      {:error, {:not_saved, files}} -> ensure_exit_with_error!(:not_saved, files)
+    not_saved_files =
+      case Patcher.finalize!(state.patch_state) do
+        :ok -> []
+        {:error, {:not_saved, files}} -> files
+      end ++ MapSet.to_list(state.not_saved)
+
+    if not_saved_files != [] do
+      ensure_exit_with_error!(:not_saved, not_saved_files)
     end
 
     if stats.skipped > 0 do
@@ -227,8 +247,9 @@ defmodule Mneme.Server do
   defp ensure_exit_with_error!(:not_saved, files) do
     ensure_exit_with_error!(fn ->
       message = [
-        "Could not save the following files (possibly because their content changed):\n\n",
-        Enum.map(files, &["  * ", &1, "\n"])
+        "The following files could not be saved. Their content may have changed.\n\n",
+        Enum.map(files, &["  * ", &1]),
+        "\n\nYou may need to run these tests again."
       ]
 
       Owl.IO.puts(["\n", Owl.Data.tag(["[Mneme] ", message], :red)])
