@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.2 (2023-11-01)
+
+### Fixes
+
+  * Fix a crash that would occur if a test file containing an auto-assertion is changed before the auto-assertion is run (for instance, while Mneme is waiting on input from an auto-assertion in a different test file).
+
 ## v0.4.1 (2023-10-25)
 
 ### Fixed
