@@ -70,16 +70,47 @@ defmodule Mneme.Assertion do
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
   def build(kind, args, caller, opts) do
     macro_ast = {kind, Macro.Env.location(caller), args}
+    context = assertion_context(caller)
+
+    # Prevents warnings about unused aliases when their only usage is in
+    # an auto-assertion
+    silence_used_aliases =
+      macro_ast
+      |> extract_used_aliases(context[:aliases])
+      |> Enum.map(&quoted_dummy_assign/1)
 
     quote do
-      unquote(Macro.escape(macro_ast))
-      |> Mneme.Assertion.new(
-        unquote(value_eval_expr(macro_ast)),
-        Keyword.put(unquote(assertion_context(caller)), :binding, binding()),
-        unquote(opts)
-      )
-      |> Mneme.Assertion.run(__ENV__, Mneme.Server.started?())
+      unquote_splicing(silence_used_aliases)
+
+      ast = unquote(Macro.escape(macro_ast))
+
+      assertion =
+        Mneme.Assertion.new(
+          ast,
+          unquote(value_eval_expr(macro_ast)),
+          Keyword.put(unquote(context), :binding, binding()),
+          unquote(opts)
+        )
+
+      Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
     end
+  end
+
+  defp extract_used_aliases(quoted, aliases) do
+    quoted
+    |> Macro.prewalker()
+    |> Enum.filter(fn
+      {:__aliases__, _, [maybe_alias | _]} when is_atom(maybe_alias) ->
+        module = Module.concat([maybe_alias])
+        Keyword.has_key?(aliases, module)
+
+      _ ->
+        false
+    end)
+  end
+
+  defp quoted_dummy_assign(expr) do
+    {:=, [], [Macro.var(:_, nil), expr]}
   end
 
   @doc false
