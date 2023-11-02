@@ -22,7 +22,15 @@ defmodule Mneme.Patcher do
   """
   @spec load_source!(state, String.t()) :: state
   def load_source!(%Rewrite{} = project, file) do
-    Rewrite.read!(project, file)
+    if Rewrite.has_source?(project, file) do
+      project
+    else
+      project
+      |> Rewrite.read!(file)
+      |> Rewrite.update!(file, fn %Source{} = source ->
+        Source.put_private(source, :patched_ast, Source.get(source, :quoted))
+      end)
+    end
   end
 
   @doc """
@@ -77,7 +85,9 @@ defmodule Mneme.Patcher do
         else
           {:ok, project} =
             Rewrite.update(project, assertion.context.file, fn source ->
-              Source.update(source, :quoted, ast)
+              source
+              |> Source.update(:quoted, ast)
+              |> Source.put_private(:patched_ast, ast)
             end)
 
           {{:ok, assertion}, project}
@@ -112,8 +122,7 @@ defmodule Mneme.Patcher do
     source = Rewrite.source!(project, assertion.context.file)
 
     zipper =
-      source
-      |> Source.get(:quoted)
+      source.private[:patched_ast]
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
