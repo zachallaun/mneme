@@ -2,6 +2,13 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.3 (2023)
+
+### Fixes
+
+  * Fix a regression introduced in v0.4.1 that caused auto-assertions to fail if an earlier one in the same file added or removed lines when formatted ([#53](https://github.com/zachallaun/mneme/issues/53)).
+  * Suppress "unused alias" warnings when the aliases are only used in auto-assertions ([#54](https://github.com/zachallaun/mneme/issues/54)).
+
 ## v0.4.2 (2023-11-01)
 
 ### Fixes
@@ -12,7 +19,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ### Fixed
 
-  * Fix a crash that could occur when diffing sigils.
+  * Fix a crash that could occur when diffing sigils ([#52](https://github.com/zachallaun/mneme/issues/52)).
 
 ## v0.4.0 (2023-07-04)
 
