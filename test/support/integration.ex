@@ -25,7 +25,7 @@ defmodule Mneme.Integration do
     wildcard
     |> Rewrite.new!()
     |> Rewrite.map!(&set_up_source/1)
-    |> Enum.each(fn source ->
+    |> Enum.map(fn source ->
       module = source |> Source.Ex.modules() |> List.last()
       "Elixir." <> module_name = to_string(module)
       test_data = source.private[:mneme_integration]
