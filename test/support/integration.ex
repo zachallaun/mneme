@@ -36,7 +36,6 @@ defmodule Mneme.Integration do
 
           @tag :tmp_dir
           @tag :integration
-          @tag unquote(test_data[:name])
           test unquote(module_name), %{tmp_dir: tmp_dir} do
             unquote(test_data)
             |> Map.new()

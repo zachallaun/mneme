@@ -120,9 +120,19 @@ defmodule Mneme.Assertion.PatternBuilder do
 
   for module <- [Range, Regex, DateTime, NaiveDateTime, Date, Time] do
     defp do_to_patterns(%unquote(module){} = value, context, vars) do
-      {call, meta, args} = value |> inspect() |> Code.string_to_quoted!()
-      pattern = Pattern.new({call, with_meta(meta, context), args})
-      {[pattern], vars}
+      # use inspect to convert value to its sigil shorthand
+      case inspect(value) do
+        "#" <> _ ->
+          # The sigil shorthand isn't available, so generate struct
+          # patterns. This happens with datetimes using a timezone from
+          # a custom timezone database, for instance.
+          struct_to_patterns(unquote(module), value, context, vars, [])
+
+        string ->
+          {call, meta, args} = Code.string_to_quoted!(string)
+          pattern = Pattern.new({call, with_meta(meta, context), args})
+          {[pattern], vars}
+      end
     end
   end
 

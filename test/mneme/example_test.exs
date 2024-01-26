@@ -7,6 +7,29 @@ defmodule Mneme.ExampleTest do
     defstruct field: nil, list: [], map: %{}
   end
 
+  # def hello do
+  #   tzdb = Calendar.get_time_zone_database()
+  #   Calendar.put_time_zone_database(TimeZoneInfo.TimeZoneDatabase)
+
+  #   started_at =
+  #     ~N[2023-11-04 00:00:00]
+  #     |> DateTime.from_naive!("Etc/UTC")
+  #     |> DateTime.shift_zone!("Pacific/Honolulu")
+
+  #   Calendar.put_time_zone_database(tzdb)
+
+  #   [
+  #     %{
+  #       :started_at => started_at,
+  #       :total_seconds => "1800"
+  #     }
+  #   ]
+  # end
+
+  # test "hmm" do
+  #   auto_assert hello()
+  # end
+
   test "1" do
     s1 = %MyStruct{}
 

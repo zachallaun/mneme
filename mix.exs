@@ -50,6 +50,7 @@ defmodule Mneme.MixProject do
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
       {:styler, "~> 0.7", only: [:dev, :test], runtime: false},
+      {:time_zone_info, "~> 0.7", only: [:dev, :test]},
 
       # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
       # is merged
