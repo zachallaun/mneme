@@ -169,7 +169,7 @@ defmodule Mneme.Integration.BasicTest do
     # y
     auto_assert ~r/abc/mu <- ~r/abc/mu
     # y
-    auto_assert ~r/a#\{b\}c/ <- ~R/a#\{b\}c/
+    auto_assert ~r/a#\{b\}c/ <- ~r/a#\{b\}c/
   end
 
   test "falsy values" do
