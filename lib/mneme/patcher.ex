@@ -44,6 +44,7 @@ defmodule Mneme.Patcher do
 
       {:error, errors, _project} ->
         not_saved = Enum.map(errors, fn %Rewrite.SourceError{path: path} -> path end)
+
         {:error, {:not_saved, not_saved}}
     end
   end

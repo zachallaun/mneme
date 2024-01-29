@@ -383,7 +383,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp string_pattern(string, context) do
-    Pattern.new({:__block__, with_meta([delimiter: ~S(")], context), [escape(string)]})
+    Pattern.new({:__block__, with_meta([delimiter: ~S(")], context), [escape_string(string)]})
   end
 
   defp charlist_pattern(charlist, context) do
@@ -396,7 +396,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp heredoc_pattern(string, context) do
     Pattern.new(
       {:__block__, with_meta([delimiter: ~S(""")], context),
-       [string |> escape() |> format_for_heredoc()]}
+       [string |> escape_string() |> format_for_heredoc()]}
     )
   end
 
@@ -408,8 +408,17 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  defp escape(string) when is_binary(string) do
-    String.replace(string, "\\", "\\\\")
+  defp escape_string(string) when is_binary(string) do
+    # https://hexdocs.pm/elixir/String.html#module-escape-characters
+    string
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\0", "\\0")
+    |> String.replace("\a", "\\a")
+    |> String.replace("\b", "\\b")
+    |> String.replace("\t", "\\t")
+    |> String.replace("\v", "\\v")
+    |> String.replace("\r", "\\r")
+    |> String.replace("\e", "\\e")
   end
 
   defp make_var(name, context) do
