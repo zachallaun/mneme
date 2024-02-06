@@ -2,16 +2,30 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.4.3 (2023)
+## v0.5.0 (2024-02-06)
 
-### Fixes
+While this release does not include breaking changes, the minor version is being bumped because the change to map patterns described below may be unexpected.
+
+### Changed
+
+  * Empty maps will no longer be suggested as patterns for non-empty maps. For instance, `auto_assert %{foo: 1}` will no longer suggest `auto_assert %{} <- %{foo: 1}`. Note that empty structs will still be suggested ([#55](https://github.com/zachallaun/mneme/issues/55), [#56](https://github.com/zachallaun/mneme/issues/56), [#57](https://github.com/zachallaun/mneme/issues/57)).
+
+### Fixed
+
+  * Generate struct patterns for `DateTime` when the sigil cannot be used ([#59](https://github.com/zachallaun/mneme/issues/59)).
+  * Correctly escape non-printable characters in string literals, like `\r` ([#62](https://github.com/zachallaun/mneme/issues/62)).
+  * Fix a crash that could occur due to incorrect handling of the source file being changed while Mneme was running.
+
+## v0.4.3 (2023-11-02)
+
+### Fixed
 
   * Fix a regression introduced in v0.4.1 that caused auto-assertions to fail if an earlier one in the same file added or removed lines when formatted ([#53](https://github.com/zachallaun/mneme/issues/53)).
   * Suppress "unused alias" warnings when the aliases are only used in auto-assertions ([#54](https://github.com/zachallaun/mneme/issues/54)).
 
 ## v0.4.2 (2023-11-01)
 
-### Fixes
+### Fixed
 
   * Fix a crash that would occur if a test file containing an auto-assertion is changed before the auto-assertion is run (for instance, while Mneme is waiting on input from an auto-assertion in a different test file).
 
