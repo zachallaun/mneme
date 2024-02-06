@@ -22,7 +22,7 @@ defmodule Mneme.Integration.VarsTest do
     auto_assert ^pid <- self()
     # k y
     auto_assert pid1 when is_pid(pid1) <- self()
-    # k k y
+    # k y
     auto_assert %{foo: [pid1]} when is_pid(pid1) <- %{foo: [self()]}
   end
 

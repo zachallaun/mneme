@@ -104,16 +104,12 @@ defmodule Mneme.Integration.BasicTest do
   describe "maps" do
     test "basic patterns" do
       # y
-      auto_assert %{} <- Map.put(%{}, :foo, 1)
-      # k y
       auto_assert %{foo: 1} <- Map.put(%{}, :foo, 1)
 
       m = %{foo: 1}
       # y
       auto_assert ^m <- m
       # k y
-      auto_assert %{} <- m
-      # k k y
       auto_assert %{foo: 1} <- m
 
       my_ref = make_ref()
@@ -121,10 +117,8 @@ defmodule Mneme.Integration.BasicTest do
       # y
       auto_assert ^m <- m
       # k y
-      auto_assert %{} <- m
-      # k k y
       auto_assert %{ref: ^my_ref} <- m
-      # k k k y
+      # k k y
       auto_assert %{ref: ref} when is_reference(ref) <- m
     end
 
@@ -134,10 +128,8 @@ defmodule Mneme.Integration.BasicTest do
       # y
       auto_assert ^m <- m
       # k y
-      auto_assert %{} <- m
-      # k k y
       auto_assert %{%{foo: 1} => :bar} <- m
-      # k k k y
+      # k k y
       auto_assert ^m <- m
 
       # k y

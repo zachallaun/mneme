@@ -51,13 +51,13 @@ defmodule Mneme.Integration.OptionsTest do
     @mneme target: :ex_unit, default_pattern: :first
     test "should replace pattern when rewriting to :ex_unit with default_pattern: :first" do
       # auto_assert
-      assert %{foo: 1} <- %{foo: 1}, %{} = %{foo: 1}
+      assert %URI{path: "foo"} <- %URI{path: "foo"}, %URI{} = %URI{path: "foo"}
     end
 
     @mneme target: :ex_unit
     test "should default to using same pattern when rewriting to :ex_unit" do
       # auto_assert
-      assert %{foo: 1} <- %{foo: 1}, %{foo: 1} = %{foo: 1}
+      assert %URI{path: "foo"} <- %URI{path: "foo"}, %URI{path: "foo"} = %URI{path: "foo"}
     end
 
     @mneme :force_update

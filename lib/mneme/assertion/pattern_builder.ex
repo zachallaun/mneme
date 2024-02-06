@@ -172,22 +172,8 @@ defmodule Mneme.Assertion.PatternBuilder do
         sub_map
       end
 
-    {patterns, vars} =
-      Enum.flat_map_reduce(sub_maps ++ [map], vars, fn map, vars ->
-        enumerate_map_patterns(map, context, vars)
-      end)
-
-    if contains_empty_map_pattern?(patterns) do
-      {patterns, vars}
-    else
-      {[Pattern.new({:%{}, with_meta(context), []}) | patterns], vars}
-    end
-  end
-
-  defp contains_empty_map_pattern?(patterns) do
-    Enum.any?(patterns, fn
-      %Pattern{expr: {:%{}, _, []}} -> true
-      _ -> false
+    Enum.flat_map_reduce(sub_maps ++ [map], vars, fn map, vars ->
+      enumerate_map_patterns(map, context, vars)
     end)
   end
 
@@ -239,7 +225,21 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
       |> to_patterns(context, vars)
 
+    patterns =
+      if contains_empty_map_pattern?(patterns) do
+        patterns
+      else
+        [Pattern.new({:%{}, with_meta(context), []}) | patterns]
+      end
+
     {Enum.map(patterns, &map_to_struct_pattern(&1, struct, context, extra_notes)), vars}
+  end
+
+  defp contains_empty_map_pattern?(patterns) do
+    Enum.any?(patterns, fn
+      %Pattern{expr: {:%{}, _, []}} -> true
+      _ -> false
+    end)
   end
 
   defp enum_to_patterns(values, context, vars) do
