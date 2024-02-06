@@ -52,8 +52,8 @@ defmodule Mneme.MixProject do
       {:excoveralls, "~> 0.18", only: :test},
 
       # Docs
-      {:ex_doc, ">= 0.0.0", only: :docs, runtime: false},
-      {:makeup_json, ">= 0.0.0", only: :docs, runtime: false}
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:makeup_json, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 
@@ -82,8 +82,7 @@ defmodule Mneme.MixProject do
     [
       coveralls: :test,
       "coveralls.html": :test,
-      "test.mneme_not_started": :test,
-      docs: :docs
+      "test.mneme_not_started": :test
     ]
   end
 
