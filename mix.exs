@@ -4,7 +4,7 @@ defmodule Mneme.MixProject do
   @app :mneme
   @source_url "https://github.com/zachallaun/mneme"
 
-  def version, do: "0.4.3"
+  def version, do: "0.5.0"
 
   def project do
     [
@@ -37,7 +37,7 @@ defmodule Mneme.MixProject do
 
   defp deps do
     [
-      {:owl, "~> 0.7.0"},
+      {:owl, "~> 0.8.0"},
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 0.12"},
       {:rewrite, "~> 0.7"},
@@ -45,23 +45,15 @@ defmodule Mneme.MixProject do
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
       {:ecto, "~> 3.9", only: :test},
-      {:stream_data, "~> 0.5.0", only: [:dev, :test]},
+      {:stream_data, "~> 0.6.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:makeup_json, ">= 0.0.0", only: :dev, runtime: false},
       {:styler, "~> 0.7", only: [:dev, :test], runtime: false},
       {:time_zone_info, "~> 0.7", only: [:dev, :test]},
+      {:excoveralls, "~> 0.18", only: :test},
 
-      # Go back to using the release version when https://github.com/parroty/excoveralls/pull/309
-      # is merged
-      # {:excoveralls, "~> 0.15", only: :test},
-      {:excoveralls,
-       github: "zachallaun/excoveralls", ref: "import-coverdata-improvements", only: :test},
-      # Elixir 1.15.0 requires this version of ssl_verify_fun, which
-      # is a dependency of hackney, which is a dependency of excoveralls.
-      # TODO: This can be removed when excoveralls no longer depends on
-      # hackney: https://github.com/parroty/excoveralls/pull/311
-      {:ssl_verify_fun, "~> 1.1.7", only: :test}
+      # Docs
+      {:ex_doc, ">= 0.0.0", only: :docs, runtime: false},
+      {:makeup_json, ">= 0.0.0", only: :docs, runtime: false}
     ]
   end
 
@@ -90,7 +82,8 @@ defmodule Mneme.MixProject do
     [
       coveralls: :test,
       "coveralls.html": :test,
-      "test.mneme_not_started": :test
+      "test.mneme_not_started": :test,
+      docs: :docs
     ]
   end
 

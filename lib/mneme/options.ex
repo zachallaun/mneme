@@ -234,9 +234,7 @@ defmodule Mneme.Options do
       end
 
     new =
-      for_result
-      |> Enum.map(fn {k, vs} -> {k, Enum.reverse(vs)} end)
-      |> Map.new()
+      Map.new(for_result, fn {k, vs} -> {k, Enum.reverse(vs)} end)
 
     Map.merge(acc, new, fn _, vs1, vs2 -> vs1 ++ vs2 end)
   end

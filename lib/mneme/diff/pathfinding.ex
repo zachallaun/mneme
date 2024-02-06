@@ -23,19 +23,23 @@ defmodule Mneme.Diff.Pathfinding do
     known = %{v_id => v}
     q = PriorityQueue.new()
 
-    with {:cont, vs_out} <- next_fun.(v) do
-      {vs_out, known} = push_known(known, vs_out, vertex_identifier)
+    case next_fun.(v) do
+      {:cont, vs_out} ->
+        {vs_out, known} = push_known(known, vs_out, vertex_identifier)
 
-      q
-      |> push_vertices(known, v_id, vs_out, hfun)
-      |> do_lazy_bfs(known, %{}, vertex_identifier, next_fun, hfun)
-      |> case do
-        {:ok, known, path} -> for(id <- path, do: Map.get(known, id))
-        :error -> nil
-      end
-    else
-      :halt -> [v]
-      :error -> nil
+        q
+        |> push_vertices(known, v_id, vs_out, hfun)
+        |> do_lazy_bfs(known, %{}, vertex_identifier, next_fun, hfun)
+        |> case do
+          {:ok, known, path} -> for(id <- path, do: Map.get(known, id))
+          :error -> nil
+        end
+
+      :halt ->
+        [v]
+
+      :error ->
+        nil
     end
   end
 
