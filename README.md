@@ -6,7 +6,7 @@
 
 <details>
   <summary>🎥 Video Demo</summary>
-  <p data-video>https://user-images.githubusercontent.com/503938/227819477-c7097fbc-b9a4-44a1-b3ea-f1b420c18799.mp4</p>
+  <p data-video>https://gist.github.com/assets/503938/3155b333-6a59-448e-8735-dc0093bd677e</p>
 </details>
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
@@ -118,6 +118,26 @@ Mneme rewrites your test scripts when updating an assertion using the formatter 
 It's highly recommended to configure your editor to format Elixir files on-save.
 
 Note: Mneme uses [`Rewrite`](https://github.com/hrzndhrn/rewrite) to update files, which supports the [Elixir formatter](https://hexdocs.pm/mix/Mix.Tasks.Format.html) and [`FreedomFormatter`](https://github.com/marcandre/freedom_formatter).
+
+## Command line interface
+
+Auto-assertions are run with your normal tests when you run `mix test` and a terminal prompt is used whenever one needs to be updated.
+Here's what that might look like:
+
+![Screenshot of Mneme CLI](https://github.com/zachallaun/mneme/blob/main/docs/assets/images/demo_screenshot.png?raw=true)
+
+Whenever that happens, you have a few options:
+
+|Key|Action|Description|
+|-|-|-|
+|`y`|Accept|Accept the proposed change. The assertion will be re-run and should pass.|
+|`n`|Reject|Reject the proposed change and fail the test.|
+|`s`|Skip|Skip this assertion. The test will not fail, but the `mix test` process will exit with `1`.|
+|`k`|Next|If multiple patterns have been generated, cycle to the next one.|
+|`j`|Previous|If multiple patterns have been generated, cycle to the previous one.|
+
+Note that the CLI is not available when tests are run in a CI environment.
+See the [Continuous Integration](#continuous-integration) section for more info.
 
 ## Generated patterns
 
