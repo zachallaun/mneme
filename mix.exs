@@ -39,8 +39,8 @@ defmodule Mneme.MixProject do
     [
       {:owl, "~> 0.8.0"},
       {:nimble_options, "~> 1.0"},
-      {:sourceror, "~> 0.12"},
-      {:rewrite, "~> 0.7"},
+      {:sourceror, "~> 1.0"},
+      {:rewrite, "~> 0.10.1"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
