@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.1 (2024-04-13)
+
+### Changed
+
+  * Updated some dependencies for better compatibility with other libraries.
+
 ## v0.5.0 (2024-02-06)
 
 While this release does not include breaking changes, the minor version is being bumped because the change to map patterns described below may be unexpected.
