@@ -37,7 +37,7 @@ defmodule Mneme.MixProject do
 
   defp deps do
     [
-      {:owl, "~> 0.8.0"},
+      {:owl, "~> 0.9"},
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 1.0"},
       {:rewrite, "~> 0.10.1"},
