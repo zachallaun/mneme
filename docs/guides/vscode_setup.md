@@ -9,9 +9,9 @@ Custom tasks are accessible by running the command `Tasks: Run Task`, but can al
 
 I personally use three custom tasks for testing:
 
-  * `mix: Run tests`
-  * `mix: Run tests in current file`
-  * `mix: Run test at cursor`
+  * `Run tests`
+  * `Run tests in current file`
+  * `Run test at cursor`
 
 To set these up:
 
