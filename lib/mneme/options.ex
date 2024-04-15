@@ -130,10 +130,14 @@ defmodule Mneme.Options do
   Cache application-level options.
   """
   def configure(opts) do
-    opts = validate_opts(opts, [])
+    opts =
+      opts
+      |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
+      |> validate_opts([])
+
     :persistent_term.put(@config_cache, opts)
 
-    case :ets.info(@options_cache) do
+    case :ets.whereis(@options_cache) do
       :undefined -> :ok
       _ -> :ets.delete(@options_cache)
     end
@@ -175,19 +179,18 @@ defmodule Mneme.Options do
       |> collect_attributes()
       |> Enum.map(fn {k, [v | _]} -> {k, v} end)
 
-    case(:ets.lookup(@options_cache, opts)) do
-      [{_opts, validated}] ->
-        validated
+    if :ets.whereis(@options_cache) == :undefined do
+      validate_opts(opts, stacktrace_info)
+    else
+      case :ets.lookup(@options_cache, opts) do
+        [{_opts, validated}] ->
+          validated
 
-      [] ->
-        validated =
-          opts
-          |> put_opt_if(System.get_env("CI") == "true", :action, :reject)
-          |> validate_opts(stacktrace_info)
-
-        true = :ets.insert(@options_cache, {opts, validated})
-
-        validated
+        [] ->
+          validated = validate_opts(opts, stacktrace_info)
+          true = :ets.insert(@options_cache, {opts, validated})
+          validated
+      end
     end
   end
 
@@ -215,7 +218,7 @@ defmodule Mneme.Options do
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
     |> collect_attributes(Map.get(attrs, @module_attr, []))
-    |> collect_attributes([persistent_term_get!(@config_cache)])
+    |> collect_attributes([persistent_term_get(@config_cache, [])])
   end
 
   defp collect_attributes(_), do: %{}
@@ -239,10 +242,9 @@ defmodule Mneme.Options do
     Map.merge(acc, new, fn _, vs1, vs2 -> vs1 ++ vs2 end)
   end
 
-  defp persistent_term_get!(key) do
+  defp persistent_term_get(key, default) do
     :persistent_term.get(key)
   rescue
-    ArgumentError ->
-      raise "Config key not found (#{inspect(@config_cache)}). Did you start Mneme in test_helper.exs?"
+    ArgumentError -> default
   end
 end
