@@ -340,7 +340,7 @@ defmodule Mneme do
   end
 
   @doc """
-  Starts Mneme to run auto-assertions as they appear in your tests.
+  Start Mneme, allowing auto-assertions to run as they appear in tests.
 
   This will almost always be added to your `test/test_helper.exs`, just
   below the call to `ExUnit.start()`:
@@ -351,32 +351,33 @@ defmodule Mneme do
 
   ## Options
 
-    * `:restart` (boolean) - Restarts Mneme if it has previously been
-      started. This option enables certain IEx-based testing workflows
-      that allow tests to be run without a startup penalty. Defaults to
-      `false`.
+  #{Mneme.Options.docs()}
 
-    * Any option defined in the [Configuration](#module-configuration)
-      section of the module docs.
-
+  For more information about configuring Mneme, see the
+  [Configuration](#module-configuration) section of the module docs.
   """
   @doc section: :setup
   def start(opts \\ []) do
-    {restart?, opts} = Keyword.pop(opts, :restart, false)
-    supervisor = Process.whereis(Mneme.Supervisor)
+    opts =
+      if Keyword.has_key?(opts, :restart) do
+        [
+          [:yellow, "warning: ", :default_color],
+          "Passing `:restart` to `Mneme.start/1` is no longer necessary."
+        ]
+        |> IO.ANSI.format()
+        |> IO.puts()
 
-    cond do
-      !supervisor ->
-        configure!(opts)
-        start_server!()
+        Keyword.drop(opts, [:restart])
+      else
+        opts
+      end
 
-      supervisor && restart? ->
-        configure!(opts)
-        restart_server!()
+    configure!(opts)
 
-      true ->
-        raise RuntimeError,
-              "Mneme has already started. Ensure that `:restart` is used if rerunning tests without restarting the application: `Mneme.start(restart: true)`"
+    if Process.whereis(Mneme.Supervisor) do
+      restart_server!()
+    else
+      start_server!()
     end
 
     :ok
