@@ -2,6 +2,16 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.0 (2024-04-15)
+
+### Changed
+
+  * Calling `Mneme.start/1` multiple times now has the same behavior as `Mneme.start(restart: true)`. The `:restart` option is now a no-op and specifying it will print a notice.
+
+### Fixes
+
+  * Tests using Mneme can now be compiled individually without having first called `Mneme.start/1`. Previously, an error would be raised at compile-time, interfering with some language servers ([lexical-lsp/lexical#507](https://github.com/lexical-lsp/lexical/issues/507)).
+
 ## v0.5.1 (2024-04-13)
 
 ### Changed
