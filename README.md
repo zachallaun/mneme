@@ -197,24 +197,16 @@ Guides for optional editor integration can be found here:
 
 Special thanks to:
 
-  * [_What if writing tests was a joyful experience?_](https://blog.janestreet.com/the-joy-of-expect-tests/),
-    from the Jane Street Tech Blog, for inspiring this library.
+  * [_What if writing tests was a joyful experience?_](https://blog.janestreet.com/the-joy-of-expect-tests/), from the Jane Street Tech Blog, for inspiring this library.
 
   * [_My Kind of REPL_](https://ianthehenry.com/posts/my-kind-of-repl/), an article by Ian Henry that shows how snapshot testing can change your workflow.
 
-  * [Sourceror](https://github.com/doorgan/sourceror), a library that
-    makes complex code modifications simple.
+  * [Sourceror](https://github.com/doorgan/sourceror), a library that makes complex code modifications simple.
 
-  * [Rewrite](https://github.com/hrzndhrn/rewrite), which provides the
-    diff functionality present in Mneme.
+  * [Rewrite](https://github.com/hrzndhrn/rewrite), which makes updating source code a breeze.
 
-  * [Owl](https://github.com/fuelen/owl), which makes it much easier
-    to build a pretty CLI.
+  * [Owl](https://github.com/fuelen/owl), which makes it much easier to build a pretty CLI.
 
-  * [Insta](https://insta.rs/), a snapshot testing tool for Rust,
-    whose great documentation provided an excellent reference for
-    snapshot testing.
+  * [Insta](https://insta.rs/), a snapshot testing tool for Rust, whose great documentation provided an excellent reference for snapshot testing.
 
-  * [assert_value](https://github.com/assert-value/assert_value_elixir),
-    an existing Elixir project that provides similar functionality.
-    Thank you for paving the way!
+  * [assert_value](https://github.com/assert-value/assert_value_elixir), an existing Elixir project that provides similar functionality.
