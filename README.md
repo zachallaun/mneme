@@ -4,13 +4,10 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-<details>
-  <summary>🎥 Video Demo</summary>
-  <p data-video>https://gist.github.com/assets/503938/3155b333-6a59-448e-8735-dc0093bd677e</p>
-</details>
+<p data-video>https://gist.github.com/assets/503938/3155b333-6a59-448e-8735-dc0093bd677e</p>
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
-This is sometimes called snapshot or approval testing.
+This is sometimes called snapshot, approval, or golden master testing.
 
 With Mneme, you write something like...
 
@@ -196,12 +193,14 @@ Guides for optional editor integration can be found here:
 
   * [VS Code](https://hexdocs.pm/mneme/vscode_setup.html)
 
-## Acknowledgements
+## Links and acknowledgements
 
 Special thanks to:
 
   * [_What if writing tests was a joyful experience?_](https://blog.janestreet.com/the-joy-of-expect-tests/),
     from the Jane Street Tech Blog, for inspiring this library.
+
+  * [_My Kind of REPL_](https://ianthehenry.com/posts/my-kind-of-repl/), an article by Ian Henry that shows how snapshot testing can change your workflow.
 
   * [Sourceror](https://github.com/doorgan/sourceror), a library that
     makes complex code modifications simple.

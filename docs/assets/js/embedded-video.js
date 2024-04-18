@@ -19,21 +19,17 @@
 
 (() => {
 
-  const MP4_RE = /^https:\/\/.+\.mp4$/
-
   document.querySelectorAll('p[data-video]').forEach(p => {
-    if (p.textContent.search(MP4_RE) !== -1) {
-      const url = p.textContent
+    const url = p.textContent
 
-      const video = document.createElement('video')
-      video.src = url
-      video.muted = true
-      video.autoplay = false
-      video.controls = 'controls'
-      video.style.width = '100%'
+    const video = document.createElement('video')
+    video.src = url
+    video.muted = true
+    video.autoplay = false
+    video.controls = 'controls'
+    video.style.width = '100%'
 
-      p.parentElement.replaceChild(video, p)
-    }
+    p.parentElement.replaceChild(video, p)
   })
 
 })()
