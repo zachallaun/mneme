@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixes
+
+  * Fix a crash that would occur when generating a pattern for a non-existing struct, e.g. `%{__struct__: Foo}` when `Foo` is not a module defining a struct ([#67](https://github.com/zachallaun/mneme/issues/67)).
+
 ## v0.6.0 (2024-04-15)
 
 ### Changed

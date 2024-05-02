@@ -165,6 +165,10 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(map, context, vars) when is_map(map) do
+    map_to_patterns(map, context, vars)
+  end
+
+  defp map_to_patterns(map, context, vars) when is_map(map) do
     sub_maps =
       for keyset <- context.keysets,
           sub_map = Map.take(map, keyset),
@@ -180,6 +184,8 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp enumerate_map_patterns(map, context, vars) do
     {nested_patterns, {vars, bad_map_keys}} =
       map
+      # map may be a struct that does not implement Enumerable
+      |> map_to_pairs()
       |> Enum.sort_by(&elem(&1, 0))
       |> Enum.flat_map_reduce({vars, []}, fn {k, v}, {vars, bad_map_keys} ->
         try do
@@ -207,6 +213,12 @@ defmodule Mneme.Assertion.PatternBuilder do
     {maybe_bad_map_key_notes(map_patterns, bad_map_keys), vars}
   end
 
+  defp map_to_pairs(map) do
+    map
+    |> Map.keys()
+    |> Enum.map(&{&1, Map.fetch!(map, &1)})
+  end
+
   defp maybe_bad_map_key_notes(patterns, []), do: patterns
 
   defp maybe_bad_map_key_notes(patterns, keys) do
@@ -218,21 +230,25 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp struct_to_patterns(struct, map, context, vars, extra_notes) do
-    defaults = struct.__struct__()
+    if function_exported?(struct, :__struct__, 0) do
+      defaults = struct.__struct__()
 
-    {patterns, vars} =
-      map
-      |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
-      |> to_patterns(context, vars)
+      {patterns, vars} =
+        map
+        |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
+        |> to_patterns(context, vars)
 
-    patterns =
-      if contains_empty_map_pattern?(patterns) do
-        patterns
-      else
-        [Pattern.new({:%{}, with_meta(context), []}) | patterns]
-      end
+      patterns =
+        if contains_empty_map_pattern?(patterns) do
+          patterns
+        else
+          [Pattern.new({:%{}, with_meta(context), []}) | patterns]
+        end
 
-    {Enum.map(patterns, &map_to_struct_pattern(&1, struct, context, extra_notes)), vars}
+      {Enum.map(patterns, &map_to_struct_pattern(&1, struct, context, extra_notes)), vars}
+    else
+      map_to_patterns(map, context, vars)
+    end
   end
 
   defp contains_empty_map_pattern?(patterns) do
