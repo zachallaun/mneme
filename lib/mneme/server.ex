@@ -21,7 +21,6 @@ defmodule Mneme.Server do
   use GenServer
 
   alias Mneme.Assertion
-  alias Mneme.Options
   alias Mneme.Patcher
 
   defstruct [
@@ -34,8 +33,7 @@ defmodule Mneme.Server do
       new: 0,
       updated: 0,
       skipped: 0,
-      rejected: 0,
-      wip: 0
+      rejected: 0
     },
     not_saved: MapSet.new()
   ]
@@ -50,8 +48,7 @@ defmodule Mneme.Server do
             new: non_neg_integer(),
             updated: non_neg_integer(),
             skipped: non_neg_integer(),
-            rejected: non_neg_integer(),
-            wip: non_neg_integer()
+            rejected: non_neg_integer()
           }
         }
 
@@ -126,10 +123,7 @@ defmodule Mneme.Server do
     {:reply, :ok, Map.put(state, :io_pid, io_pid)}
   end
 
-  def handle_call({:formatter, {:test_started, test}}, _from, state) do
-    opts = Options.options(test.tags)
-    state = inc_stat(state, :wip, if: opts[:wip])
-
+  def handle_call({:formatter, {:test_started, _test}}, _from, state) do
     {:reply, :ok, state, {:continue, :process_next}}
   end
 
@@ -284,7 +278,7 @@ defmodule Mneme.Server do
 
   defp print_summary(stats) do
     formatted =
-      for stat <- [:new, :updated, :rejected, :skipped, :wip],
+      for stat <- [:new, :updated, :rejected, :skipped],
           stats[stat] != 0 do
         format_stat(stat, stats[stat])
       end
@@ -301,5 +295,4 @@ defmodule Mneme.Server do
   defp format_stat(:updated, n), do: Owl.Data.tag("#{n} updated", :green)
   defp format_stat(:rejected, n), do: Owl.Data.tag("#{n} rejected", :red)
   defp format_stat(:skipped, n), do: Owl.Data.tag("#{n} skipped", :yellow)
-  defp format_stat(:wip, n), do: Owl.Data.tag("#{n} wip", :magenta)
 end
