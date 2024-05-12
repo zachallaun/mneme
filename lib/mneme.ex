@@ -99,9 +99,47 @@ defmodule Mneme do
   end
 
   @doc """
+  Pattern-match operator.
+
+  This operator can only be used in `auto_assert/1` or other special
+  forms that support it, like `for/1`.
+
+  While it is similar to the match operator `=/2`, there are a few
+  differences:
+
+    * It can be used to match falsy values. For instance, the following
+      `ExUnit` assertion using `=/2` will always fail, whereas the
+      auto-assertion using `<-` will not:
+
+          # fails
+          assert false = false
+
+          # succeeds
+          auto_assert false <- false
+
+    * It supports guards on the pattern with a `when` clause
+
+          auto_assert pid when is_pid(pid) <- self()
+
+    * Bindings created are only available inside guards, not outside the
+      assertion.
+
+          auto_assert pid when is_pid(pid) <- self()
+          pid # ERROR: pid is not bound
+
+  """
+  @doc section: :assertion
+  defmacro _pattern <- _expression do
+    raise Mneme.CompileError,
+      message: "`<-` can only be used in `auto_assert` or in special forms like `for`"
+  end
+
+  @doc """
   Pattern-generating variant of `ExUnit.Assertions.assert/1`.
 
-  ## Examples
+  Uses the `<-/2` pattern-matching operator.
+
+  ## Usage
 
   `auto_assert` generates assertions when tests run, issuing a terminal
   prompt before making any changes (unless configured otherwise).
@@ -111,54 +149,20 @@ defmodule Mneme do
       # after running the test and accepting the change
       auto_assert [1, 2, 3, 4] <- [1, 2] ++ [3, 4]
 
-  If the match no longer succeeds, a warning and new prompt will be
-  issued to update it to the new value.
+  If the match no longer succeeds, you'll be prompted to update it to
+  the new value.
 
       auto_assert [1, 2, 3, 4] <- [1, 2] ++ [:a, :b]
 
       # after running the test and accepting the change
       auto_assert [1, 2, :a, :b] <- [1, 2] ++ [:a, :b]
 
-  Prompts are only issued if the pattern doesn't match the value, so
-  that pattern can also be changed manually.
+  You're only prompted if the pattern doesn't match. This means you can
+  manually change patterns to ignore parts of the structure you don't
+  care about, and the assertion will still succeed.
 
       # this assertion succeeds, so no prompt is issued
       auto_assert [1, 2, | _] <- [1, 2] ++ [:a, :b]
-
-  ## Differences from ExUnit `assert`
-
-  The `auto_assert` macro is meant to match `assert` very closely, but
-  there are a few differences to note:
-
-    * Pattern-matching assertions use the `<-` operator instead of the
-      `=` match operator.
-
-    * Unlike ExUnit's `assert`, `auto_assert` can match falsy values.
-      The following are equivalent:
-
-          falsy = nil
-          auto_assert nil <- falsy
-          assert falsy == nil
-
-    * Guards can be added with a `when` clause, while `assert` would
-      require a second assertion. For example:
-
-          auto_assert pid when is_pid(pid) <- self()
-
-          assert pid = self()
-          assert is_pid(pid)
-
-    * Bindings in an `auto_assert` are not available outside of that
-      assertion. For example:
-
-          auto_assert pid when is_pid(pid) <- self()
-          pid # ERROR: pid is not bound
-
-      If you need to use the result of the assertion, it will evaluate
-      to the expression's value.
-
-          pid = auto_assert pid when is_pid(pid) <- self()
-          pid # pid is the result of self()
 
   """
   @doc section: :assertion

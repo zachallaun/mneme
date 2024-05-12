@@ -19,6 +19,21 @@ defmodule MnemeTest do
     end
   end
 
+  describe "<-/2" do
+    test "raises at compile-time if used outside of a form that supports it" do
+      code = """
+      import Mneme
+      :foo <- :bar
+      """
+
+      auto_assert_raise Mneme.CompileError,
+                        "`<-` can only be used in `auto_assert` or in special forms like `for`",
+                        fn ->
+                          Code.eval_string(code)
+                        end
+    end
+  end
+
   describe "non-interactive" do
     import ExUnit.CaptureIO
 
