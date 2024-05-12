@@ -161,7 +161,8 @@ defmodule Mneme.Server do
   end
 
   defp do_patch_assertion(state, {assertion, from}) do
-    {state, counter} = inc_and_return_stat(state, :counter)
+    state = inc_stat(state, :counter)
+    counter = state.stats.counter
 
     {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter)
     GenServer.reply(from, reply)
@@ -261,19 +262,10 @@ defmodule Mneme.Server do
     end)
   end
 
-  defp inc_stat(state, stat, opts \\ [if: true])
-
-  defp inc_stat(state, stat, if: true) do
+  defp inc_stat(state, stat) do
     Map.update!(state, :stats, fn stats ->
       Map.update!(stats, stat, &(&1 + 1))
     end)
-  end
-
-  defp inc_stat(state, _, if: false), do: state
-
-  defp inc_and_return_stat(state, stat) do
-    state = inc_stat(state, stat)
-    {state, state.stats[stat]}
   end
 
   defp print_summary(stats) do
