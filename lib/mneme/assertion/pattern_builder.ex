@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
   alias Mneme.Assertion.Pattern
+  alias Mneme.Utils
 
   @map_key_pattern_error :__map_key_pattern_error__
 
@@ -12,17 +13,47 @@ defmodule Mneme.Assertion.PatternBuilder do
   def to_patterns(value, context) do
     context =
       context
-      |> Map.take([:line, :aliases, :binding, :original_pattern])
+      |> Map.take([:line, :aliases, :binding, :original_pattern, :assertion_kind])
       |> Map.put_new(:aliases, [])
       |> Map.put_new(:binding, [])
       |> Map.put(:keysets, get_keysets(context.original_pattern))
       |> Map.put(:map_key_pattern?, false)
 
-    {patterns, _vars} = to_patterns(value, context, [])
+    {patterns, _vars} = top_level_patterns(value, context, [])
     patterns
   end
 
-  defp to_patterns(value, context, vars) do
+  @spec top_level_patterns(term(), map(), [atom()]) :: {[Pattern.t(), ...], [atom()]}
+  defp top_level_patterns(value, context, vars)
+
+  defp top_level_patterns(string, %{assertion_kind: :auto_assert} = context, vars)
+       when is_binary(string) do
+    {patterns, vars} = to_patterns_with_pinned(string, context, vars)
+
+    substring = Utils.strip_ignorable(string)
+
+    if substring != string and not String.contains?(substring, "\n") do
+      note =
+        "The text match operator `<~` is used to assert a portion of the string, similar to `=~`"
+
+      {substring_patterns, _} = do_to_patterns(substring, context, vars)
+
+      text_match_patterns =
+        Enum.map(substring_patterns, fn pattern ->
+          %{pattern | match_kind: :text_match, notes: [note]}
+        end)
+
+      {text_match_patterns ++ patterns, vars}
+    else
+      {patterns, vars}
+    end
+  end
+
+  defp top_level_patterns(value, context, vars) do
+    to_patterns_with_pinned(value, context, vars)
+  end
+
+  defp to_patterns_with_pinned(value, context, vars) do
     {patterns, vars} = do_to_patterns(value, context, vars)
 
     case fetch_pinned(value, context) do
@@ -219,13 +250,14 @@ defmodule Mneme.Assertion.PatternBuilder do
       |> to_pairs()
       |> Enum.flat_map_reduce({vars, []}, fn {k, v}, {vars, bad_map_keys} ->
         try do
-          {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
+          {k_patterns, vars} =
+            to_patterns_with_pinned(k, %{context | map_key_pattern?: true}, vars)
 
           {v_patterns, vars} =
             if k in ignore_values_for do
               {[Pattern.new({:_, [], nil})], []}
             else
-              to_patterns(v, context, vars)
+              to_patterns_with_pinned(v, context, vars)
             end
 
           tuples =
@@ -277,7 +309,7 @@ defmodule Mneme.Assertion.PatternBuilder do
       {patterns, vars} =
         map
         |> Map.filter(fn {k, v} -> v != Map.get(defaults, k) end)
-        |> to_patterns(context, vars)
+        |> to_patterns_with_pinned(context, vars)
 
       patterns =
         if contains_empty_map_pattern?(patterns) do
@@ -300,7 +332,9 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp enum_to_patterns(values, context, vars) do
-    {nested_patterns, vars} = Enum.map_reduce(values, vars, &to_patterns(&1, context, &2))
+    {nested_patterns, vars} =
+      Enum.map_reduce(values, vars, &to_patterns_with_pinned(&1, context, &2))
+
     {combine_nested(nested_patterns), vars}
   end
 

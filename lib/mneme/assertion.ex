@@ -44,7 +44,8 @@ defmodule Mneme.Assertion do
           test: atom(),
           aliases: list(),
           binding: list(),
-          original_pattern: Macro.t() | nil
+          original_pattern: Macro.t() | nil,
+          assertion_kind: kind
         }
 
   @type target :: :mneme | :ex_unit
@@ -52,7 +53,7 @@ defmodule Mneme.Assertion do
   @doc false
   def new({kind, _, args} = macro_ast, value, ctx, opts \\ Mneme.Options.options()) do
     {stage, original_pattern} = get_stage(kind, args)
-    context = Enum.into(ctx, %{original_pattern: original_pattern})
+    context = Enum.into(ctx, %{original_pattern: original_pattern, assertion_kind: kind})
 
     %Assertion{
       kind: kind,
@@ -67,7 +68,7 @@ defmodule Mneme.Assertion do
   @doc """
   Builds a quoted expression that will run the assertion.
   """
-  @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
+  @spec build(kind, [term()], Macro.Env.t(), keyword()) :: Macro.t()
   def build(kind, args, caller, opts) do
     macro_ast = {kind, Macro.Env.location(caller), args}
     context = assertion_context(caller)
@@ -228,6 +229,7 @@ defmodule Mneme.Assertion do
 
   defp get_stage(:auto_assert, [{:<-, _, [{:when, _, [pattern, _]}, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
+  defp get_stage(:auto_assert, [{:<~, _, [pattern, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, _args), do: {:new, nil}
 
   defp get_stage(:auto_assert_raise, [exception, message, _]), do: {:update, {exception, message}}
@@ -332,14 +334,15 @@ defmodule Mneme.Assertion do
          %{stage: :update, value: value, rich_ast: ast} = assertion,
          :infer
        ) do
-    subexpressions =
+    expr_and_guard =
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
+        {_, _, [{:<~, _, [expr, _]}]} -> [expr, nil]
       end
 
     [expr, guard] =
-      Enum.map(subexpressions, &simplify_expr/1)
+      Enum.map(expr_and_guard, &simplify_expr/1)
 
     patterns = PatternBuilder.to_patterns(value, assertion.context)
 
@@ -441,8 +444,13 @@ defmodule Mneme.Assertion do
   end
 
   def to_code(%Assertion{rich_ast: ast, options: opts} = assertion) do
-    %Pattern{expr: expr, guard: guard} = pattern(assertion)
-    build_call(opts.target, assertion, {block_with_line(expr, meta(ast)), guard})
+    case pattern(assertion) do
+      %Pattern{match_kind: :text_match, expr: expr} ->
+        build_text_match_call(opts.target, assertion, block_with_line(expr, meta(ast)))
+
+      %Pattern{expr: expr, guard: guard} ->
+        build_call(opts.target, assertion, {block_with_line(expr, meta(ast)), guard})
+    end
   end
 
   # This gets around a bug in Elixir's `Code.Normalizer` prior to this
@@ -453,6 +461,14 @@ defmodule Mneme.Assertion do
 
   defp block_with_line(value, parent_meta) do
     {:__block__, [line: parent_meta[:line]], [value]}
+  end
+
+  defp build_text_match_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
+    {:auto_assert, meta(ast), [{:<~, meta(value_expr(ast)), [pattern, value_expr(ast)]}]}
+  end
+
+  defp build_text_match_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast}, pattern) do
+    {:assert, meta(ast), [{:=~, meta(value_expr(ast)), [value_expr(ast), pattern]}]}
   end
 
   defp build_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
@@ -546,13 +562,13 @@ defmodule Mneme.Assertion do
 
   # ExUnit assert arguments must evaluate to a truthy value, so we eval
   # a comparison instead of pattern match
-  def code_for_eval(:auto_assert, {:auto_assert, _, [{_, _, [expr, _]}]}, falsy)
+  def code_for_eval(:auto_assert, {:auto_assert, _, [{:<-, _, [expr, _]}]}, falsy)
       when falsy in [nil, false] do
     {:assert, [], [{:==, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 
   # ExUnit asserts don't support guards, so we split them out
-  def code_for_eval(:auto_assert, {_, _, [{_, _, [{:when, _, [expected, guard]}, _]}]}, _value) do
+  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [{:when, _, [expected, guard]}, _]}]}, _value) do
     quote do
       value = unquote(assert_match(expected))
       assert unquote(guard)
@@ -560,8 +576,12 @@ defmodule Mneme.Assertion do
     end
   end
 
-  def code_for_eval(:auto_assert, {_, _, [{_, _, [expected, _]}]}, _value) do
+  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [expected, _]}]}, _value) do
     assert_match(expected)
+  end
+
+  def code_for_eval(:auto_assert, {_, _, [{:<~, _, [expected, _]}]}, _value) do
+    assert_text_match(expected)
   end
 
   def code_for_eval(:auto_assert_raise, _ast, nil) do
@@ -618,10 +638,19 @@ defmodule Mneme.Assertion do
     {:assert, [], [{:=, [], [unescape_strings(expr), Macro.var(:value, :mneme)]}]}
   end
 
+  defp assert_text_match(expr) do
+    quote do
+      substring_or_regex = unquote(unescape_strings(expr))
+      assert is_binary(var!(value, :mneme))
+      assert is_binary(substring_or_regex) or match?(%Regex{}, substring_or_regex)
+      assert var!(value, :mneme) =~ substring_or_regex
+    end
+  end
+
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
 
   defp value_expr({:auto_assert, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
-  defp value_expr({:auto_assert, _, [{:=, _, [_, value_expr]}]}), do: value_expr
+  defp value_expr({:auto_assert, _, [{:<~, _, [_, value_expr]}]}), do: value_expr
   defp value_expr({:auto_assert, _, [value_expr]}), do: value_expr
 
   defp value_expr({:auto_assert_raise, _, [_, _, fun]}), do: fun

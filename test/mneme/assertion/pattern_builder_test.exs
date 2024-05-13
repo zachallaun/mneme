@@ -141,6 +141,39 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     end
   end
 
+  describe "text match patterns" do
+    test "created for top-level strings with ignorable content" do
+      context = mock_context(assertion_kind: :auto_assert)
+
+      auto_assert [
+                    %Pattern{
+                      expr: {:__block__, [line: 1, delimiter: "\""], ["foo"]},
+                      match_kind: :text_match
+                    },
+                    %Pattern{expr: {:__block__, [line: 1, delimiter: "\""], ["\nfoo\n"]}},
+                    %Pattern{expr: {:__block__, [line: 1, delimiter: "\"\"\""], ["\nfoo\n"]}}
+                  ] <- PatternBuilder.to_patterns("\nfoo\n", context)
+    end
+
+    test "not created for nested strings with ignorable content" do
+      context = mock_context(assertion_kind: :auto_assert)
+
+      auto_assert [
+                    %Pattern{expr: [{:__block__, [line: 1, delimiter: "\""], ["\nfoo\n"]}]},
+                    %Pattern{expr: [{:__block__, [line: 1, delimiter: "\"\"\""], ["\nfoo\n"]}]}
+                  ] <- PatternBuilder.to_patterns(["\nfoo\n"], context)
+    end
+
+    test "not created for top-level strings with ignorable content if the assertion kind is not auto_assert" do
+      context = mock_context(assertion_kind: :auto_assert_receive)
+
+      auto_assert [
+                    %Pattern{expr: {:__block__, [line: 1, delimiter: "\""], ["\nfoo\n"]}},
+                    %Pattern{expr: {:__block__, [line: 1, delimiter: "\"\"\""], ["\nfoo\n"]}}
+                  ] <- PatternBuilder.to_patterns("\nfoo\n", context)
+    end
+  end
+
   defp to_pattern_strings(value, context \\ []) do
     value
     |> to_patterns(context)

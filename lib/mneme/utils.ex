@@ -20,4 +20,66 @@ defmodule Mneme.Utils do
   defp occurrences(<<char, rest::binary>>, char, acc), do: occurrences(rest, char, acc + 1)
   defp occurrences(<<_, rest::binary>>, char, acc), do: occurrences(rest, char, acc)
   defp occurrences(<<>>, _char, acc), do: acc
+
+  @doc """
+  Strips leading or trailing ignorable content from the given string.
+
+  Ignorable content is content at the beginning or end of the string that
+  is unlikely to be relevant, like whitespace, formatting characters,
+  timestamps, etc.
+  """
+  @spec strip_ignorable(String.t()) :: String.t()
+  def strip_ignorable(string) when is_binary(string) do
+    if String.valid?(string) do
+      re_ignore_head = re_concat!(["^("] ++ re_ignorables() ++ [")*"])
+      re_ignore_tail = re_concat!(["("] ++ re_ignorables() ++ [")*$"])
+
+      {_head, rest} =
+        case Regex.run(re_ignore_head, string, return: :index) do
+          [{0, match_length} | _] ->
+            split_bytes(string, match_length)
+        end
+
+      {content, _tail} =
+        case Regex.run(re_ignore_tail, rest, return: :index) do
+          nil -> {rest, ""}
+          [{index, _match_length} | _] -> split_bytes(rest, index)
+        end
+
+      content
+    else
+      string
+    end
+  end
+
+  defp split_bytes(string, byte_size) when is_binary(string) do
+    case string do
+      <<head::binary-size(^byte_size), tail::binary>> -> {head, tail}
+    end
+  end
+
+  defp re_ignorables do
+    Enum.intersperse(
+      [
+        # whitespace
+        ~r/(\s+)/,
+        # timestamp
+        ~r/(\d{1,2}:\d{1,2}:\d{1,2}\.\d+)/,
+        # date
+        ~r/(\d{1,4}[\/-]\d{1,2}[\/-]\d{1,2})/
+      ],
+      "|"
+    )
+  end
+
+  defp re_concat!(reg_exprs) do
+    regex_modifies = [:unicode]
+
+    reg_exprs
+    |> Enum.map_join("", fn
+      %Regex{} = regex -> Regex.source(regex)
+      s when is_binary(s) -> s
+    end)
+    |> Regex.compile!(regex_modifies)
+  end
 end

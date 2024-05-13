@@ -102,13 +102,10 @@ defmodule Mneme do
   end
 
   @doc """
-  Pattern-match operator.
+  Pattern-match operator used in `auto_assert/1`.
 
-  This operator can only be used in `auto_assert/1` or other special
-  forms that support it, like `for/1`.
-
-  While it is similar to the match operator `=/2`, there are a few
-  differences:
+  While this operator is similar to the match operator `=/2`, there are
+  a few differences:
 
     * It can be used to match falsy values. For instance, the following
       `ExUnit` assertion using `=/2` will always fail, whereas the
@@ -135,6 +132,33 @@ defmodule Mneme do
   defmacro _pattern <- _expression do
     raise Mneme.CompileError,
       message: "`<-` can only be used in `auto_assert` or in special forms like `for`"
+  end
+
+  @doc """
+  Text-based match operator used in `auto_assert/1`.
+
+  This operator is similar to the text-based match operator `=~/2`, but
+  the arguments are flipped.
+
+  If `substring_or_regex` is a string, the assertion succeeds if
+  `expression` evaluates to a string that contains it.
+
+  If `substring_or_regex` is a regular expression, the assertion
+  succeeds if it matches the string that `expression` evaluates to.
+
+  Here are some equivalent examples using `=~/2`:
+
+      assert "abcd" =~ "bc"
+      auto_assert "bc" <~ "abcd"
+
+      assert "abcd" =~ ~r/cde?/
+      auto_assert ~r/cde?/ <~ "abcd"
+
+  """
+  @doc section: :assertion
+  defmacro _substring_or_regex <~ _expression do
+    raise Mneme.CompileError,
+      message: "`<~` can only be used in `auto_assert`"
   end
 
   @doc """

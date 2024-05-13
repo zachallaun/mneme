@@ -42,4 +42,8 @@ defmodule Mneme.ExampleTest do
   test "5" do
     auto_assert %{foo: :bar} <- %{foo: :bar}
   end
+
+  test "6" do
+    auto_assert "c" <~ "abcde"
+  end
 end
