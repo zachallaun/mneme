@@ -40,6 +40,15 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       auto_assert [":atom"] <- to_pattern_strings(:atom)
     end
 
+    test "0.0 generates a signed pattern" do
+      auto_assert ["+0.0"] <- to_pattern_strings(0.0)
+    end
+
+    # TODO: This should generate -0.0 for OTP 27
+    test "-0.0 generates a signed pattern" do
+      auto_assert ["+0.0"] <- to_pattern_strings(-0.0)
+    end
+
     test "tuples" do
       auto_assert ["{1, \"string\", :atom}"] <- to_pattern_strings({1, "string", :atom})
       auto_assert ["{{:nested}, {\"tuples\"}}"] <- to_pattern_strings({{:nested}, {"tuples"}})

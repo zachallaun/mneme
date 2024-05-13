@@ -68,6 +68,11 @@ defmodule Mneme.Assertion.PatternBuilder do
     {[pattern], vars}
   end
 
+  defp do_to_patterns(+0.0, context, vars) do
+    pattern = Pattern.new({:+, with_meta(context), [0.0]})
+    {[pattern], vars}
+  end
+
   defp do_to_patterns(value, _context, vars) when is_atom(value) or is_float(value) do
     {[Pattern.new(value)], vars}
   end
