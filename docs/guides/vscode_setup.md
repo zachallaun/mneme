@@ -9,9 +9,10 @@ Custom tasks are accessible by running the command `Tasks: Run Task`, but can al
 
 I personally use three custom tasks for testing:
 
-  * `Run tests`
-  * `Run tests in current file`
-  * `Run test at cursor`
+  * `Run tests` - `mix test`
+  * `Run stale tests` - `mix test --stale`
+  * `Run tests in current file` - `mix test FILE`
+  * `Run test at cursor` - `mix test FILE:LINE`
 
 To set these up:
 
@@ -27,6 +28,19 @@ To set these up:
       "type": "shell",
       "command": "mix",
       "args": ["test"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "focus": true
+      },
+      "group": "test"
+    },
+    {
+      "label": "Run stale tests",
+      "type": "shell",
+      "command": "mix",
+      "args": ["test", "--stale"],
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -85,6 +99,11 @@ To assign keyboard shortcuts to the three tasks created above:
   "key": "ctrl+space a",
   "command": "workbench.action.tasks.runTask",
   "args": "Run tests"
+},
+{
+  "key": "ctrl+space s",
+  "command": "workbench.action.tasks.runTask",
+  "args": "Run stale tests"
 },
 {
   "key": "ctrl+space f",
