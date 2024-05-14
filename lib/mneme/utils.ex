@@ -66,7 +66,9 @@ defmodule Mneme.Utils do
         # timestamp
         ~r/(\d{1,2}:\d{1,2}:\d{1,2}\.\d+)/,
         # date
-        ~r/(\d{1,4}[\/-]\d{1,2}[\/-]\d{1,2})/
+        ~r/(\d{1,4}[\/-]\d{1,2}[\/-]\d{1,2})/,
+        # terminal escape sequence
+        ~r/(\e\[\d+m)/
       ],
       "|"
     )

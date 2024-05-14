@@ -34,6 +34,10 @@ defmodule Mneme.UtilsTest do
       auto_assert "foo" <- strip_ignorable("2024/05/13 foo")
     end
 
+    test "ignores terminal escape sequences" do
+      auto_assert "foo" <- strip_ignorable("\e[33m\nfoo\n\e[0m")
+    end
+
     test "ignores combinations of ignorables" do
       auto_assert "[info] foo" <- strip_ignorable("2024-05-13 10:10:10.123 [info] foo\n")
     end
