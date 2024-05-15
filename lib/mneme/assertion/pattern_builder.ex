@@ -34,17 +34,31 @@ defmodule Mneme.Assertion.PatternBuilder do
   # Keysets are the lists of keys being matched in any map patterns. We
   # extract them upfront so that map pattern generation can create
   # patterns for those subsets as well when applicable.
+  @spec get_keysets(Macro.t()) :: [%{keys: [term(), ...], ignore_values_for: [term()]}]
   defp get_keysets(pattern) do
     {_, keysets} =
       Macro.prewalk(pattern, [], fn
         {:%{}, _, [_ | _] = kvs} = quoted, keysets ->
-          {quoted, [Enum.map(kvs, &elem(&1, 0)) | keysets]}
+          {quoted, [kvs_to_keyset(kvs) | keysets]}
 
         quoted, keysets ->
           {quoted, keysets}
       end)
 
     keysets
+  end
+
+  defp kvs_to_keyset(kvs) do
+    keyset =
+      Enum.reduce(kvs, %{keys: [], ignore_values_for: []}, fn
+        {key, {:_, _, nil}}, %{keys: keys, ignore_values_for: ignore} ->
+          %{keys: [key | keys], ignore_values_for: [key | ignore]}
+
+        {key, _}, keyset ->
+          update_in(keyset[:keys], &[key | &1])
+      end)
+
+    update_in(keyset[:keys], &Enum.reverse/1)
   end
 
   defp with_meta(meta \\ [], context) do
@@ -165,7 +179,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp do_to_patterns(map, %{map_key_pattern?: true} = context, vars) when is_map(map) do
-    {patterns, vars} = enumerate_map_patterns(map, context, vars)
+    {patterns, vars} = enumerate_map_patterns(map, context, vars, [])
     {[List.last(patterns)], vars}
   end
 
@@ -176,26 +190,31 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp map_to_patterns(map, context, vars) when is_map(map) do
     sub_maps =
       for keyset <- context.keysets,
-          sub_map = Map.take(map, keyset),
+          sub_map = Map.take(map, keyset.keys),
           map_size(sub_map) > 0 && map != sub_map do
-        sub_map
+        ordered_sub_map = Enum.map(keyset.keys, &{&1, sub_map[&1]})
+        {ordered_sub_map, keyset.ignore_values_for}
       end
 
-    Enum.flat_map_reduce(sub_maps ++ [map], vars, fn map, vars ->
-      enumerate_map_patterns(map, context, vars)
+    Enum.flat_map_reduce(sub_maps ++ [{map, []}], vars, fn {map, ignore_values_for}, vars ->
+      enumerate_map_patterns(map, context, vars, ignore_values_for)
     end)
   end
 
-  defp enumerate_map_patterns(map, context, vars) do
+  defp enumerate_map_patterns(enum, context, vars, ignore_values_for) do
     {nested_patterns, {vars, bad_map_keys}} =
-      map
-      # map may be a struct that does not implement Enumerable
-      |> map_to_pairs()
-      |> Enum.sort_by(&elem(&1, 0))
+      enum
+      |> to_pairs()
       |> Enum.flat_map_reduce({vars, []}, fn {k, v}, {vars, bad_map_keys} ->
         try do
           {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
-          {v_patterns, vars} = to_patterns(v, context, vars)
+
+          {v_patterns, vars} =
+            if k in ignore_values_for do
+              {[Pattern.new({:_, [], nil})], []}
+            else
+              to_patterns(v, context, vars)
+            end
 
           tuples =
             [k_patterns, v_patterns]
@@ -218,11 +237,16 @@ defmodule Mneme.Assertion.PatternBuilder do
     {maybe_bad_map_key_notes(map_patterns, bad_map_keys), vars}
   end
 
-  defp map_to_pairs(map) do
+  defp to_pairs(%{} = map) do
     map
+    # we fetch by key instead of using `Enum.to_list/1` because
+    # structs map not implement the `Enumerable` protocol
     |> Map.keys()
     |> Enum.map(&{&1, Map.fetch!(map, &1)})
+    |> Enum.sort_by(&elem(&1, 0))
   end
+
+  defp to_pairs(enum), do: Enum.to_list(enum)
 
   defp maybe_bad_map_key_notes(patterns, []), do: patterns
 

@@ -64,7 +64,7 @@ defmodule Mneme.Integration.OptionsTest do
     test "should default to a pattern sharing the most similarity" do
       # y
       auto_assert %{foo: 1, bar: 2} <- %{foo: 2, bar: 2, baz: 3},
-                  %{bar: 2, foo: 2} <- %{foo: 2, bar: 2, baz: 3}
+                  %{foo: 2, bar: 2} <- %{foo: 2, bar: 2, baz: 3}
     end
   end
 
