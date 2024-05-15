@@ -45,7 +45,7 @@ defmodule Mneme.MixProject do
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
       {:ecto, "~> 3.9", only: :test},
-      {:stream_data, "~> 0.6.0", only: [:dev, :test]},
+      {:stream_data, "~> 1.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:styler, "~> 0.7", only: [:dev, :test], runtime: false},
       {:time_zone_info, "~> 0.7", only: [:dev, :test]},
