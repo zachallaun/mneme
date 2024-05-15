@@ -4,9 +4,14 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ## Unreleased
 
-### Fixes
+### Added
+
+  * Update map and struct patterns that ignore keys more intelligently, e.g. `%{x: 1, y: _}` will now still use `_` for `:y` when `:x` changes.
+
+### Fixed
 
   * Fix a crash that would occur when generating a pattern for a non-existing struct, e.g. `%{__struct__: Foo}` when `Foo` is not a module defining a struct ([#67](https://github.com/zachallaun/mneme/issues/67)).
+  * Generate the signed pattern `+0.0` for the float `0.0` to avoid the warning about `+0.0` and `-0.0` no longer matching in Erlang/OTP 27. (Mneme will gain support for generating `-0.0` patterns in the future.)
 
 ## v0.6.0 (2024-04-15)
 
@@ -14,7 +19,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
   * Calling `Mneme.start/1` multiple times now has the same behavior as `Mneme.start(restart: true)`. The `:restart` option is now a no-op and specifying it will print a notice.
 
-### Fixes
+### Fixed
 
   * Tests using Mneme can now be compiled individually without having first called `Mneme.start/1`. Previously, an error would be raised at compile-time, interfering with some language servers ([lexical-lsp/lexical#507](https://github.com/lexical-lsp/lexical/issues/507)).
 
