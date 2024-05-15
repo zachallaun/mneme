@@ -109,11 +109,13 @@ defmodule Mneme.MixProject do
         "README.md": [title: "Overview"],
         "CHANGELOG.md": [title: "Changelog"],
         "docs/guides/architecture.md": [title: "Under the hood"],
-        "docs/guides/vscode_setup.md": [title: "VS Code"]
+        "docs/guides/vscode_setup.md": [title: "VS Code"],
+        "docs/guides/generated_patterns.md": [title: "Pattern generation"]
       ],
       groups_for_extras: [
-        Introduction: [
-          "README.md"
+        Guides: [
+          "README.md",
+          "docs/guides/generated_patterns.md"
         ],
         "Editor Setup": [
           "docs/guides/vscode_setup.md"
