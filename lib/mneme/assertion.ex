@@ -228,8 +228,8 @@ defmodule Mneme.Assertion do
   end
 
   defp get_stage(:auto_assert, [{:<-, _, [{:when, _, [pattern, _]}, _]}]), do: {:update, pattern}
+  defp get_stage(:auto_assert, [{:<-, _, [{:text, _, [pattern]}, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
-  defp get_stage(:auto_assert, [{:<~, _, [pattern, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, _args), do: {:new, nil}
 
   defp get_stage(:auto_assert_raise, [exception, message, _]), do: {:update, {exception, message}}
@@ -337,8 +337,8 @@ defmodule Mneme.Assertion do
     expr_and_guard =
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
+        {_, _, [{:<-, _, [{:text, _, [expr]}, _]}]} -> [expr, nil]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
-        {_, _, [{:<~, _, [expr, _]}]} -> [expr, nil]
       end
 
     [expr, guard] =
@@ -464,7 +464,10 @@ defmodule Mneme.Assertion do
   end
 
   defp build_text_match_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
-    {:auto_assert, meta(ast), [{:<~, meta(value_expr(ast)), [pattern, value_expr(ast)]}]}
+    text_match_pattern = {:text, meta(ast), [pattern]}
+
+    {:auto_assert, meta(ast),
+     [{:<-, meta(value_expr(ast)), [text_match_pattern, value_expr(ast)]}]}
   end
 
   defp build_text_match_call(:ex_unit, %{kind: :auto_assert, rich_ast: ast}, pattern) do
@@ -576,12 +579,12 @@ defmodule Mneme.Assertion do
     end
   end
 
-  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [expected, _]}]}, _value) do
-    assert_match(expected)
+  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [{:text, _, [expected]}, _]}]}, _value) do
+    assert_text_match(expected)
   end
 
-  def code_for_eval(:auto_assert, {_, _, [{:<~, _, [expected, _]}]}, _value) do
-    assert_text_match(expected)
+  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [expected, _]}]}, _value) do
+    assert_match(expected)
   end
 
   def code_for_eval(:auto_assert_raise, _ast, nil) do
@@ -650,7 +653,6 @@ defmodule Mneme.Assertion do
   defp value_expr({:__block__, _, [first, _second]}), do: value_expr(first)
 
   defp value_expr({:auto_assert, _, [{:<-, _, [_, value_expr]}]}), do: value_expr
-  defp value_expr({:auto_assert, _, [{:<~, _, [_, value_expr]}]}), do: value_expr
   defp value_expr({:auto_assert, _, [value_expr]}), do: value_expr
 
   defp value_expr({:auto_assert_raise, _, [_, _, fun]}), do: fun

@@ -2,6 +2,8 @@ defmodule Mneme.ExampleTest do
   use ExUnit.Case, async: true
   use Mneme
 
+  import Mneme
+
   defmodule MyStruct do
     @moduledoc false
     defstruct field: nil, list: [], map: %{}
@@ -44,6 +46,11 @@ defmodule Mneme.ExampleTest do
   end
 
   test "6" do
-    auto_assert "c" <~ "abcde"
+    import ExUnit.CaptureLog
+
+    require Logger
+
+    auto_assert text("[warning] this is a warning") <-
+                  capture_log(fn -> Logger.warning("this is a warning") end)
   end
 end

@@ -266,7 +266,7 @@ defmodule Mneme.Integration do
   end
 
   defp transform_auto_assert({call, meta, [{op, _, [_expected_pattern, expr]}]})
-       when op in ~w(<- <~ =)a do
+       when op in ~w(<- =)a do
     {call, meta, [expr]}
   end
 

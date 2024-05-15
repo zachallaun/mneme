@@ -107,6 +107,16 @@ defmodule Mneme do
   While this operator is similar to the match operator `=/2`, there are
   a few differences:
 
+    * Matchers can be used to change match behavior. By default, the
+      `pattern` is used as structural pattern matching. The additional
+      available matchers are:
+
+        * `text/1`
+
+    * It supports guards on the pattern with a `when` clause
+
+          auto_assert pid when is_pid(pid) <- self()
+
     * It can be used to match falsy values. For instance, the following
       `ExUnit` assertion using `=/2` will always fail, whereas the
       auto-assertion using `<-` will not:
@@ -116,10 +126,6 @@ defmodule Mneme do
 
           # succeeds
           auto_assert false <- false
-
-    * It supports guards on the pattern with a `when` clause
-
-          auto_assert pid when is_pid(pid) <- self()
 
     * Bindings created are only available inside guards, not outside the
       assertion.
@@ -135,34 +141,31 @@ defmodule Mneme do
   end
 
   @doc """
-  Text-based match operator used in `auto_assert/1`.
+  Text-based matcher used in `auto_assert/1`, similar to `=~/2`.
 
-  This operator is similar to the text-based match operator `=~/2`, but
-  the arguments are flipped.
-
-  If `substring_or_regex` is a string, the assertion succeeds if
-  `expression` evaluates to a string that contains it.
+  If `substring_or_regex` is a string, the assertion succeeds if the
+  expression evaluates to a string that contains it.
 
   If `substring_or_regex` is a regular expression, the assertion
-  succeeds if it matches the string that `expression` evaluates to.
+  succeeds if it matches the string that the expression evaluates to.
 
   Here are some equivalent examples using `=~/2`:
 
       assert "abcd" =~ "bc"
-      auto_assert "bc" <~ "abcd"
+      auto_assert text("bc") <- "abcd"
 
       assert "abcd" =~ ~r/cde?/
-      auto_assert ~r/cde?/ <~ "abcd"
+      auto_assert text(~r/cde?/) <- "abcd"
 
   """
   @doc section: :assertion
-  defmacro _substring_or_regex <~ _expression do
+  defmacro text(_substring_or_regex) do
     raise Mneme.CompileError,
-      message: "`<~` can only be used in `auto_assert`"
+      message: "`text/1` can only be used in `auto_assert`"
   end
 
   @doc """
-  Pattern-generating variant of `ExUnit.Assertions.assert/1`.
+  Assertion-generating variant of `ExUnit.Assertions.assert/1`.
 
   See also:
 

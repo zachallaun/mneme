@@ -34,7 +34,7 @@ defmodule Mneme.Assertion.PatternBuilder do
 
     if substring != string and not String.contains?(substring, "\n") do
       note =
-        "The text match operator `<~` is used to assert a portion of the string, similar to `=~`"
+        "The text-based matcher `text/1` is used to assert a portion of text, similar to `=~`"
 
       {substring_patterns, _} = do_to_patterns(substring, context, vars)
 
