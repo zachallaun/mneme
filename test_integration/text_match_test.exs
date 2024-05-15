@@ -10,12 +10,12 @@ defmodule Mneme.Integration.TextMatchTest do
       auto_assert text(~r/cde?/) <- "abcd"
     end
 
-    test "rewrites to <- if the value is not a string" do
+    test "rewrites without matcher if the value is not a string" do
       # y
       auto_assert text("bc") <- :foo, :foo <- :foo
     end
 
-    test "rewrites to <- if the pattern is not a string or regex" do
+    test "rewrites without matcher if the pattern is not a string or regex" do
       # y
       auto_assert text(:foo) <- :foo, :foo <- :foo
     end
