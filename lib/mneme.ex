@@ -3,6 +3,9 @@ defmodule Mneme do
   Augments `ExUnit.Assertions` with a set of assertions that know how to
   update themselves.
 
+  To learn more about how Mneme's auto-assertions are updated, see the
+  [pattern generation guide](docs/guides/generated_patterns.md).
+
   > #### `use Mneme` {: .info}
   >
   > When you `use Mneme` in a test module, [assertions](#assertions) are
@@ -137,7 +140,12 @@ defmodule Mneme do
   @doc """
   Pattern-generating variant of `ExUnit.Assertions.assert/1`.
 
-  Uses the `<-/2` pattern-matching operator.
+  See also:
+
+    * `<-/2` - pattern-matching operator used with this macro
+    * The [pattern generation guide](docs/guides/generated_patterns.md)
+
+  See the
 
   ## Usage
 
