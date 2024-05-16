@@ -228,7 +228,10 @@ defmodule Mneme.Assertion do
   end
 
   defp get_stage(:auto_assert, [{:<-, _, [{:when, _, [pattern, _]}, _]}]), do: {:update, pattern}
-  defp get_stage(:auto_assert, [{:<-, _, [{:text, _, [pattern]}, _]}]), do: {:update, pattern}
+
+  defp get_stage(:auto_assert, [{:<-, _, [{:substring, _, [pattern]}, _]}]),
+    do: {:update, pattern}
+
   defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, _args), do: {:new, nil}
 
@@ -337,7 +340,7 @@ defmodule Mneme.Assertion do
     expr_and_guard =
       case ast do
         {_, _, [{:<-, _, [{:when, _, [expr, guard]}, _]}]} -> [expr, guard]
-        {_, _, [{:<-, _, [{:text, _, [expr]}, _]}]} -> [expr, nil]
+        {_, _, [{:<-, _, [{:substring, _, [expr]}, _]}]} -> [expr, nil]
         {_, _, [{:<-, _, [expr, _]}]} -> [expr, nil]
       end
 
@@ -464,7 +467,7 @@ defmodule Mneme.Assertion do
   end
 
   defp build_text_match_call(:mneme, %{kind: :auto_assert, rich_ast: ast}, pattern) do
-    text_match_pattern = {:text, meta(ast), [pattern]}
+    text_match_pattern = {:substring, meta(ast), [pattern]}
 
     {:auto_assert, meta(ast),
      [{:<-, meta(value_expr(ast)), [text_match_pattern, value_expr(ast)]}]}
@@ -579,7 +582,7 @@ defmodule Mneme.Assertion do
     end
   end
 
-  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [{:text, _, [expected]}, _]}]}, _value) do
+  def code_for_eval(:auto_assert, {_, _, [{:<-, _, [{:substring, _, [expected]}, _]}]}, _value) do
     assert_text_match(expected)
   end
 

@@ -50,7 +50,7 @@ defmodule Mneme.ExampleTest do
 
     require Logger
 
-    auto_assert text("[warning] this is a warning") <-
+    auto_assert substring("[warning] this is a warning") <-
                   capture_log(fn -> Logger.warning("this is a warning") end)
   end
 end

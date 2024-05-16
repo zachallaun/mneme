@@ -111,7 +111,7 @@ defmodule Mneme do
       `pattern` is used as structural pattern matching. The additional
       available matchers are:
 
-        * `text/1`
+        * `substring/1`
 
     * It supports guards on the pattern with a `when` clause
 
@@ -152,16 +152,16 @@ defmodule Mneme do
   Here are some equivalent examples using `=~/2`:
 
       assert "abcd" =~ "bc"
-      auto_assert text("bc") <- "abcd"
+      auto_assert substring("bc") <- "abcd"
 
       assert "abcd" =~ ~r/cde?/
-      auto_assert text(~r/cde?/) <- "abcd"
+      auto_assert substring(~r/cde?/) <- "abcd"
 
   """
   @doc section: :assertion
-  defmacro text(_substring_or_regex) do
+  defmacro substring(_substring_or_regex) do
     raise Mneme.CompileError,
-      message: "`text/1` can only be used in `auto_assert`"
+      message: "`substring/1` can only be used in `auto_assert`"
   end
 
   @doc """
