@@ -7,9 +7,14 @@ defmodule Mneme.Integration.InferredPatternTest do
     auto_assert %{x: 1} <- %{x: "X", y: 2}, %{x: "X"} <- %{x: "X", y: 2}
   end
 
-  test "ignored map values stay ignored" do
+  test "ignored partial map values stay ignored" do
     # y
     auto_assert %{x: 1, y: _} <- %{x: "X", y: 2, z: 3}, %{x: "X", y: _} <- %{x: "X", y: 2, z: 3}
+  end
+
+  test "ignored full map values stay ignored" do
+    # y
+    auto_assert %{x: 1, y: _} <- %{x: "X", y: 2}, %{x: "X", y: _} <- %{x: "X", y: 2}
   end
 
   test "partial maps stay in order" do
