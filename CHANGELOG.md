@@ -2,7 +2,9 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v0.7.0
+
+This is the first version supporting Elixir 1.17.0 and Erlang/OTP 27.
 
 ### Changed
 
@@ -11,6 +13,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 ### Fixed
 
   * Fix diff highlighting of the map opening delimiter `%{` when using Elixir 1.17+.
+  * Fix warnings during testing when using Elixir 1.17+.
 
 ## v0.6.1 (2024-05-21)
 
