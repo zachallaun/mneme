@@ -2,7 +2,7 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.7.0
+## v0.7.0 (2024-05-27)
 
 This is the first version supporting Elixir 1.17.0 and Erlang/OTP 27.
 
