@@ -5,6 +5,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
 
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
+  alias Mneme.Versions
 
   {_formatter, opts} = Mix.Tasks.Format.formatter_for_file(__ENV__.file)
   @format_opts opts
@@ -44,9 +45,12 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       auto_assert ["+0.0"] <- to_pattern_strings(0.0)
     end
 
-    # TODO: This should generate -0.0 for OTP 27
     test "-0.0 generates a signed pattern" do
-      auto_assert ["+0.0"] <- to_pattern_strings(-0.0)
+      if Versions.match?(otp: ">= 27.0.0") do
+        auto_assert ["-0.0"] <- to_pattern_strings(-0.0)
+      else
+        auto_assert ["+0.0"] <- to_pattern_strings(-0.0)
+      end
     end
 
     test "tuples" do

@@ -83,11 +83,11 @@ These data types have no special handling and use their equivalent data literal 
   * floats
   * tuples
 
-> #### -0.0 in Erlang/OTP 27 {: .warning}
+> #### 0.0 in Erlang/OTP 27 {: .warning}
 >
-> In Erlang/OTP 27, [`0.0` will no longer match `-0.0`](https://www.erlang.org/docs/26/general_info/upcoming_incompatibilities#0.0-and--0.0-will-no-longer-be-exactly-equal).
-> Mneme does not currently handle this and will always generate the pattern `+0.0`.
-> Support for `-0.0` patterns will be added at a future date.
+> In Erlang/OTP 27, [`0.0` no longer matches `-0.0`](https://www.erlang.org/docs/26/general_info/upcoming_incompatibilities#0.0-and--0.0-will-no-longer-be-exactly-equal).
+> If you are using this version or later, Mneme generates the pattern `-0.0`.
+> If you are using an earlier version, `+0.0` is always generated.
 
 ## Lists and charlists
 

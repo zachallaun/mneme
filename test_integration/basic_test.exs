@@ -2,6 +2,8 @@ defmodule Mneme.Integration.BasicTest do
   use ExUnit.Case
   use Mneme
 
+  alias Mneme.Versions
+
   @mneme action: :reject
   test "auto_assert/1 raises if no pattern is present and update is rejected" do
     assert_raise Mneme.AssertionError, "No pattern present", fn ->
@@ -38,6 +40,11 @@ defmodule Mneme.Integration.BasicTest do
 
     # y
     auto_assert +0.0 <- 1.0 * 0
+
+    if Versions.match?(otp: ">= 27.0.0") do
+      # ignore
+      auto_assert -0.0 <- -1.0 * 0
+    end
   end
 
   test "strings/binaries" do

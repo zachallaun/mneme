@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+  * Update docs to reflect `-0.0` being a possible generated value when using Erlang/OTP 27 or later.
+
 ## v0.6.1 (2024-05-21)
 
 ### Added
