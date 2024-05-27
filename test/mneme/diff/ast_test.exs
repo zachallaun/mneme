@@ -189,16 +189,16 @@ defmodule Mneme.Diff.ASTTest do
     end
 
     test "maps" do
-      auto_assert {:%{}, [closing: [line: 1, column: 3], line: 1, column: 2], []} <-
+      auto_assert {:%{}, [closing: [line: 1, column: 3], line: 1, column: _], []} <-
                     parse_string!("%{}")
 
-      auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: 2],
+      auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: _],
                    [
                      {{:atom, [line: 1, column: 3], :foo},
                       {:int, [token: "1", line: 1, column: 11], 1}}
                    ]} <- parse_string!("%{:foo => 1}")
 
-      auto_assert {:%{}, [closing: [line: 1, column: 9], line: 1, column: 2],
+      auto_assert {:%{}, [closing: [line: 1, column: 9], line: 1, column: _],
                    [
                      {{:atom, [format: :keyword, line: 1, column: 3], :foo},
                       {:int, [token: "1", line: 1, column: 8], 1}}

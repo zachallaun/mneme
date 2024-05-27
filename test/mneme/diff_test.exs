@@ -1,6 +1,6 @@
 defmodule Mneme.DiffTest do
   use ExUnit.Case, async: true
-  use Mneme, default_pattern: :last
+  use Mneme, default_pattern: :last, action: :reject
 
   import Mneme.DiffTestHelpers
 

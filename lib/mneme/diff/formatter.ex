@@ -4,6 +4,7 @@ defmodule Mneme.Diff.Formatter do
   alias Mneme.Diff
   alias Mneme.Diff.Zipper
   alias Mneme.Utils
+  alias Mneme.Versions
 
   @type fmt_instruction :: {op, bounds}
 
@@ -173,7 +174,14 @@ defmodule Mneme.Diff.Formatter do
         [fmt(op, {{l, c}, {l, c + 1}}) | delimiter_to_fmt_instructions(op, meta, 1, 1)]
 
       _ ->
-        delimiter_to_fmt_instructions(op, Map.update!(meta, :column, &(&1 - 1)), 2, 1)
+        meta =
+          if Versions.match?(elixir: ">= 1.17.0-rc.0") do
+            meta
+          else
+            Map.update!(meta, :column, &(&1 - 1))
+          end
+
+        delimiter_to_fmt_instructions(op, meta, 2, 1)
     end
   end
 
@@ -294,7 +302,11 @@ defmodule Mneme.Diff.Formatter do
   defp bounds(node)
 
   defp bounds({:%{}, %{closing: %{line: l2, column: c2}, line: l, column: c}, _}) do
-    {{l, c - 1}, {l2, c2 + 1}}
+    if Versions.match?(elixir: ">= 1.17.0-rc.0") do
+      {{l, c}, {l2, c2 + 1}}
+    else
+      {{l, c - 1}, {l2, c2 + 1}}
+    end
   end
 
   defp bounds({{:., _, [inner]}, %{closing: %{line: l2, column: c2}}, _}) do
