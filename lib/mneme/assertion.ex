@@ -195,7 +195,8 @@ defmodule Mneme.Assertion do
   defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
 
   defp mark_as_generated(vars) do
-    for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
+    for {name, meta, context} <- vars,
+        do: {:var!, meta, [{name, [generated: true] ++ meta, context}]}
   end
 
   @doc false

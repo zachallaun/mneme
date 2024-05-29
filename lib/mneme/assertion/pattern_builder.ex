@@ -52,7 +52,11 @@ defmodule Mneme.Assertion.PatternBuilder do
     keyset =
       Enum.reduce(kvs, %{keys: [], ignore_values_for: []}, fn
         {key, {:_, _, nil}}, %{keys: keys, ignore_values_for: ignore} ->
-          %{keys: [key | keys], ignore_values_for: [key | ignore]}
+          %{keys: [key | keys], ignore_values_for: [{key, :_} | ignore]}
+
+        {key, {name, _, ctx} = var}, %{keys: keys, ignore_values_for: ignore}
+        when is_atom(name) and is_atom(ctx) ->
+          %{keys: [key | keys], ignore_values_for: [{key, var} | ignore]}
 
         {key, _}, keyset ->
           update_in(keyset[:keys], &[key | &1])
@@ -222,10 +226,10 @@ defmodule Mneme.Assertion.PatternBuilder do
           {k_patterns, vars} = to_patterns(k, %{context | map_key_pattern?: true}, vars)
 
           {v_patterns, vars} =
-            if k in ignore_values_for do
-              {[Pattern.new({:_, [], nil})], []}
-            else
-              to_patterns(v, context, vars)
+            case fetch(ignore_values_for, k) do
+              :error -> to_patterns(v, context, vars)
+              {:ok, :_} -> {[Pattern.new({:_, [], nil})], []}
+              {:ok, value} -> {[Pattern.new(value)], []}
             end
 
           tuples =
@@ -248,6 +252,11 @@ defmodule Mneme.Assertion.PatternBuilder do
 
     {maybe_bad_map_key_notes(map_patterns, bad_map_keys), vars}
   end
+
+  # the analogue of `Keyword.fetch/2` for proplists having non-atom keys
+  defp fetch([], _key), do: :error
+  defp fetch([{key, value} | _rest], key), do: {:ok, value}
+  defp fetch([_ | rest], key), do: fetch(rest, key)
 
   defp to_pairs(%{} = map) do
     map
