@@ -68,19 +68,56 @@ defmodule Mneme.Assertion do
   Builds a quoted expression that will run the assertion.
   """
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
+  def build(kind, [{matcher, meta, [left, right]}], caller, opts) when matcher in [:<-, :=] do
+    left = __expand_pattern__(left, caller)
+    vars = collect_vars_from_pattern(left)
+    vars_count = length(vars)
+
+    macro_ast = {kind, Macro.Env.location(caller), [{matcher, meta, [left, right]}]}
+    context = assertion_context(caller)
+
+    match_expr =
+      quote do
+        unquote_splicing(silence_used_aliases(macro_ast, context[:aliases]))
+
+        ast = unquote(Macro.escape(macro_ast))
+
+        assertion =
+          Mneme.Assertion.new(
+            ast,
+            unquote(value_eval_expr(macro_ast)),
+            Keyword.put(unquote(context), :binding, binding()),
+            unquote(opts)
+          )
+
+        {result, _binding} = Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
+
+        case unquote(right) do
+          unquote(left) ->
+            {:ok, unquote(mark_as_generated(vars))}
+
+          _ ->
+            {:fail, unquote(vars_count)}
+        end
+      end
+
+    quote do
+      unquote(vars) =
+        case unquote(match_expr) do
+          {:ok, vars} -> vars
+          {:fail, vars_count} -> List.duplicate(nil, vars_count)
+        end
+
+      result
+    end
+  end
+
   def build(kind, args, caller, opts) do
     macro_ast = {kind, Macro.Env.location(caller), args}
     context = assertion_context(caller)
 
-    # Prevents warnings about unused aliases when their only usage is in
-    # an auto-assertion
-    silence_used_aliases =
-      macro_ast
-      |> extract_used_aliases(context[:aliases])
-      |> Enum.map(&quoted_dummy_assign/1)
-
     quote do
-      unquote_splicing(silence_used_aliases)
+      unquote_splicing(silence_used_aliases(macro_ast, context[:aliases]))
 
       ast = unquote(Macro.escape(macro_ast))
 
@@ -95,6 +132,113 @@ defmodule Mneme.Assertion do
       Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
     end
   end
+
+  # Prevents warnings about unused aliases when their only usage is in an auto-assertion
+  defp silence_used_aliases(macro_ast, context_aliases) do
+    macro_ast
+    |> extract_used_aliases(context_aliases)
+    |> Enum.map(&quoted_dummy_assign/1)
+  end
+
+  defp collect_vars_from_pattern({:when, _, [left, right]}) do
+    pattern = collect_vars_from_pattern(left)
+
+    vars =
+      for {name, _, context} = var <- collect_vars_from_pattern(right),
+          has_var?(pattern, name, context),
+          do: var
+
+    pattern ++ vars
+  end
+
+  defp collect_vars_from_pattern(expr) do
+    expr
+    |> Macro.prewalk([], fn
+      {:"::", _, [left, right]}, acc ->
+        {[left], collect_vars_from_binary(right, acc)}
+
+      {skip, _, [_]}, acc when skip in [:^, :@, :quote] ->
+        {:ok, acc}
+
+      {skip, _, [_, _]}, acc when skip in [:quote] ->
+        {:ok, acc}
+
+      {:_, _, context}, acc when is_atom(context) ->
+        {:ok, acc}
+
+      {name, meta, context}, acc when is_atom(name) and is_atom(context) ->
+        {:ok, [{name, meta, context} | acc]}
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp collect_vars_from_binary(right, original_acc) do
+    right
+    |> Macro.prewalk(original_acc, fn
+      {mode, _, [{name, meta, context}]}, acc
+      when is_atom(mode) and is_atom(name) and is_atom(context) ->
+        if has_var?(original_acc, name, context) do
+          {:ok, [{name, meta, context} | acc]}
+        else
+          {:ok, acc}
+        end
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
+
+  defp mark_as_generated(vars) do
+    for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
+  end
+
+  @doc false
+  def __expand_pattern__({:when, meta, [left, right]}, caller) do
+    left = expand_pattern(left, Macro.Env.to_match(caller))
+    right = expand_pattern(right, %{caller | context: :guard})
+    {:when, meta, [left, right]}
+  end
+
+  def __expand_pattern__(expr, caller) do
+    expand_pattern(expr, Macro.Env.to_match(caller))
+  end
+
+  defp expand_pattern({:quote, _, [_]} = expr, _caller), do: expr
+  defp expand_pattern({:quote, _, [_, _]} = expr, _caller), do: expr
+  defp expand_pattern({:__aliases__, _, _} = expr, caller), do: Macro.expand(expr, caller)
+
+  defp expand_pattern({:@, _, [{attribute, _, _}]}, caller) do
+    caller.module |> Module.get_attribute(attribute) |> Macro.escape()
+  end
+
+  defp expand_pattern({left, meta, right} = expr, caller) do
+    case Macro.expand(expr, caller) do
+      ^expr ->
+        {expand_pattern(left, caller), meta, expand_pattern(right, caller)}
+
+      {left, meta, right} ->
+        {expand_pattern(left, caller), [original: expr] ++ meta, expand_pattern(right, caller)}
+
+      other ->
+        other
+    end
+  end
+
+  defp expand_pattern({left, right}, caller) do
+    {expand_pattern(left, caller), expand_pattern(right, caller)}
+  end
+
+  defp expand_pattern([_ | _] = list, caller) do
+    Enum.map(list, &expand_pattern(&1, caller))
+  end
+
+  defp expand_pattern(other, _caller), do: other
 
   defp extract_used_aliases(quoted, aliases) do
     quoted
@@ -152,8 +296,6 @@ defmodule Mneme.Assertion do
             patch(assertion, env, error)
         end
     end
-
-    assertion.value
   end
 
   defp do_run(assertion, env, false) do
