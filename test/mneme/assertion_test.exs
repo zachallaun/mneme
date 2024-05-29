@@ -96,8 +96,9 @@ defmodule Mneme.AssertionTest do
       pinned = [3]
       auto_assert list when is_list(list) and length(list) == 3 <- [1, 2, 3]
       auto_assert [1, 2 | ^pinned] <- list
-      auto_assert {e1, e2, e3} <- {1, 2, 3}
-      IO.inspect(e1: e1, e2: e2, e3: e3)
+      result = auto_assert {e1, e2, e3} <- {1, 2, 3}
+      auto_assert {1, 2, 3} <- result
+      IO.inspect(result: result, e1: e1, e2: e2, e3: e3)
 
       auto_assert %{x: x, y: 2} <- %{x: 1, y: 2}
       auto_assert 1 <- x
