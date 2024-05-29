@@ -93,19 +93,19 @@ defmodule Mneme.AssertionTest do
       auto_assert "abc" <- foo
       auto_assert ^foo <> " " <> foo <- "abc def"
       auto_assert "def" <- foo
+
       pinned = [3]
       auto_assert list when is_list(list) and length(list) == 3 <- [1, 2, 3]
       auto_assert [1, 2 | ^pinned] <- list
+
       result = auto_assert {e1, e2, e3} <- {1, 2, 3}
       auto_assert {1, 2, 3} <- result
-      IO.inspect(result: result, e1: e1, e2: e2, e3: e3)
 
       auto_assert %{x: x, y: 2} <- %{x: 1, y: 2}
       auto_assert 1 <- x
 
-      # auto_assert %{y: ^e1} <- %{y: 1}
-      # auto_assert %{x: nil} <- Map.put(%{}, :x, x)
-      # IO.inspect(x: x)
+      auto_assert %{x: ^e1} <- %{x: 1}
+      auto_assert %{y: 1} <- Map.put(%{}, :y, e1)
     end
   end
 

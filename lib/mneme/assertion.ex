@@ -70,8 +70,8 @@ defmodule Mneme.Assertion do
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
   def build(kind, [{matcher, meta, [left, right]}], caller, opts) when matcher in [:<-, :=] do
     left = __expand_pattern__(left, caller)
-    vars = collect_vars_from_pattern(left)
-    vars_count = length(vars)
+    vars = left |> collect_vars_from_pattern() |> Enum.uniq()
+    vars_names = Enum.map(vars, &elem(&1, 0))
 
     macro_ast = {kind, Macro.Env.location(caller), [{matcher, meta, [left, right]}]}
     context = assertion_context(caller)
@@ -93,19 +93,22 @@ defmodule Mneme.Assertion do
         {result, _binding} = Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
 
         case unquote(right) do
-          unquote(left) ->
-            {:ok, unquote(mark_as_generated(vars))}
-
-          _ ->
-            {:fail, unquote(vars_count)}
+          unquote(left) -> {:ok, unquote(mark_as_generated(vars))}
+          _ -> {:fail, unquote(vars_names)}
         end
       end
 
     quote do
       unquote(vars) =
         case unquote(match_expr) do
-          {:ok, vars} -> vars
-          {:fail, vars_count} -> List.duplicate(nil, vars_count)
+          {:ok, vars} ->
+            vars
+
+          {:fail, []} ->
+            []
+
+          {:fail, vars_names} ->
+            raise Mneme.UnboundVariableError, vars: vars_names, result: result
         end
 
       result
@@ -195,8 +198,7 @@ defmodule Mneme.Assertion do
   defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
 
   defp mark_as_generated(vars) do
-    for {name, meta, context} <- vars,
-        do: {:var!, meta, [{name, [generated: true] ++ meta, context}]}
+    for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
   end
 
   @doc false

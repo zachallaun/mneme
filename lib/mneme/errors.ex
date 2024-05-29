@@ -23,3 +23,24 @@ defmodule Mneme.InternalError do
     """
   end
 end
+
+defmodule Mneme.UnboundVariableError do
+  @moduledoc false
+  defexception [:vars, :result, :message]
+
+  @impl true
+  def message(%{message: nil} = exception) do
+    %{vars: vars, result: result} = exception
+
+    """
+    The amended match obsoleted one or several of already bound variables
+      (#{inspect(vars)}) while adjusting for the result #{inspect(result)}.
+
+    Please run test(s) again.
+    """
+  end
+
+  def message(%{message: message}) do
+    message
+  end
+end
