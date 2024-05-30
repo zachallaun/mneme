@@ -91,8 +91,11 @@ defmodule Mneme.AssertionTest do
       auto_assert [2, 3] <- foo
       auto_assert <<foo::binary-size(3), _::binary>> <- "abc def"
       auto_assert "abc" <- foo
-      auto_assert ^foo <> " " <> foo <- "abc def"
-      auto_assert "def" <- foo
+
+      if Version.compare(System.version(), "1.16.0") in [:gt, :eq] do
+        auto_assert ^foo <> " " <> foo <- "abc def"
+        auto_assert "def" <- foo
+      end
 
       pinned = [3]
       auto_assert list when is_list(list) and length(list) == 3 <- [1, 2, 3]
