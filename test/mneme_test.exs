@@ -8,7 +8,7 @@ defmodule MnemeTest do
     test "raises at compile-time if called outside of a test" do
       code = """
       defmodule MnemeCompileExceptionTest do
-        use ExUnit.Case
+        use ExUnit.Case, register: false
         use Mneme
 
         auto_assert :foo
@@ -23,7 +23,7 @@ defmodule MnemeTest do
     test "warns at compile-time if the assertion cannot ever fail" do
       code = """
       defmodule MnemeUselessAssertionTest do
-        use ExUnit.Case
+        use ExUnit.Case, register: false
         use Mneme
 
         test "always succeeds" do
