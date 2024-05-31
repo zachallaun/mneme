@@ -124,12 +124,6 @@ defmodule Mneme do
 
           auto_assert pid when is_pid(pid) <- self()
 
-    * Bindings created are only available inside guards, not outside the
-      assertion.
-
-          auto_assert pid when is_pid(pid) <- self()
-          pid # ERROR: pid is not bound
-
   """
   @doc section: :assertion
   defmacro _pattern <- _expression do

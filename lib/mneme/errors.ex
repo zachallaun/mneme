@@ -23,3 +23,34 @@ defmodule Mneme.InternalError do
     """
   end
 end
+
+defmodule Mneme.UnboundVariableError do
+  @moduledoc false
+  defexception [:vars, :message]
+
+  @impl true
+  def message(%{message: nil} = exception) do
+    %{vars: vars} = exception
+
+    """
+    Updated auto-assertion is missing at least one previously bound variable:
+
+        #{format_vars(vars)}
+
+    Re-run this test to ensure it still passes.
+    """
+  end
+
+  def message(%{message: message}) do
+    message
+  end
+
+  defp format_vars(vars) do
+    vars
+    |> Enum.map(fn
+      {name, _context} -> name
+      name -> name
+    end)
+    |> Enum.map_join(", ", &Atom.to_string/1)
+  end
+end

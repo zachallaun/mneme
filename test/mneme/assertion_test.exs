@@ -73,6 +73,42 @@ defmodule Mneme.AssertionTest do
                     eval: "assert %{bar: 2, baz: 3, foo: 1} = value"
                   ] <- targets(ast3, value)
     end
+
+    test "exposing variables from match LHO" do
+      value = 42
+
+      ast = quote(do: auto_assert(foo <- 42))
+
+      auto_assert [
+                    mneme: "auto_assert 42 <- 42",
+                    ex_unit: "assert 42 = 42",
+                    eval: "assert 42 = value"
+                  ] <- targets(ast, value)
+
+      auto_assert foo <- 42
+      auto_assert 42 <- foo
+      auto_assert [1] ++ foo <- [1, 2, 3]
+      auto_assert [2, 3] <- foo
+      auto_assert <<foo::binary-size(3), _::binary>> <- "abc def"
+      auto_assert "abc" <- foo
+
+      # commented out until the support for 1.15 is dropped
+      # auto_assert ^foo <> " " <> foo <- "abc def"
+      # auto_assert "def" <- foo
+
+      pinned = [3]
+      auto_assert list when is_list(list) and length(list) == 3 <- [1, 2, 3]
+      auto_assert [1, 2 | ^pinned] <- list
+
+      result = auto_assert {e1, e2, e3} <- {1, 2, 3}
+      auto_assert {1, 2, 3} <- result
+
+      auto_assert %{x: x, y: 2} <- %{x: 1, y: 2}
+      auto_assert 1 <- x
+
+      auto_assert %{x: ^e1} <- %{x: 1}
+      auto_assert %{y: 1} <- Map.put(%{}, :y, e1)
+    end
   end
 
   describe "auto_assert_raise" do
