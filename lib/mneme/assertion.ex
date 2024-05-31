@@ -1,6 +1,8 @@
 defmodule Mneme.Assertion do
   @moduledoc false
 
+  import Sourceror.Identifier, only: [is_identifier: 1]
+
   alias __MODULE__
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
@@ -75,6 +77,8 @@ defmodule Mneme.Assertion do
   """
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
   def build(kind, args, caller, opts) do
+    maybe_warn(kind, args, caller)
+
     macro_ast = {kind, Macro.Env.location(caller), args}
     context = assertion_context(caller)
     vars = maybe_collect_vars(kind, args, caller)
@@ -272,15 +276,6 @@ defmodule Mneme.Assertion do
   # isn't, return the remainder.
   defp prune_stacktrace([{__MODULE__, _, _, _} | t]), do: prune_stacktrace(t)
   defp prune_stacktrace(stacktrace), do: stacktrace
-
-  defp warn_non_interactive do
-    [
-      [:yellow, "warning: ", :default_color],
-      "Mneme is running in non-interactive mode. Ensure that `Mneme.start()` is called before auto-assertions run."
-    ]
-    |> IO.ANSI.format()
-    |> IO.puts()
-  end
 
   defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, _args), do: {:new, nil}
@@ -767,5 +762,39 @@ defmodule Mneme.Assertion do
       |> Enum.map(&Macro.escape/1)
 
     {:%, [], [exception, {:%{}, [], kvs}]}
+  end
+
+  defp maybe_warn(:auto_assert, [{:<-, _, [var, _]}] = args, caller) when is_identifier(var) do
+    file = Path.relative_to_cwd(caller.file)
+    warn_useless_pattern(args, file, caller.line)
+  end
+
+  defp maybe_warn(_, _, _), do: :ok
+
+  defp warn_useless_pattern([{:<-, _, [left, right]}] = args, file, line) do
+    current = {:auto_assert, [], args}
+    suggested = {:=, [], [left, right]}
+
+    warn("""
+    (#{file}:#{line}) assertion will always succeed:
+
+        #{Sourceror.to_string(current)}
+
+    Consider rewriting to:
+
+        #{Sourceror.to_string(suggested)}
+    """)
+  end
+
+  defp warn_non_interactive do
+    warn(
+      "Mneme is running in non-interactive mode. Ensure that `Mneme.start()` is called before auto-assertions run."
+    )
+  end
+
+  defp warn(message) do
+    [:yellow, "warning: ", :default_color, message]
+    |> IO.ANSI.format()
+    |> IO.puts()
   end
 end

@@ -1,6 +1,8 @@
 defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
+  import Sourceror.Identifier, only: [is_identifier: 1]
+
   alias Mneme.Assertion.Pattern
   alias Mneme.Utils
 
@@ -68,7 +70,7 @@ defmodule Mneme.Assertion.PatternBuilder do
           %{keys: [key | keys], ignore_values_for: [{key, :_} | ignore]}
 
         {key, {name, _, ctx} = var}, %{keys: keys, ignore_values_for: ignore}
-        when is_atom(name) and is_atom(ctx) ->
+        when is_identifier(var) ->
           if {name, ctx} in vars_to_include do
             %{keys: [key | keys], ignore_values_for: ignore}
           else

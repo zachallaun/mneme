@@ -85,7 +85,7 @@ defmodule Mneme.AssertionTest do
                     eval: "assert 42 = value"
                   ] <- targets(ast, value)
 
-      auto_assert foo <- 42
+      auto_assert {:ok, foo} <- {:ok, 42}
       auto_assert 42 <- foo
       auto_assert [1] ++ foo <- [1, 2, 3]
       auto_assert [2, 3] <- foo

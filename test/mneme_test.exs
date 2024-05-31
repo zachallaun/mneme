@@ -2,6 +2,8 @@ defmodule MnemeTest do
   use ExUnit.Case, async: true
   use Mneme
 
+  import ExUnit.CaptureIO
+
   describe "auto_assert/1" do
     test "raises at compile-time if called outside of a test" do
       code = """
@@ -16,6 +18,30 @@ defmodule MnemeTest do
       auto_assert_raise Mneme.CompileError, "auto_assert can only be used inside of a test", fn ->
         Code.eval_string(code)
       end
+    end
+
+    test "warns at compile-time if the assertion cannot ever fail" do
+      code = """
+      defmodule MnemeUselessAssertionTest do
+        use ExUnit.Case
+        use Mneme
+
+        test "always succeeds" do
+          auto_assert foo <- 1 + 1
+          foo # suppress unused var warning
+        end
+      end
+      """
+
+      assert capture_io(fn -> Code.eval_string(code) end) =~ """
+             (nofile:6) assertion will always succeed:
+
+                 auto_assert foo <- 1 + 1
+
+             Consider rewriting to:
+
+                 foo = 1 + 1
+             """
     end
   end
 
@@ -35,8 +61,6 @@ defmodule MnemeTest do
   end
 
   describe "non-interactive" do
-    import ExUnit.CaptureIO
-
     test "existing correct assertions succeed" do
       assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 1)), 1, context(__ENV__))
 
