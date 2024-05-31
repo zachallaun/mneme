@@ -4,6 +4,7 @@ defmodule Mneme.Assertion do
   alias __MODULE__
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
+  alias Mneme.Utils
 
   defstruct [
     :kind,
@@ -15,7 +16,8 @@ defmodule Mneme.Assertion do
     :patterns,
     :pattern_idx,
     :context,
-    :options
+    :options,
+    vars_bound_in_pattern: []
   ]
 
   @type t :: %Assertion{
@@ -28,7 +30,8 @@ defmodule Mneme.Assertion do
           patterns: [Pattern.t()],
           pattern_idx: non_neg_integer(),
           context: context,
-          options: map()
+          options: map(),
+          vars_bound_in_pattern: [macro_var]
         }
 
   @type kind ::
@@ -43,14 +46,16 @@ defmodule Mneme.Assertion do
           module: module(),
           test: atom(),
           aliases: list(),
-          binding: list(),
+          binding: Code.binding(),
           original_pattern: Macro.t() | nil
         }
 
   @type target :: :mneme | :ex_unit
 
+  @type macro_var :: {atom(), Macro.metadata(), atom()}
+
   @doc false
-  def new({kind, _, args} = macro_ast, value, ctx, opts \\ Mneme.Options.options()) do
+  def new({kind, _, args} = macro_ast, value, ctx, vars \\ [], opts \\ Mneme.Options.options()) do
     {stage, original_pattern} = get_stage(kind, args)
     context = Enum.into(ctx, %{original_pattern: original_pattern})
 
@@ -60,7 +65,8 @@ defmodule Mneme.Assertion do
       macro_ast: macro_ast,
       value: value,
       context: context,
-      options: Map.new(opts)
+      options: Map.new(opts),
+      vars_bound_in_pattern: vars
     }
   end
 
@@ -68,56 +74,10 @@ defmodule Mneme.Assertion do
   Builds a quoted expression that will run the assertion.
   """
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
-  def build(kind, [{matcher, meta, [left, right]}], caller, opts) when matcher in [:<-, :=] do
-    left = __expand_pattern__(left, caller)
-    vars = left |> collect_vars_from_pattern() |> Enum.uniq()
-    vars_names = Enum.map(vars, &elem(&1, 0))
-
-    macro_ast = {kind, Macro.Env.location(caller), [{matcher, meta, [left, right]}]}
-    context = assertion_context(caller)
-
-    match_expr =
-      quote do
-        unquote_splicing(silence_used_aliases(macro_ast, context[:aliases]))
-
-        ast = unquote(Macro.escape(macro_ast))
-
-        assertion =
-          Mneme.Assertion.new(
-            ast,
-            unquote(value_eval_expr(macro_ast)),
-            Keyword.put(unquote(context), :binding, binding()),
-            unquote(opts)
-          )
-
-        {result, _binding} = Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
-
-        case unquote(right) do
-          unquote(left) -> {:ok, unquote(mark_as_generated(vars))}
-          _ -> {:fail, unquote(vars_names)}
-        end
-      end
-
-    quote do
-      unquote(vars) =
-        case unquote(match_expr) do
-          {:ok, vars} ->
-            vars
-
-          {:fail, []} ->
-            []
-
-          {:fail, vars_names} ->
-            raise Mneme.UnboundVariableError, vars: vars_names, result: result
-        end
-
-      result
-    end
-  end
-
   def build(kind, args, caller, opts) do
     macro_ast = {kind, Macro.Env.location(caller), args}
     context = assertion_context(caller)
+    vars = maybe_collect_vars(kind, args, caller)
 
     quote do
       unquote_splicing(silence_used_aliases(macro_ast, context[:aliases]))
@@ -129,10 +89,52 @@ defmodule Mneme.Assertion do
           ast,
           unquote(value_eval_expr(macro_ast)),
           Keyword.put(unquote(context), :binding, binding()),
+          unquote(Macro.escape(vars)),
           unquote(opts)
         )
 
-      Mneme.Assertion.run(assertion, __ENV__, Mneme.Server.started?())
+      {assertion, binding} = Mneme.Assertion.run!(assertion, __ENV__, Mneme.Server.started?())
+
+      unquote(vars) = Mneme.Assertion.ensure_vars!(assertion, binding)
+
+      assertion.value
+    end
+  end
+
+  defp maybe_collect_vars(:auto_assert, [{matcher, _, [left, _right]}], caller)
+       when matcher in [:<-, :=] do
+    left
+    |> Utils.expand_pattern(caller)
+    |> Utils.collect_vars_from_pattern()
+    |> Enum.uniq()
+  end
+
+  defp maybe_collect_vars(_, _, _), do: []
+
+  @doc false
+  def ensure_vars!(%Assertion{} = assertion, binding) do
+    binding_map = Map.new(binding)
+
+    result =
+      assertion.vars_bound_in_pattern
+      |> Enum.map(fn
+        {var, _, nil} -> var
+        {var, _, context} -> {var, context}
+      end)
+      |> Enum.reduce(%{values: [], missing: []}, fn var, acc ->
+        if value = binding_map[var] do
+          update_in(acc.values, &[value | &1])
+        else
+          update_in(acc.missing, &[var | &1])
+        end
+      end)
+
+    case result do
+      %{values: rev_values, missing: []} ->
+        Enum.reverse(rev_values)
+
+      %{missing: missing_vars} ->
+        raise Mneme.UnboundVariableError, vars: missing_vars
     end
   end
 
@@ -142,106 +144,6 @@ defmodule Mneme.Assertion do
     |> extract_used_aliases(context_aliases)
     |> Enum.map(&quoted_dummy_assign/1)
   end
-
-  defp collect_vars_from_pattern({:when, _, [left, right]}) do
-    pattern = collect_vars_from_pattern(left)
-
-    vars =
-      for {name, _, context} = var <- collect_vars_from_pattern(right),
-          has_var?(pattern, name, context),
-          do: var
-
-    pattern ++ vars
-  end
-
-  defp collect_vars_from_pattern(expr) do
-    expr
-    |> Macro.prewalk([], fn
-      {:"::", _, [left, right]}, acc ->
-        {[left], collect_vars_from_binary(right, acc)}
-
-      {skip, _, [_]}, acc when skip in [:^, :@, :quote] ->
-        {:ok, acc}
-
-      {skip, _, [_, _]}, acc when skip in [:quote] ->
-        {:ok, acc}
-
-      {:_, _, context}, acc when is_atom(context) ->
-        {:ok, acc}
-
-      {name, meta, context}, acc when is_atom(name) and is_atom(context) ->
-        {:ok, [{name, meta, context} | acc]}
-
-      node, acc ->
-        {node, acc}
-    end)
-    |> elem(1)
-  end
-
-  defp collect_vars_from_binary(right, original_acc) do
-    right
-    |> Macro.prewalk(original_acc, fn
-      {mode, _, [{name, meta, context}]}, acc
-      when is_atom(mode) and is_atom(name) and is_atom(context) ->
-        if has_var?(original_acc, name, context) do
-          {:ok, [{name, meta, context} | acc]}
-        else
-          {:ok, acc}
-        end
-
-      node, acc ->
-        {node, acc}
-    end)
-    |> elem(1)
-  end
-
-  defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
-
-  defp mark_as_generated(vars) do
-    for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
-  end
-
-  @doc false
-  def __expand_pattern__({:when, meta, [left, right]}, caller) do
-    left = expand_pattern(left, Macro.Env.to_match(caller))
-    right = expand_pattern(right, %{caller | context: :guard})
-    {:when, meta, [left, right]}
-  end
-
-  def __expand_pattern__(expr, caller) do
-    expand_pattern(expr, Macro.Env.to_match(caller))
-  end
-
-  defp expand_pattern({:quote, _, [_]} = expr, _caller), do: expr
-  defp expand_pattern({:quote, _, [_, _]} = expr, _caller), do: expr
-  defp expand_pattern({:__aliases__, _, _} = expr, caller), do: Macro.expand(expr, caller)
-
-  defp expand_pattern({:@, _, [{attribute, _, _}]}, caller) do
-    caller.module |> Module.get_attribute(attribute) |> Macro.escape()
-  end
-
-  defp expand_pattern({left, meta, right} = expr, caller) do
-    case Macro.expand(expr, caller) do
-      ^expr ->
-        {expand_pattern(left, caller), meta, expand_pattern(right, caller)}
-
-      {left, meta, right} ->
-        {expand_pattern(left, caller), [original: expr] ++ meta, expand_pattern(right, caller)}
-
-      other ->
-        other
-    end
-  end
-
-  defp expand_pattern({left, right}, caller) do
-    {expand_pattern(left, caller), expand_pattern(right, caller)}
-  end
-
-  defp expand_pattern([_ | _] = list, caller) do
-    Enum.map(list, &expand_pattern(&1, caller))
-  end
-
-  defp expand_pattern(other, _caller), do: other
 
   defp extract_used_aliases(quoted, aliases) do
     quoted
@@ -274,9 +176,13 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Run an auto-assertion, potentially patching the code.
+  Run an assertion, potentially patching the code.
+
+  Returns the assertion and binding resulting from running it. Raises if
+  the assertion fails.
   """
-  def run(assertion, env, interactive? \\ true) do
+  @spec run!(t, Macro.Env.t(), boolean()) :: {t, Code.binding()}
+  def run!(assertion, env, interactive? \\ true) do
     do_run(assertion, env, interactive?)
   rescue
     error in [ExUnit.AssertionError] ->
@@ -325,9 +231,14 @@ defmodule Mneme.Assertion do
   end
 
   defp handle_assertion(result, assertion, env, existing_error \\ nil)
-  defp handle_assertion({:ok, assertion}, _, env, _), do: eval(assertion, env)
-  defp handle_assertion({:error, :skipped}, _, _, _), do: :ok
-  defp handle_assertion({:error, :file_changed}, _, _, _), do: :ok
+
+  defp handle_assertion({:ok, assertion}, _, env, _) do
+    {_, binding} = eval(assertion, env)
+    {assertion, binding}
+  end
+
+  defp handle_assertion({:error, :skipped}, assertion, _, _), do: {assertion, []}
+  defp handle_assertion({:error, :file_changed}, assertion, _, _), do: {assertion, []}
   defp handle_assertion({:error, :rejected}, _, _, nil), do: assertion_error!()
 
   defp handle_assertion({:error, :rejected}, assertion, _, error) do

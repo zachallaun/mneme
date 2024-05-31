@@ -40,7 +40,7 @@ defmodule MnemeTest do
     test "existing correct assertions succeed" do
       assertion = Mneme.Assertion.new(quote(do: auto_assert(1 <- 1)), 1, context(__ENV__))
 
-      assert Mneme.Assertion.run(assertion, __ENV__, false)
+      assert Mneme.Assertion.run!(assertion, __ENV__, false)
     end
 
     test "existing incorrect assertions fail with an ExUnit.AssertionError" do
@@ -48,7 +48,7 @@ defmodule MnemeTest do
 
       assert capture_io(fn ->
                assert_raise ExUnit.AssertionError, fn ->
-                 Mneme.Assertion.run(assertion, __ENV__, false)
+                 Mneme.Assertion.run!(assertion, __ENV__, false)
                end
              end) =~ "Mneme is running in non-interactive mode."
     end
@@ -58,7 +58,7 @@ defmodule MnemeTest do
 
       assert capture_io(fn ->
                assert_raise Mneme.AssertionError, fn ->
-                 Mneme.Assertion.run(assertion, __ENV__, false)
+                 Mneme.Assertion.run!(assertion, __ENV__, false)
                end
              end) =~ "Mneme is running in non-interactive mode."
     end
