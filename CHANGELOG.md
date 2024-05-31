@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+  * [@am-kantox](https://github.com/am-kantox) - Variables bound in `auto_assert` patterns remain in scope ([#1](https://github.com/zachallaun/mneme/issues/1)).
+
 ## v0.7.0 (2024-05-27)
 
 This is the first version supporting Elixir 1.17.0 and Erlang/OTP 27.
