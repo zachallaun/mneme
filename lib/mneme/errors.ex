@@ -26,21 +26,31 @@ end
 
 defmodule Mneme.UnboundVariableError do
   @moduledoc false
-  defexception [:vars, :result, :message]
+  defexception [:vars, :message]
 
   @impl true
   def message(%{message: nil} = exception) do
-    %{vars: vars, result: result} = exception
+    %{vars: vars} = exception
 
     """
-    The amended match obsoleted one or several of already bound variables
-      (#{inspect(vars)}) while adjusting for the result #{inspect(result)}.
+    Updated auto-assertion is missing at least one previously bound variable:
 
-    Please run test(s) again.
+        #{format_vars(vars)}
+
+    Re-run this test to ensure it still passes.
     """
   end
 
   def message(%{message: message}) do
     message
+  end
+
+  defp format_vars(vars) do
+    vars
+    |> Enum.map(fn
+      {name, _context} -> name
+      name -> name
+    end)
+    |> Enum.map_join(", ", &Atom.to_string/1)
   end
 end
