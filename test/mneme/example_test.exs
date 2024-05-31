@@ -8,9 +8,7 @@ defmodule Mneme.ExampleTest do
   end
 
   test "1" do
-    s1 = %MyStruct{}
-
-    auto_assert ^s1 <- s1
+    auto_assert %{x: pid, y: 1} when is_pid(pid) <- %{x: self(), y: 1}
   end
 
   test "2" do

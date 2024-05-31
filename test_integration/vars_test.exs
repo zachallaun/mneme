@@ -1,3 +1,4 @@
+# exit: 2
 defmodule Mneme.Integration.VarsTest do
   use ExUnit.Case
   use Mneme
@@ -37,5 +38,16 @@ defmodule Mneme.Integration.VarsTest do
                     self(),
                     %{p: self(), r: make_ref()}
                   ]
+  end
+
+  test "vars in maps should be reused when other fields change" do
+    # y
+    auto_assert %{x: _x, y: 1} <- %{x: 1, y: 2}, %{x: _x, y: 2} <- %{x: 1, y: 2}
+  end
+
+  test "vars in maps used in guards should be regenerated with other fields change" do
+    # y
+    auto_assert %{x: pid2, y: 1} when is_pid(pid2) <- %{x: self(), y: 2},
+                %{x: pid, y: 2} when is_pid(pid) <- %{x: self(), y: 2}
   end
 end

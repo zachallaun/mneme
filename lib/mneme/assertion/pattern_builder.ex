@@ -2,6 +2,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
   alias Mneme.Assertion.Pattern
+  alias Mneme.Utils
 
   @map_key_pattern_error :__map_key_pattern_error__
 
@@ -34,12 +35,24 @@ defmodule Mneme.Assertion.PatternBuilder do
   # Keysets are the lists of keys being matched in any map patterns. We
   # extract them upfront so that map pattern generation can create
   # patterns for those subsets as well when applicable.
-  @spec get_keysets(Macro.t()) :: [%{keys: [term(), ...], ignore_values_for: [term()]}]
-  defp get_keysets(pattern) do
+  @spec get_keysets(Macro.t(), [var]) :: [%{keys: [term(), ...], ignore_values_for: [term()]}]
+        when var: {name :: atom(), context :: atom()}
+  defp get_keysets(pattern, vars_to_include \\ [])
+
+  defp get_keysets({:when, _, [pattern, guard]}, vars_to_include) do
+    vars =
+      guard
+      |> Utils.collect_vars_from_pattern()
+      |> Enum.map(fn {name, _, context} -> {name, context} end)
+
+    get_keysets(pattern, vars ++ vars_to_include)
+  end
+
+  defp get_keysets(pattern, vars_to_include) do
     {_, keysets} =
       Macro.prewalk(pattern, [], fn
         {:%{}, _, [_ | _] = kvs} = quoted, keysets ->
-          {quoted, [kvs_to_keyset(kvs) | keysets]}
+          {quoted, [kvs_to_keyset(kvs, vars_to_include) | keysets]}
 
         quoted, keysets ->
           {quoted, keysets}
@@ -48,7 +61,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     keysets
   end
 
-  defp kvs_to_keyset(kvs) do
+  defp kvs_to_keyset(kvs, vars_to_include) do
     keyset =
       Enum.reduce(kvs, %{keys: [], ignore_values_for: []}, fn
         {key, {:_, _, nil}}, %{keys: keys, ignore_values_for: ignore} ->
@@ -56,7 +69,11 @@ defmodule Mneme.Assertion.PatternBuilder do
 
         {key, {name, _, ctx} = var}, %{keys: keys, ignore_values_for: ignore}
         when is_atom(name) and is_atom(ctx) ->
-          %{keys: [key | keys], ignore_values_for: [{key, var} | ignore]}
+          if {name, ctx} in vars_to_include do
+            %{keys: [key | keys], ignore_values_for: ignore}
+          else
+            %{keys: [key | keys], ignore_values_for: [{key, var} | ignore]}
+          end
 
         {key, _}, keyset ->
           update_in(keyset[:keys], &[key | &1])

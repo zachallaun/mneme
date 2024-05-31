@@ -282,7 +282,6 @@ defmodule Mneme.Assertion do
     |> IO.puts()
   end
 
-  defp get_stage(:auto_assert, [{:<-, _, [{:when, _, [pattern, _]}, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, [{:<-, _, [pattern, _]}]), do: {:update, pattern}
   defp get_stage(:auto_assert, _args), do: {:new, nil}
 
