@@ -99,7 +99,7 @@ defmodule Mneme.MixProject do
     [
       source_url: @source_url,
       main: "readme",
-      assets: "docs/assets",
+      assets: %{"docs/assets" => "assets"},
       before_closing_body_tag: fn
         :html -> ~S|<script src="assets/js/embedded-video.js"></script>|
         _ -> ""
