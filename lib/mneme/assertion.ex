@@ -4,6 +4,7 @@ defmodule Mneme.Assertion do
   alias __MODULE__
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
+  alias Mneme.Utils
 
   defstruct [
     :kind,
@@ -69,8 +70,8 @@ defmodule Mneme.Assertion do
   """
   @spec build(atom(), [term()], Macro.Env.t(), keyword()) :: Macro.t()
   def build(kind, [{matcher, meta, [left, right]}], caller, opts) when matcher in [:<-, :=] do
-    left = __expand_pattern__(left, caller)
-    vars = left |> collect_vars_from_pattern() |> Enum.uniq()
+    left = Utils.expand_pattern(left, caller)
+    vars = left |> Utils.collect_vars_from_pattern() |> Enum.uniq()
     vars_names = Enum.map(vars, &elem(&1, 0))
 
     macro_ast = {kind, Macro.Env.location(caller), [{matcher, meta, [left, right]}]}
@@ -143,105 +144,9 @@ defmodule Mneme.Assertion do
     |> Enum.map(&quoted_dummy_assign/1)
   end
 
-  defp collect_vars_from_pattern({:when, _, [left, right]}) do
-    pattern = collect_vars_from_pattern(left)
-
-    vars =
-      for {name, _, context} = var <- collect_vars_from_pattern(right),
-          has_var?(pattern, name, context),
-          do: var
-
-    pattern ++ vars
-  end
-
-  defp collect_vars_from_pattern(expr) do
-    expr
-    |> Macro.prewalk([], fn
-      {:"::", _, [left, right]}, acc ->
-        {[left], collect_vars_from_binary(right, acc)}
-
-      {skip, _, [_]}, acc when skip in [:^, :@, :quote] ->
-        {:ok, acc}
-
-      {skip, _, [_, _]}, acc when skip in [:quote] ->
-        {:ok, acc}
-
-      {:_, _, context}, acc when is_atom(context) ->
-        {:ok, acc}
-
-      {name, meta, context}, acc when is_atom(name) and is_atom(context) ->
-        {:ok, [{name, meta, context} | acc]}
-
-      node, acc ->
-        {node, acc}
-    end)
-    |> elem(1)
-  end
-
-  defp collect_vars_from_binary(right, original_acc) do
-    right
-    |> Macro.prewalk(original_acc, fn
-      {mode, _, [{name, meta, context}]}, acc
-      when is_atom(mode) and is_atom(name) and is_atom(context) ->
-        if has_var?(original_acc, name, context) do
-          {:ok, [{name, meta, context} | acc]}
-        else
-          {:ok, acc}
-        end
-
-      node, acc ->
-        {node, acc}
-    end)
-    |> elem(1)
-  end
-
-  defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
-
   defp mark_as_generated(vars) do
     for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
   end
-
-  @doc false
-  def __expand_pattern__({:when, meta, [left, right]}, caller) do
-    left = expand_pattern(left, Macro.Env.to_match(caller))
-    right = expand_pattern(right, %{caller | context: :guard})
-    {:when, meta, [left, right]}
-  end
-
-  def __expand_pattern__(expr, caller) do
-    expand_pattern(expr, Macro.Env.to_match(caller))
-  end
-
-  defp expand_pattern({:quote, _, [_]} = expr, _caller), do: expr
-  defp expand_pattern({:quote, _, [_, _]} = expr, _caller), do: expr
-  defp expand_pattern({:__aliases__, _, _} = expr, caller), do: Macro.expand(expr, caller)
-
-  defp expand_pattern({:@, _, [{attribute, _, _}]}, caller) do
-    caller.module |> Module.get_attribute(attribute) |> Macro.escape()
-  end
-
-  defp expand_pattern({left, meta, right} = expr, caller) do
-    case Macro.expand(expr, caller) do
-      ^expr ->
-        {expand_pattern(left, caller), meta, expand_pattern(right, caller)}
-
-      {left, meta, right} ->
-        {expand_pattern(left, caller), [original: expr] ++ meta, expand_pattern(right, caller)}
-
-      other ->
-        other
-    end
-  end
-
-  defp expand_pattern({left, right}, caller) do
-    {expand_pattern(left, caller), expand_pattern(right, caller)}
-  end
-
-  defp expand_pattern([_ | _] = list, caller) do
-    Enum.map(list, &expand_pattern(&1, caller))
-  end
-
-  defp expand_pattern(other, _caller), do: other
 
   defp extract_used_aliases(quoted, aliases) do
     quoted
