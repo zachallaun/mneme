@@ -2,11 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v0.8.0 (2024-06-20)
 
 ### Added
 
   * [@am-kantox](https://github.com/am-kantox) - Variables bound in `auto_assert` patterns remain in scope ([#1](https://github.com/zachallaun/mneme/issues/1)).
+  * Print a warning when an auto-assertion that will always succeed is encountered.
 
 ## v0.7.0 (2024-05-27)
 

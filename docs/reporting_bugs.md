@@ -11,7 +11,7 @@ When possible, use this to create a single script that reproduces the bug.
 
 Mix.install([
   # use exact versions from your mix.lock
-  {:mneme, "0.6.0"},
+  {:mneme, "0.8.0"},
   ...
 ])
 
