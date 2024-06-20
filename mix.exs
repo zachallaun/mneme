@@ -80,6 +80,7 @@ defmodule Mneme.MixProject do
 
   defp preferred_cli_env do
     [
+      dialyzer: :test,
       coveralls: :test,
       "coveralls.html": :test,
       "test.mneme_not_started": :test
