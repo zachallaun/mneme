@@ -8,7 +8,19 @@ defmodule Mneme.ExampleTest do
   end
 
   test "1" do
-    auto_assert %{x: pid, y: 1} when is_pid(pid) <- %{x: self(), y: 1}
+    import Mneme.DiffTestHelpers
+
+    auto_assert {nil, [["foo(", {"[", :green}], {"  1", :green}, [{"]", :green}, ")"], []]} <-
+                  format(
+                    """
+                    foo()
+                    """,
+                    """
+                    foo([
+                      1
+                    ])
+                    """
+                  )
   end
 
   test "2" do

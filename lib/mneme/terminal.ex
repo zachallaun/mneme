@@ -4,6 +4,7 @@ defmodule Mneme.Terminal do
   import Owl.Data, only: [tag: 2]
 
   alias Mneme.Assertion
+  alias Mneme.Diff
 
   @middle_dot_char "·"
   @bullet_char "●"
@@ -91,7 +92,7 @@ defmodule Mneme.Terminal do
   end
 
   defp await_semantic_diff(%{left: left, right: right}) do
-    task = Task.async(Mneme.Diff, :format, [left, right])
+    task = Task.async(Diff, :format, [left, right])
 
     case Task.yield(task, 1500) || Task.shutdown(task, :brutal_kill) do
       {:ok, {:ok, {nil, nil}}} -> {Owl.Data.lines(left), Owl.Data.lines(right)}
@@ -104,11 +105,14 @@ defmodule Mneme.Terminal do
   end
 
   defp format_semantic_diff({del, ins}, opts) do
+    del = tag_lines(del)
+    ins = tag_lines(ins)
+
     del_height = length(del)
     ins_height = length(ins)
 
-    del_length = del |> Stream.map(&Owl.Data.length/1) |> Enum.max()
-    ins_length = ins |> Stream.map(&Owl.Data.length/1) |> Enum.max()
+    del_length = del |> Enum.map(&Owl.Data.length/1) |> Enum.max()
+    ins_length = ins |> Enum.map(&Owl.Data.length/1) |> Enum.max()
 
     deletions = del |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  -  ", :red))
     insertions = ins |> Owl.Data.unlines() |> Owl.Data.add_prefix(tag("  +  ", :green))
@@ -171,6 +175,25 @@ defmodule Mneme.Terminal do
         "\n"
       ]
     end
+  end
+
+  @doc false
+  @spec tag_lines([Diff.Formatter.formatted_line()] | [Owl.Data.t()]) :: [Owl.Data.t()]
+  def tag_lines(lines) do
+    Enum.map(lines, &tag_line/1)
+  end
+
+  defp tag_line(line) when is_binary(line), do: line
+
+  defp tag_line({text, sequences}) when is_binary(text) do
+    Owl.Data.tag(text, sequences)
+  end
+
+  defp tag_line(segments) when is_list(segments) do
+    Enum.map(segments, fn
+      {_, _} = tagged -> tag_line(tagged)
+      other -> other
+    end)
   end
 
   defp diff_box(title, content, height, width) do

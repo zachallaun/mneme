@@ -6,20 +6,23 @@ defmodule Mneme.Diff.Formatter do
   alias Mneme.Utils
   alias Mneme.Versions
 
-  @type fmt_instruction :: {op, bounds}
+  @type formatted_line :: [String.t() | {String.t(), format_tag}]
+  @type format_tag :: atom() | [atom(), ...]
 
-  @type op :: :ins | :del | {:ins, :highlight} | {:del, :highlight}
+  @typep fmt_instruction :: {op, bounds}
 
-  @type bounds :: {start_bound :: bound, end_bound :: bound}
+  @typep op :: :ins | :del | {:ins, :highlight} | {:del, :highlight}
 
-  @type bound :: {line :: pos_integer(), column :: pos_integer()}
+  @typep bounds :: {start_bound :: bound, end_bound :: bound}
+
+  @typep bound :: {line :: pos_integer(), column :: pos_integer()}
 
   @re_newline ~r/\n|\r\n/
 
   @doc """
   Highlights the given code based on the instructions.
   """
-  @spec highlight_lines(String.t(), [Diff.instruction()]) :: Owl.Data.t()
+  @spec highlight_lines(String.t(), [Diff.instruction()]) :: [formatted_line]
   def highlight_lines(code, instructions) do
     lines = code |> Owl.Data.lines() |> Enum.reverse()
     [last_line | earlier_lines] = lines
@@ -28,7 +31,7 @@ defmodule Mneme.Diff.Formatter do
 
     Enum.map(highlighted, fn
       list when is_list(list) ->
-        Enum.filter(list, &(Owl.Data.length(&1) > 0))
+        Enum.filter(list, fn el -> el not in [[], ""] end)
 
       line ->
         line
@@ -428,9 +431,8 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
-  defp tag(data, :ins), do: Owl.Data.tag(data, :green)
-  defp tag(data, :del), do: Owl.Data.tag(data, :red)
-
-  defp tag(data, {:ins, :highlight}), do: Owl.Data.tag(data, [:bright, :green, :underline])
-  defp tag(data, {:del, :highlight}), do: Owl.Data.tag(data, [:bright, :red, :underline])
+  defp tag(data, :ins), do: {data, :green}
+  defp tag(data, :del), do: {data, :red}
+  defp tag(data, {:ins, :highlight}), do: {data, [:bright, :green, :underline]}
+  defp tag(data, {:del, :highlight}), do: {data, [:bright, :red, :underline]}
 end

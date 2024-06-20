@@ -56,7 +56,9 @@ defmodule Mneme.Diff do
   @doc """
   Diffs and formats `left` (old) and `right` (new).
   """
-  @spec format(String.t(), String.t()) :: {:ok, {Owl.Data.t(), Owl.Data.t()}} | {:error, term()}
+  @spec format(String.t(), String.t()) ::
+          {:ok, {[Formatter.formatted_line()], [Formatter.formatted_line()]}}
+          | {:error, term()}
   def format(left, right) when is_binary(left) and is_binary(right) do
     result =
       case compute(left, right) do
@@ -71,15 +73,13 @@ defmodule Mneme.Diff do
     e -> {:error, {:internal, e, __STACKTRACE__}}
   end
 
-  @doc false
-  @spec format_lines(String.t(), [instruction]) :: Owl.Data.t()
-  def format_lines(code, instructions) when is_binary(code) do
+  @spec format_lines(String.t(), [instruction]) :: [Formatter.formatted_line()]
+  defp format_lines(code, instructions) when is_binary(code) do
     Formatter.highlight_lines(code, instructions)
   end
 
-  @doc false
   @spec compute(String.t(), String.t()) :: {[instruction], [instruction]}
-  def compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
+  defp compute(left_code, right_code) when is_binary(left_code) and is_binary(right_code) do
     {left, right} = SyntaxNode.roots!(left_code, right_code)
     path = shortest_path({left, right, nil})
 
@@ -180,7 +180,7 @@ defmodule Mneme.Diff do
 
   defp neighbors({l, r, e} = v) do
     if debug?("verbose") do
-      debug_inspect(summarize_delta(e), "e")
+      debug_inspect(summarize_delta(e), "d")
       debug_inspect(summarize_node(l), "l")
       debug_inspect(summarize_node(r), "r")
       IO.puts("")
@@ -270,7 +270,9 @@ defmodule Mneme.Diff do
     add_edge(neighbors, v, v2)
   end
 
-  defp add_changed_edges(neighbors, v), do: add_changed_left_right(neighbors, v)
+  defp add_changed_edges(neighbors, v) do
+    add_changed_left_right(neighbors, v)
+  end
 
   defp add_changed_left_right(neighbors, v) do
     neighbors
@@ -370,6 +372,10 @@ defmodule Mneme.Diff do
 
   @doc false
   def summarize_path(path), do: Enum.map(path, &summarize_delta/1)
+
+  defp summarize_delta(deltas) when is_list(deltas) do
+    Enum.map(deltas, &summarize_delta/1)
+  end
 
   defp summarize_delta(%Delta{changed?: changed?, kind: :node, side: side, node: node}) do
     {changed?, side, :node, summarize_node(node)}

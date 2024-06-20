@@ -3,21 +3,12 @@ defmodule Mneme.DiffTestHelpers do
   alias Mneme.Diff
 
   @doc """
-  Generates a diff as Owl data for the given pair of strings.
+  Generates a diff as for the given pair of strings.
   """
   def format(left, right) do
-    case Diff.compute(left, right) do
-      {[], []} ->
-        {nil, nil}
-
-      {[], insertions} ->
-        {nil, Diff.format_lines(right, insertions)}
-
-      {deletions, []} ->
-        {Diff.format_lines(left, deletions), nil}
-
-      {deletions, insertions} ->
-        {Diff.format_lines(left, deletions), Diff.format_lines(right, insertions)}
+    case Diff.format(left, right) do
+      {:ok, result} -> result
+      {:error, {:internal, e, stacktrace}} -> reraise e, stacktrace
     end
   end
 
@@ -26,24 +17,17 @@ defmodule Mneme.DiffTestHelpers do
   """
   def dbg_format(left, right) do
     {left, right} = format(left, right)
+    left = Mneme.Terminal.tag_lines(left)
+    right = Mneme.Terminal.tag_lines(right)
 
     Owl.IO.puts([
       "\n",
-      Owl.Data.unlines(left || []),
+      Owl.Data.unlines(left),
       "\n\n",
-      Owl.Data.unlines(right || []),
+      Owl.Data.unlines(right),
       "\n"
     ])
 
     {left, right}
-  end
-
-  @doc """
-  Like `format/2`, but installs IEx breaks in certain places for debugging.
-  """
-  def dbg_format!(left, right) do
-    IEx.break!(Diff, :compute, 2)
-    IEx.break!(Diff.Formatter, :highlight_lines, 2)
-    format(left, right)
   end
 end
