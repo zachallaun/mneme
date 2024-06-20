@@ -205,13 +205,9 @@ defmodule Mneme.Diff.SyntaxNode do
 
   def pop(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {{:pop_both, id}, p1}} = left,
-       %{null?: true, parent: {{:pop_both, id}, p2}} = right} ->
-        if similar_branch?(p1, p2) do
-          pop(next_sibling(p1), next_sibling(p2))
-        else
-          {left, right}
-        end
+      {%{null?: true, parent: {{:pop_both, id}, p1}},
+       %{null?: true, parent: {{:pop_both, id}, p2}}} ->
+        pop(next_sibling(p1), next_sibling(p2))
 
       {left, right} ->
         {left, right}
