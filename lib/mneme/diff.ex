@@ -215,8 +215,11 @@ defmodule Mneme.Diff do
       delta =
         Delta.unchanged(:branch, left, abs(SyntaxNode.depth(left) - SyntaxNode.depth(right)))
 
+      pop_id = {left.id, right.id}
+
       v2 =
-        {SyntaxNode.next_child(left, :pop_both), SyntaxNode.next_child(right, :pop_both), delta}
+        {SyntaxNode.next_child(left, {:pop_both, pop_id}),
+         SyntaxNode.next_child(right, {:pop_both, pop_id}), delta}
 
       add_edge(neighbors, v, v2)
     else

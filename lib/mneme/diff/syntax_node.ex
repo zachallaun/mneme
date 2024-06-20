@@ -25,7 +25,7 @@ defmodule Mneme.Diff.SyntaxNode do
 
   @type t :: %SyntaxNode{
           zipper: Zipper.t() | nil,
-          parent: {:pop_either | :pop_both, t()} | nil,
+          parent: {:pop_either | {:pop_both, term()}, t()} | nil,
           id: any(),
           hash: any(),
           n_descendants: integer(),
@@ -66,7 +66,7 @@ defmodule Mneme.Diff.SyntaxNode do
 
   @doc false
   def terminal_parent?(nil), do: true
-  def terminal_parent?({_, p}), do: next_sibling(p).terminal?
+  def terminal_parent?({_, p}), do: p.zipper |> Zipper.skip() |> is_nil()
 
   @doc false
   def root!(string) when is_binary(string) do
@@ -205,8 +205,8 @@ defmodule Mneme.Diff.SyntaxNode do
 
   def pop(left, right) do
     case {pop_all(left), pop_all(right)} do
-      {%{null?: true, parent: {:pop_both, p1}} = left,
-       %{null?: true, parent: {:pop_both, p2}} = right} ->
+      {%{null?: true, parent: {{:pop_both, id}, p1}} = left,
+       %{null?: true, parent: {{:pop_both, id}, p2}} = right} ->
         if similar_branch?(p1, p2) do
           pop(next_sibling(p1), next_sibling(p2))
         else
