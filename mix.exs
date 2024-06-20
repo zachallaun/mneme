@@ -104,7 +104,6 @@ defmodule Mneme.MixProject do
         :html -> ~S|<script src="assets/js/embedded-video.js"></script>|
         _ -> ""
       end,
-      extra_section: "GUIDES",
       extras: [
         "README.md": [title: "Overview"],
         "CHANGELOG.md": [title: "Changelog"],
