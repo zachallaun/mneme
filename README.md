@@ -49,6 +49,16 @@ $ elixir tour_mneme.exs
 
 ## Quickstart
 
+> #### Setup using `mix igniter.install` {: .info}
+>
+> If using `igniter_new` ([learn more](https://hex.pm/packages/igniter_new)),
+> Mneme can be installed by running:
+>
+>     mix igniter.install mneme
+>
+
+To set up and use Mneme:
+
 1.  Add `:mneme` do your deps in `mix.exs`:
 
     ```elixir
