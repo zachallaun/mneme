@@ -373,7 +373,7 @@ defmodule Mneme do
         |> IO.ANSI.format()
         |> IO.puts()
 
-        Keyword.drop(opts, [:restart])
+        Keyword.delete(opts, :restart)
       else
         opts
       end

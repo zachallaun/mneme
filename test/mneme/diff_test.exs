@@ -90,7 +90,7 @@ defmodule Mneme.DiffTest do
       auto_assert {[["[", {"\"foo\"", :red}, "]"]], [["[", {"\"bar\"", :green}, "]"]]} <-
                     format(~s(["foo"]), ~s(["bar"]))
 
-      auto_assert {nil, [["[", {"\"\\\"foo\\\"\"", :green}, "]"]]} <-
+      auto_assert {nil, [["[", {~s("\\"foo\\""), :green}, "]"]]} <-
                     format("[]", ~s(["\\\"foo\\\""]))
 
       auto_assert {nil,
@@ -194,7 +194,7 @@ defmodule Mneme.DiffTest do
                        {"\\\"", :green},
                        {"\"", :green}
                      ]
-                   ]} <- format("\"\\\"foo\\\"\"", "\"\\\"foa\\\"\"")
+                   ]} <- format(~s("\\"foo\\""), ~s("\\"foa\\""))
 
       auto_assert {[
                      [
@@ -524,7 +524,7 @@ defmodule Mneme.DiffTest do
                    ]} <-
                     format(
                       "auto_assert create(User, email: \"user@example.org\")",
-                      "auto_assert {:ok, %User{email: \"user@example.org\"}} <- create(User, email: \"user@example.org\")"
+                      ~s|auto_assert {:ok, %User{email: "user@example.org"}} <- create(User, email: "user@example.org")|
                     )
 
       auto_assert {[
@@ -554,7 +554,7 @@ defmodule Mneme.DiffTest do
       auto_assert {[
                      [
                        "auto_assert %My.Qualified.Struct{",
-                       {"a: \"a\", b: \"b\", c: \"c\", d: \"d\", e: \"e\"", :red},
+                       {~s(a: "a", b: "b", c: "c", d: "d", e: "e"), :red},
                        "} <- some_call()"
                      ],
                      []
@@ -810,13 +810,13 @@ defmodule Mneme.DiffTest do
                      ["                 ", {"%Tag{data: \"]\", sequences: [:green]}", :red}, ","],
                      ["                 \"]\""],
                      ["               ]"],
-                     ["             ]} <- format(\"[1, 2_000]\", \"[1, [3_000]]\")"],
+                     [~s|             ]} <- format("[1, 2_000]", "[1, [3_000]]")|],
                      []
                    ],
                    [
                      [
                        "auto_assert {",
-                       {"[[\"[1, \", %Tag{data: \"2_000\", sequences: [:red]}, \"]\"]]", :green},
+                       {~s([["[1, ", %Tag{data: "2_000", sequences: [:red]}, "]"]]), :green},
                        ","
                      ],
                      [
@@ -824,7 +824,7 @@ defmodule Mneme.DiffTest do
                        {"\"[3_000]\"", :green},
                        ", sequences: [:green]}, \"]\"]]} <-"
                      ],
-                     ["              format(\"[1, 2_000]\", \"[1, [3_000]]\")"],
+                     [~s{              format("[1, 2_000]", "[1, [3_000]]")}],
                      []
                    ]} <- format(left, right)
     end

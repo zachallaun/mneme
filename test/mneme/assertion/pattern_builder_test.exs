@@ -129,7 +129,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     end
 
     test "URIs don't include deprecated :authority" do
-      auto_assert ["%URI{}", "%URI{host: \"example.com\", port: 443, scheme: \"https\"}"] <-
+      auto_assert ["%URI{}", ~s(%URI{host: "example.com", port: 443, scheme: "https"})] <-
                     to_pattern_strings(URI.parse("https://example.com"))
     end
 

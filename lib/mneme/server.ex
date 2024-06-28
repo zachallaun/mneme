@@ -197,7 +197,7 @@ defmodule Mneme.Server do
 
   defp flush_io(%{io_pid: io_pid} = state) do
     output = StringIO.flush(io_pid)
-    if output != "", do: IO.write(output)
+    unless output == "", do: IO.write(output)
     state
   end
 
@@ -226,7 +226,7 @@ defmodule Mneme.Server do
         {:error, {:not_saved, files}} -> files
       end ++ MapSet.to_list(state.not_saved)
 
-    if not_saved_files != [] do
+    unless not_saved_files == [] do
       ensure_exit_with_error!(:not_saved, not_saved_files)
     end
 

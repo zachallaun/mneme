@@ -130,7 +130,7 @@ defmodule Mneme.AssertionTest do
                     mneme: "auto_assert_raise ArgumentError, \"message\", fn -> :ok end",
                     ex_unit: "assert_raise ArgumentError, \"message\", fn -> :ok end",
                     eval:
-                      "assert_raise ArgumentError, \"message\", fn -> raise %ArgumentError{message: \"message\"} end"
+                      ~s(assert_raise ArgumentError, "message", fn -> raise %ArgumentError{message: "message"} end)
                   ] <- targets(ast, %ArgumentError{message: "message"})
     end
 
@@ -139,9 +139,9 @@ defmodule Mneme.AssertionTest do
 
       auto_assert [
                     mneme:
-                      "auto_assert_raise ArgumentError, \"This \\\"is\\\" a\\\\nmessage\", fn -> :ok end",
+                      ~s(auto_assert_raise ArgumentError, "This \\"is\\" a\\\\nmessage", fn -> :ok end),
                     ex_unit:
-                      "assert_raise ArgumentError, \"This \\\"is\\\" a\\nmessage\", fn -> :ok end",
+                      ~s(assert_raise ArgumentError, "This \\"is\\" a\\nmessage", fn -> :ok end),
                     eval: """
                     assert_raise ArgumentError, "This \\"is\\" a\\nmessage", fn ->
                       raise %ArgumentError{message: "This \\"is\\" a\\nmessage"}
@@ -158,7 +158,7 @@ defmodule Mneme.AssertionTest do
                       "auto_assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
                     ex_unit: "assert_raise ArgumentError, \"foo\\nbar\\nbaz\\n\", fn -> :ok end",
                     eval:
-                      "assert_raise ArgumentError, \"foo\nbar\nbaz\n\", fn -> raise %ArgumentError{message: \"foo\nbar\nbaz\n\"} end"
+                      ~s(assert_raise ArgumentError, "foo\nbar\nbaz\n", fn -> raise %ArgumentError{message: "foo\nbar\nbaz\n"} end)
                   ] <- targets(ast, %ArgumentError{message: "foo\nbar\nbaz\n"})
     end
   end
