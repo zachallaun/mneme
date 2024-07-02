@@ -17,29 +17,32 @@ auto_assert my_function()
 
 ...and next time you run your tests, Mneme:
 
-1. runs the code and generates a pattern from the returned value, then
-2. prints a diff and prompts you to confirm the change.
+1. runs the code
+2. generates a pattern from the result
+3. prints a diff
+4. asks if you'd like the test updated
 
-Now your test looks like this:
+When you say yes, your test now looks like this:
 
 ```elixir
 auto_assert %MyAwesomeValue{so: :cool} <- my_function()
 ```
 
-This lets you quickly write lots of tests, and like ordinary tests, you'll see a diff when they fail.
-But, unlike ordinary tests, you can choose to accept the changes and Mneme will rewrite the test for you.
+This lets you quickly write lots of tests, and like ordinary tests, you'll see when they fail.
+But, unlike ordinary tests, Mneme asks if you'd like the test updated for the new value.
 
 **Features:**
 
   * **Auto-updating assertions:** maintain correct tests as behavior changes during development.
-  * **Alternatives to familiar assertions** `auto_assert`, `auto_assert_raise`, `auto_assert_receive`, `auto_assert_received`.
+  * **Alternatives to familiar assertions:** `auto_assert`, `auto_assert_raise`, `auto_assert_receive`, `auto_assert_received`.
   * **Seamless integration with ExUnit:** no need to change your workflow, just run `mix test`.
   * **Interactive prompts in your terminal** when a new assertion is added or an existing one changes.
   * **Syntax-aware diffs** highlight the meaningful changes in a value.
 
-**Take a brief tour:**
+## Interactive tour
 
 If you'd like to see Mneme in action, you can download and run [examples/tour_mneme.exs](https://github.com/zachallaun/mneme/blob/main/examples/tour_mneme.exs), a standalone tour that only requires that you have Elixir installed.
+Give it a try without installing Mneme into your own project.
 
 ```shell
 $ curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main/examples/tour_mneme.exs
@@ -47,7 +50,7 @@ $ curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main
 $ elixir tour_mneme.exs
 ```
 
-## Quickstart
+## Getting started
 
 1.  Add `:mneme` do your deps in `mix.exs`:
 
