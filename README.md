@@ -17,10 +17,10 @@ auto_assert my_function()
 
 ...and next time you run your tests, Mneme:
 
-1. runs the code
-2. generates a pattern from the result
-3. prints a diff
-4. asks if you'd like the test updated
+1. runs the code,
+2. generates a pattern from the result,
+3. prints a diff,
+4. and asks if you'd like the test updated.
 
 When you say yes, your test now looks like this:
 
