@@ -60,7 +60,7 @@ defmodule Mneme.Assertion.PatternBuilder do
           {quoted, keysets}
       end)
 
-    keysets
+    Enum.uniq(keysets)
   end
 
   defp kvs_to_keyset(kvs, vars_to_include) do
