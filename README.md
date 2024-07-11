@@ -4,7 +4,7 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-<p data-video>https://gist.github.com/assets/503938/3155b333-6a59-448e-8735-dc0093bd677e</p>
+<p data-video>https://gist.github.com/assets/503938/eca3c657-b84d-4988-8cc0-7a8b88f88949</p>
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
 This is sometimes called snapshot, approval, or golden master testing.
@@ -137,7 +137,9 @@ Whenever that happens, you have a few options:
 |`n`|Reject|Reject the proposed change and fail the test.|
 |`s`|Skip|Skip this assertion. The test will not fail, but the `mix test` process will exit with `1`.|
 |`k`|Next|If multiple patterns have been generated, cycle to the next one.|
+|`K`|Last|If multiple patterns have been generated, cycle to the last one.|
 |`j`|Previous|If multiple patterns have been generated, cycle to the previous one.|
+|`J`|First|If multiple patterns have been generated, cycle to the first one.|
 
 Note that the CLI is not available when tests are run in a CI environment.
 

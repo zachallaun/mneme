@@ -1,8 +1,8 @@
 %{
-  "glob_ex": {:hex, :glob_ex, "0.1.1", "dc652ac17aeab97392da3beb73ff24f4e4de061b717ca7e75818e869e5acd104", [:mix], [], "hexpm", "d27bc551f9fd92b96c7bad687aba1a7cd5eeaaec7170c55add227f395f89e3af"},
+  "glob_ex": {:hex, :glob_ex, "0.1.7", "eae6b6377147fb712ac45b360e6dbba00346689a87f996672fe07e97d70597b1", [:mix], [], "hexpm", "decc1c21c0c73df3c9c994412716345c1692477b9470e337f628a7e08da0da6a"},
   "libgraph": {:hex, :libgraph, "0.16.0", "3936f3eca6ef826e08880230f806bfea13193e49bf153f93edcf0239d4fd1d07", [:mix], [], "hexpm", "41ca92240e8a4138c30a7e06466acc709b0cbb795c643e9e17174a178982d6bf"},
   "nimble_options": {:hex, :nimble_options, "1.0.1", "b448018287b22584e91b5fd9c6c0ad717cb4bcdaa457957c8d57770f56625c43", [:mix], [], "hexpm", "078b2927cd9f84555be6386d56e849b0c555025ecccf7afee00ab6a9e6f63837"},
-  "owl": {:hex, :owl, "0.7.0", "4899a1de8f5ba004ff14883f97a4ef97ac46c6395f1da39aa1e27a026443a1b3", [:mix], [], "hexpm", "c4c61de07128fff8fdcefb12722e0420262091296b796f3db4f400a1b3d22e8b"},
-  "rewrite": {:hex, :rewrite, "0.6.3", "d0066a47ee0dfd807f8ec9bfe2933a2e6ec06eb070af26ebb881e8bd1f75b4b3", [:mix], [{:glob_ex, "~> 0.1", [hex: :glob_ex, repo: "hexpm", optional: false]}, {:sourceror, "~> 0.12", [hex: :sourceror, repo: "hexpm", optional: false]}], "hexpm", "e0b0e3b6bbeddce9e16e04fb9b024fd82cd75369bd94bc27351458303e831bc2"},
-  "sourceror": {:hex, :sourceror, "0.12.2", "2ae55efd149193572e0eb723df7c7a1bda9ab33c43373c82642931dbb2f4e428", [:mix], [], "hexpm", "7ad74ade6fb079c71f29fae10c34bcf2323542d8c51ee1bcd77a546cfa89d59c"},
+  "owl": {:hex, :owl, "0.9.0", "9b33d64734bd51d3fc1d6ed01b12f8c2ed23e1fbf8c43658a6dfbff62578bd03", [:mix], [{:ucwidth, "~> 0.2", [hex: :ucwidth, repo: "hexpm", optional: true]}], "hexpm", "cd70b55327985f8f24d38cb7de5bf8a8d24040e1b49cca2345508f8119ce81fd"},
+  "rewrite": {:hex, :rewrite, "0.10.5", "6afadeae0b9d843b27ac6225e88e165884875e0aed333ef4ad3bf36f9c101bed", [:mix], [{:glob_ex, "~> 0.1", [hex: :glob_ex, repo: "hexpm", optional: false]}, {:sourceror, "~> 1.0", [hex: :sourceror, repo: "hexpm", optional: false]}], "hexpm", "51cc347a4269ad3a1e7a2c4122dbac9198302b082f5615964358b4635ebf3d4f"},
+  "sourceror": {:hex, :sourceror, "1.4.0", "be87319b1579191e25464005d465713079b3fd7124a3938a1e6cf4def39735a9", [:mix], [], "hexpm", "16751ca55e3895f2228938b703ad399b0b27acfe288eff6c0e629ed3e6ec0358"},
 }

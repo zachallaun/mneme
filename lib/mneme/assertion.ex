@@ -450,14 +450,26 @@ defmodule Mneme.Assertion do
 
   def select(%Assertion{} = assertion, :prev) do
     if assertion.pattern_idx == 0 do
-      regenerate_code(%{assertion | pattern_idx: length(assertion.patterns) - 1})
+      select(assertion, :last)
     else
-      regenerate_code(%{assertion | pattern_idx: assertion.pattern_idx - 1})
+      select_pattern_index(assertion, assertion.pattern_idx - 1)
     end
   end
 
   def select(%Assertion{} = assertion, :next) do
     idx = rem(assertion.pattern_idx + 1, length(assertion.patterns))
+    regenerate_code(%{assertion | pattern_idx: idx})
+  end
+
+  def select(%Assertion{} = assertion, :first) do
+    select_pattern_index(assertion, 0)
+  end
+
+  def select(%Assertion{} = assertion, :last) do
+    select_pattern_index(assertion, length(assertion.patterns) - 1)
+  end
+
+  defp select_pattern_index(%Assertion{} = assertion, idx) when is_integer(idx) and idx >= 0 do
     regenerate_code(%{assertion | pattern_idx: idx})
   end
 

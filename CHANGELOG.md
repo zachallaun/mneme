@@ -4,6 +4,10 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ## Unreleased
 
+### Added
+
+  * Added additional CLI bindings when multiple patterns are present: `J` goes to the first pattern and `K` goes to the last pattern. (`J` and `K` were previously equivalent to `j` and `k`, respectively.)
+
 ### Fixed
 
   * Don't suggest duplicate patterns when updating lists (or other containers of) maps.

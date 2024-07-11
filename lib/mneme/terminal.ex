@@ -42,14 +42,21 @@ defmodule Mneme.Terminal do
       "n" -> :reject
       "s" -> :skip
       "k" -> :next
+      "K" -> :last
       "j" -> :prev
+      "J" -> :first
       _ -> input()
     end
   end
 
   defp gets do
+    clear_to_end_of_line = "\e[0K"
+
+    # Note: The cursor_up and cursor_right amounts need to be in sync
+    # with the number of lines after the prompt and number of chars
+    # before the prompt
     resp =
-      [IO.ANSI.cursor_up(3), IO.ANSI.cursor_right(2), "\e[0K"]
+      [IO.ANSI.cursor_up(3), IO.ANSI.cursor_right(2), clear_to_end_of_line]
       |> IO.gets()
       |> normalize_gets()
 
@@ -61,7 +68,7 @@ defmodule Mneme.Terminal do
   defp normalize_gets(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
-      string -> String.downcase(string)
+      string -> string
     end
   end
 
@@ -268,41 +275,47 @@ defmodule Mneme.Terminal do
     ]
   end
 
-  defp format_input(%{stage: stage} = assertion, opts) do
-    nav = Assertion.pattern_index(assertion)
-
+  defp format_input(assertion, opts) do
     [
       "\n",
-      format_explanation(stage, opts),
+      format_explanation(assertion.stage, opts),
       "\n",
       tag("> ", :faint),
       "\n",
-      format_input_options(nav)
+      format_input_options(assertion)
     ]
   end
 
-  defp format_input_options(nav) do
+  defp format_input_options(assertion) do
     Enum.intersperse(
       [
         [tag("y", :green), " ", tag("yes", :faint)],
         [tag("n", :red), " ", tag("no", :faint)],
         [tag("s", :yellow), " ", tag("skip", :faint)],
-        format_nav_options(nav)
+        format_nav_options(assertion)
       ],
       ["  "]
     )
   end
 
+  defp format_nav_options(%Assertion{} = assertion) do
+    assertion |> Assertion.pattern_index() |> format_nav_options()
+  end
+
   defp format_nav_options({_, 1}), do: ""
 
   defp format_nav_options({index, count}) do
-    dots = Enum.map(0..(count - 1), &if(&1 == index, do: @bullet_char, else: @empty_bullet_char))
+    dots =
+      Enum.map(0..(count - 1), fn
+        ^index -> @bullet_char
+        _ -> @empty_bullet_char
+      end)
 
     [
       tag(@arrow_left_char, :faint),
-      " j ",
+      [" J", tag("/", :faint), "j "],
       tag(dots, :faint),
-      " k ",
+      [" k", tag("/", :faint), "K "],
       tag(@arrow_right_char, :faint)
     ]
   end

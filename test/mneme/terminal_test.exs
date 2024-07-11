@@ -64,7 +64,7 @@ defmodule Mneme.TerminalTest do
 
                   Accept new assertion?
                   > 
-                  y yes  n no  s skip  ❮ j ●○○ k ❯
+                  y yes  n no  s skip  ❮ J/j ●○○ k/K ❯
                   """ <- message(assertion)
     end
 
