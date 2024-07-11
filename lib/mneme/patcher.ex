@@ -99,11 +99,8 @@ defmodule Mneme.Patcher do
       :skip ->
         {{:error, :skipped}, project}
 
-      :prev ->
-        patch!(project, Assertion.prev(assertion), counter, node)
-
-      :next ->
-        patch!(project, Assertion.next(assertion), counter, node)
+      select ->
+        patch!(project, Assertion.select(assertion, select), counter, node)
     end
   end
 

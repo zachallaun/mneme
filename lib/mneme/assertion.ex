@@ -443,21 +443,22 @@ defmodule Mneme.Assertion do
   defp similarity_score(_, _), do: 0
 
   @doc """
-  Select the previous pattern.
+  Select a new pattern.
   """
-  def prev(%Assertion{pattern_idx: 0, patterns: ps} = assertion) do
-    regenerate_code(%{assertion | pattern_idx: length(ps) - 1})
+  @spec select(t, movement) :: t when movement: :next | :prev
+  def select(assertion, movement)
+
+  def select(%Assertion{} = assertion, :prev) do
+    if assertion.pattern_idx == 0 do
+      regenerate_code(%{assertion | pattern_idx: length(assertion.patterns) - 1})
+    else
+      regenerate_code(%{assertion | pattern_idx: assertion.pattern_idx - 1})
+    end
   end
 
-  def prev(%Assertion{pattern_idx: idx} = assertion) do
-    regenerate_code(%{assertion | pattern_idx: idx - 1})
-  end
-
-  @doc """
-  Select the next pattern.
-  """
-  def next(%Assertion{pattern_idx: idx, patterns: ps} = assertion) do
-    regenerate_code(%{assertion | pattern_idx: rem(idx + 1, length(ps))})
+  def select(%Assertion{} = assertion, :next) do
+    idx = rem(assertion.pattern_idx + 1, length(assertion.patterns))
+    regenerate_code(%{assertion | pattern_idx: idx})
   end
 
   @doc """
