@@ -445,7 +445,7 @@ defmodule Mneme.Assertion do
   @doc """
   Select a new pattern.
   """
-  @spec select(t, movement) :: t when movement: :next | :prev
+  @spec select(t, movement) :: t when movement: :next | :prev | :first | :last
   def select(assertion, movement)
 
   def select(%Assertion{} = assertion, :prev) do
