@@ -2,6 +2,13 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+  * Don't suggest duplicate patterns when updating lists (or other containers of) maps.
+  * Don't generate incorrect map patterns when updating an existing pattern that is a partial match of a new value. For instance, when updating the pattern `%{x: 1, y: 2, z: 3}` for the new value `%{x: 1, y: 2}`, the incorrect pattern `%{x: 1, y: 2, z: nil}` would be suggested.
+
 ## v0.8.1 (2024-06-20)
 
 ### Fixed
