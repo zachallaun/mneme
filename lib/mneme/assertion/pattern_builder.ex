@@ -214,7 +214,7 @@ defmodule Mneme.Assertion.PatternBuilder do
     sub_maps =
       for keyset <- context.keysets,
           sub_map = Map.take(map, keyset.keys),
-          map_size(sub_map) > 0 do
+          map_size(sub_map) > 0 and map_size(sub_map) == length(keyset.keys) do
         ordered_sub_map = Enum.map(keyset.keys, &{&1, sub_map[&1]})
         {ordered_sub_map, keyset.ignore_values_for}
       end
@@ -231,9 +231,12 @@ defmodule Mneme.Assertion.PatternBuilder do
         sub_maps ++ [{map, []}]
       end
 
-    Enum.flat_map_reduce(maps, vars, fn {map, ignore_values_for}, vars ->
-      enumerate_map_patterns(map, context, vars, ignore_values_for)
-    end)
+    {patterns, vars} =
+      Enum.flat_map_reduce(maps, vars, fn {map, ignore_values_for}, vars ->
+        enumerate_map_patterns(map, context, vars, ignore_values_for)
+      end)
+
+    {Enum.uniq(patterns), vars}
   end
 
   defp enumerate_map_patterns(enum, context, vars, ignore_values_for) do

@@ -141,6 +141,22 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     end
   end
 
+  describe "map keysets" do
+    test "generate patterns using only keys present in original pattern" do
+      auto_assert ["%{x: :x, y: :y}", "%{x: :x, y: :y, z: :z}"] <-
+                    to_pattern_strings(%{x: :x, y: :y, z: :z},
+                      original_pattern: quote(do: %{x: 1, y: 2})
+                    )
+    end
+
+    test "only generate patterns if all keys in keyset are present in value" do
+      auto_assert ["%{x: :x, y: :y}"] <-
+                    to_pattern_strings(%{x: :x, y: :y},
+                      original_pattern: quote(do: %{x: 1, y: 2, z: 3})
+                    )
+    end
+  end
+
   defp to_pattern_strings(value, context \\ []) do
     value
     |> to_patterns(context)
