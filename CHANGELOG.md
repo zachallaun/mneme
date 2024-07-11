@@ -6,7 +6,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 
 ### Added
 
-  * Added additional CLI bindings when multiple patterns are present: `J` goes to the first pattern and `K` goes to the last pattern. (`J` and `K` were previously equivalent to `j` and `k`, respectively.)
+  * Added `J` and `K` to jump to the first and last pattern when multiple patterns are offered in a prompt. (`J` and `K` were previously equivalent to `j` and `k`, respectively.)
 
 ### Fixed
 

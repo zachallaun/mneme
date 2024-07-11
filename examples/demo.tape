@@ -25,14 +25,14 @@ Type "MIX_ENV=test mix deps.compile --force && clear" Enter
 Type "MIX_ENV=test mix compile && clear" Enter
 Sleep 5s
 Type "clear" Enter
+Type "# Mneme is a snapshot testing library for Elixir..."
 Show
 
 # Recording
-
-Type "# Mneme is a snapshot testing library for Elixir." Sleep 300ms Enter Sleep 1s
-Type "# It adds a handful of new assertions, like auto_assert." Sleep 300ms Enter Sleep 1s
-Type "# When a new auto-assertion is found, Mneme generates a pattern for you." Sleep 300ms Enter Sleep 1s
-Type "# Let's try it out." Sleep 300ms Enter Sleep 1s
+Sleep 300ms Enter Sleep 1s
+Type "# It adds a handful of new assertions, like `auto_assert`" Sleep 300ms Enter Sleep 1s
+Type "# When a new auto-assertion is run, Mneme fills in the test for you" Sleep 300ms Enter Sleep 1s
+Type "# Let's try it out..." Sleep 300ms Enter Sleep 1s
 Type "clear" Sleep 1.5s Enter Sleep 500ms
 Type "mix test --only first_example" Sleep 300ms Enter
 Sleep 4s
@@ -52,8 +52,8 @@ Sleep 4s
 Type "y" Sleep 2s Enter
 Sleep 3s
 
-Type "# Testing with Mneme can be really interactive and fun!" Sleep 300ms Enter Sleep 1s
-Type "# Give it a try and please share any feedback you have!" Sleep 5s
+Type "# Mneme makes your tests interactive, like a REPL" Sleep 300ms Enter Sleep 1s
+Type "# If you give it a try, please share any feedback you have!" Sleep 5s
 
 # VHS documentation
 #

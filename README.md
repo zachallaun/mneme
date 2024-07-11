@@ -4,7 +4,7 @@
 [![Docs](https://img.shields.io/badge/hexdocs-docs-8e7ce6.svg)](https://hexdocs.pm/mneme)
 [![CI](https://github.com/zachallaun/mneme/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zachallaun/mneme/actions/workflows/ci.yml)
 
-<p data-video>https://gist.github.com/assets/503938/eca3c657-b84d-4988-8cc0-7a8b88f88949</p>
+<p data-video>https://gist.github.com/assets/503938/57073c2c-6243-4b17-a91f-b705f4524dc9</p>
 
 Mneme augments `ExUnit.Assertions` with a set of assertions that know how to update themselves.
 This is sometimes called snapshot, approval, or golden master testing.
