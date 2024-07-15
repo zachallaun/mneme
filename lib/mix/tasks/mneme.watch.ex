@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Mneme.Watch do
 
   @impl GenServer
   def handle_continue(:first_run, state) do
-    Mix.Task.run(:test, state.cli_args)
+    run_tests(state.cli_args)
     flush()
 
     {:noreply, state}
@@ -59,10 +59,11 @@ defmodule Mix.Tasks.Mneme.Watch do
 
   @impl GenServer
   def handle_info({:file_event, _pid, {path, _events}}, state) do
+    project = Mix.Project.config()
     path = Path.relative_to_cwd(path)
 
-    if watching?(path) do
-      IO.puts("detected change: #{path}")
+    if watching?(project, path) do
+      Mix.shell().info("\n\rReloading #{path}")
       run_tests(state.cli_args)
       flush()
     end
@@ -70,13 +71,21 @@ defmodule Mix.Tasks.Mneme.Watch do
     {:noreply, state}
   end
 
-  defp watching?(path) do
-    watching_directory?(path) and watching_extension?(path)
+  defp watching?(project, path) do
+    watching_directory?(project, path) and watching_extension?(path)
   end
 
-  defp watching_directory?(path) do
-    ignored = ~w(deps/ _build/ .lexical/ .elixir_ls/ .elixir-tools/)
-    not String.starts_with?(path, ignored)
+  defp watching_directory?(project, path) do
+    elixirc_paths = project[:elixirc_paths] || ["lib"]
+    erlc_paths = project[:erlc_paths] || ["src"]
+    test_paths = project[:test_paths] || ["test"]
+
+    watching =
+      for path <- elixirc_paths ++ erlc_paths ++ test_paths do
+        String.trim_trailing(path, "/") <> "/"
+      end
+
+    String.starts_with?(path, watching)
   end
 
   defp watching_extension?(path) do
