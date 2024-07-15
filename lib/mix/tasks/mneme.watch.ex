@@ -7,6 +7,8 @@ defmodule Mix.Tasks.Mneme.Watch do
   use GenServer
   use Mix.Task
 
+  defstruct [:cli_args, :testing, saved_files: MapSet.new()]
+
   @doc """
   Runs `mix.test` with the given CLI arguments, restarting when files change.
   """
@@ -36,13 +38,14 @@ defmodule Mix.Tasks.Mneme.Watch do
   def init(opts) do
     Code.compiler_options(ignore_module_conflict: true)
 
-    state = opts |> Keyword.validate!([:cli_args]) |> Map.new()
+    state = struct(__MODULE__, Keyword.validate!(opts, [:cli_args]))
+
     file_system_opts = [dirs: [File.cwd!()], name: :mneme_file_system_watcher]
 
     case FileSystem.start_link(file_system_opts) do
       {:ok, _} ->
         FileSystem.subscribe(:mneme_file_system_watcher)
-        {:ok, state, {:continue, :first_run}}
+        {:ok, state, {:continue, :force_schedule_tests}}
 
       other ->
         other
@@ -50,10 +53,33 @@ defmodule Mix.Tasks.Mneme.Watch do
   end
 
   @impl GenServer
-  def handle_continue(:first_run, state) do
-    run_tests(state.cli_args)
-    flush()
+  def handle_continue(:force_schedule_tests, state) do
+    {:noreply, %{state | testing: {run_tests_async(state.cli_args), state.saved_files}}}
+  end
 
+  def handle_continue(:maybe_schedule_tests, %{testing: nil} = state) do
+    if MapSet.size(state.saved_files) > 0 do
+      IO.puts("\r")
+
+      for file <- state.saved_files do
+        Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), file])
+      end
+
+      IO.puts("")
+
+      state = %{
+        state
+        | testing: {run_tests_async(state.cli_args), state.saved_files},
+          saved_files: MapSet.new()
+      }
+
+      {:noreply, state}
+    else
+      {:noreply, state}
+    end
+  end
+
+  def handle_continue(:maybe_schedule_tests, state) do
     {:noreply, state}
   end
 
@@ -62,12 +88,22 @@ defmodule Mix.Tasks.Mneme.Watch do
     project = Mix.Project.config()
     path = Path.relative_to_cwd(path)
 
-    if watching?(project, path) do
-      Mix.shell().info("\n\rReloading #{path}")
-      run_tests(state.cli_args)
-      flush()
-    end
+    state =
+      if watching?(project, path) do
+        update_in(state.saved_files, &MapSet.put(&1, path))
+      else
+        state
+      end
 
+    {:noreply, state, {:continue, :maybe_schedule_tests}}
+  end
+
+  def handle_info({ref, _}, %{testing: {%Task{ref: ref}, tested_files}} = state) do
+    state = update_in(state.saved_files, &MapSet.difference(&1, tested_files))
+    {:noreply, %{state | testing: nil}, {:continue, :maybe_schedule_tests}}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     {:noreply, state}
   end
 
@@ -93,6 +129,10 @@ defmodule Mix.Tasks.Mneme.Watch do
     Path.extname(path) in watching
   end
 
+  defp run_tests_async(cli_args) do
+    Task.async(fn -> run_tests(cli_args) end)
+  end
+
   defp run_tests(cli_args) do
     Code.unrequire_files(Code.required_files())
     recompile()
@@ -103,14 +143,6 @@ defmodule Mix.Tasks.Mneme.Watch do
   @dialyzer {:no_unknown, recompile: 0}
   defp recompile do
     IEx.Helpers.recompile()
-  end
-
-  defp flush do
-    receive do
-      _ -> flush()
-    after
-      0 -> :ok
-    end
   end
 
   defp ensure_os! do
