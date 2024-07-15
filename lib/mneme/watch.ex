@@ -81,9 +81,14 @@ defmodule Mneme.Watch do
 
   defp run_tests(cli_args) do
     Code.unrequire_files(Code.required_files())
-    IEx.Helpers.recompile()
+    recompile()
     Mix.Task.reenable(:test)
     Mix.Task.run(:test, cli_args)
+  end
+
+  @dialyzer {:no_unknown, recompile: 0}
+  defp recompile do
+    IEx.Helpers.recompile()
   end
 
   defp flush do
