@@ -41,6 +41,7 @@ defmodule Mneme.MixProject do
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 1.0"},
       {:rewrite, "~> 0.10.1"},
+      {:file_system, "~> 1.0"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
@@ -83,7 +84,8 @@ defmodule Mneme.MixProject do
       dialyzer: :test,
       coveralls: :test,
       "coveralls.html": :test,
-      "test.mneme_not_started": :test
+      "test.mneme_not_started": :test,
+      "mneme.watch": :test
     ]
   end
 
