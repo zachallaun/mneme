@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Mneme.Watch do
     {:noreply, %{state | testing: {run_tests_async(state.cli_args), state.saved_files}}}
   end
 
-  def handle_continue(:maybe_schedule_tests, %{testing: nil} = state) do
+  def handle_continue(:maybe_schedule_tests, state) do
     if MapSet.size(state.saved_files) > 0 do
       IO.puts("\r")
 
@@ -79,23 +79,28 @@ defmodule Mix.Tasks.Mneme.Watch do
     end
   end
 
-  def handle_continue(:maybe_schedule_tests, state) do
-    {:noreply, state}
-  end
-
   @impl GenServer
   def handle_info({:file_event, _pid, {path, _events}}, state) do
     project = Mix.Project.config()
     path = Path.relative_to_cwd(path)
 
-    state =
-      if watching?(project, path) do
-        update_in(state.saved_files, &MapSet.put(&1, path))
-      else
-        state
-      end
+    if watching?(project, path) do
+      state =
+        case state do
+          %{testing: {%Task{} = task, _}} ->
+            Task.shutdown(task)
+            %{state | testing: nil}
 
-    {:noreply, state, {:continue, :maybe_schedule_tests}}
+          _ ->
+            state
+        end
+
+      state = update_in(state.saved_files, &MapSet.put(&1, path))
+
+      {:noreply, state, {:continue, :maybe_schedule_tests}}
+    else
+      {:noreply, state}
+    end
   end
 
   def handle_info({ref, _}, %{testing: {%Task{ref: ref}, tested_files}} = state) do
