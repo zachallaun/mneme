@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# Modified version of port wrapper that supports sending a
+# string to the wrapper program's stdin
+
+# Run the program in the background, sending
+# $ZOMBIE_KILLER_INPUT as stdin
+echo -e "$ZOMBIE_KILLER_INPUT" | exec "$@" &
+program_pid=$!
+
+# Silence warnings from here on
+exec >/dev/null 2>&1
+
+# Read from stdin in the background and kill process
+# when stdin closes
+(
+  while read; do :; done
+  kill -KILL $program_pid
+) <&0 &
+stdin_monitor_pid=$!
+
+# Clean up
+wait $program_pid
+ret=$?
+kill -KILL $stdin_monitor_pid
+exit $ret

@@ -61,8 +61,9 @@ defmodule Mneme.Integration do
     File.write!(file_path, test.test_code)
 
     test_command = """
-    echo "#{test.test_input}" | \
-      CI=false mix test #{file_path} --seed 0 \
+    ZOMBIE_KILLER_INPUT=#{inspect(test.test_input)} \
+      CI=false \
+      #{zombie_killer()} mix test #{file_path} --seed 0 \
     """
 
     test_command =
@@ -106,6 +107,10 @@ defmodule Mneme.Integration do
       message = "\n" <> Enum.join(errors, "\n")
       raise Mneme.Integration.TestError, message: message
     end
+  end
+
+  defp zombie_killer do
+    :mneme |> :code.priv_dir() |> Path.join("zombie_killer")
   end
 
   defp debug_setup(nil, _), do: :ok
