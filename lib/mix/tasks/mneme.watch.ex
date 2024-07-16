@@ -145,7 +145,6 @@ defmodule Mix.Tasks.Mneme.Watch do
     Mix.Task.run(:test, cli_args)
   end
 
-  @dialyzer {:no_unknown, recompile: 0}
   defp recompile do
     IEx.Helpers.recompile()
   end

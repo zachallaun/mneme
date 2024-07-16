@@ -144,7 +144,8 @@ defmodule Mneme.MixProject do
         :underspecs,
 
         # disable warnings:
-        :no_return
+        :no_return,
+        :no_unknown
       ]
     ]
   end
