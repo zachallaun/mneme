@@ -57,6 +57,10 @@ defmodule Mix.Tasks.Mneme.Watch do
     {:noreply, %{state | testing: {run_tests_async(state.cli_args), state.saved_files}}}
   end
 
+  def handle_continue(:maybe_schedule_tests, %{testing: {%Task{}, _}} = state) do
+    {:noreply, state}
+  end
+
   def handle_continue(:maybe_schedule_tests, state) do
     if MapSet.size(state.saved_files) > 0 do
       IO.puts("\r")
@@ -85,15 +89,13 @@ defmodule Mix.Tasks.Mneme.Watch do
     path = Path.relative_to_cwd(path)
 
     if watching?(project, path) do
-      state =
-        case state do
-          %{testing: {%Task{} = task, _}} ->
-            Task.shutdown(task)
-            %{state | testing: nil}
+      case state do
+        %{testing: {%Task{}, _}} ->
+          Mneme.Server.skip_all()
 
-          _ ->
-            state
-        end
+        _ ->
+          :ok
+      end
 
       state = update_in(state.saved_files, &MapSet.put(&1, path))
 

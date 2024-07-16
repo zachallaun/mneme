@@ -41,7 +41,7 @@ defmodule Mneme.Server do
 
   @type t :: %__MODULE__{
           patch_state: any(),
-          patching: {reference(), Assertion.t(), GenServer.from()},
+          patching: {Task.t(), Assertion.t(), GenServer.from()},
           io_pid: pid(),
           current_module: module(),
           to_patch: [{Assertion.t(), GenServer.from()}],
@@ -82,6 +82,16 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
+  @doc """
+  Cancels any in-process patching and skips all remaining assertions.
+  """
+  def skip_all do
+    case GenServer.whereis(__MODULE__) do
+      nil -> :ok
+      server -> GenServer.call(server, :skip_all, :infinity)
+    end
+  end
+
   @doc false
   def on_formatter_init do
     {:ok, io_pid} = StringIO.open("")
@@ -101,7 +111,7 @@ defmodule Mneme.Server do
 
   @impl true
   def handle_call({:register_assertion, %Assertion{stage: :new} = assertion}, from, state) do
-    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+    state = update_in(state.to_patch, &[{assertion, from} | &1])
     {:noreply, state, {:continue, :process_next}}
   end
 
@@ -109,7 +119,7 @@ defmodule Mneme.Server do
     %{options: opts} = assertion
 
     if opts.force_update || opts.target == :ex_unit do
-      state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+      state = update_in(state.to_patch, &[{assertion, from} | &1])
       {:noreply, state, {:continue, :process_next}}
     else
       {:reply, {:ok, assertion}, state, {:continue, :process_next}}
@@ -117,7 +127,7 @@ defmodule Mneme.Server do
   end
 
   def handle_call({:patch_assertion, assertion}, from, state) do
-    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+    state = update_in(state.to_patch, &[{assertion, from} | &1])
     {:noreply, state, {:continue, :process_next}}
   end
 
@@ -154,7 +164,42 @@ defmodule Mneme.Server do
     {:reply, :ok, state}
   end
 
+  def handle_call(:skip_all, _from, %{patching: :skip} = state) do
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:skip_all, _from, state) do
+    state =
+      case state do
+        %{patching: {%Task{} = task, assertion, from}} ->
+          Task.shutdown(task, :brutal_kill)
+          %{state | to_patch: [{assertion, from} | state.to_patch]}
+
+        _ ->
+          state
+      end
+
+    {:reply, :ok, %{state | patching: :skip}, {:continue, :process_next}}
+  end
+
   @impl true
+  def handle_continue(:process_next, %{patching: :skip} = state) do
+    case pop_to_patch(state) do
+      {{_assertion, from}, state} ->
+        state =
+          state
+          |> inc_stat(:counter)
+          |> inc_stat(:skipped)
+
+        GenServer.reply(from, {:error, :skipped})
+
+        {:noreply, state, {:continue, :process_next}}
+
+      nil ->
+        {:noreply, state}
+    end
+  end
+
   def handle_continue(:process_next, %{patching: nil} = state) do
     case pop_to_patch(state) do
       {next, state} -> {:noreply, schedule_patch(state, next)}
@@ -167,7 +212,7 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_info({ref, patch_result}, %{patching: {ref, _, _}} = state) do
+  def handle_info({ref, patch_result}, %{patching: {%Task{ref: ref}, _, _}} = state) do
     {:noreply, complete_patch(state, patch_result), {:continue, :process_next}}
   end
 
@@ -181,16 +226,16 @@ defmodule Mneme.Server do
     state = inc_stat(state, :counter)
     counter = state.stats.counter
 
-    %Task{ref: ref} =
+    task =
       Task.async(fn ->
         Patcher.patch!(patch_state, assertion, counter)
       end)
 
-    %{state | patching: {ref, assertion, from}, current_module: assertion.context.module}
+    %{state | patching: {task, assertion, from}, current_module: assertion.context.module}
   end
 
   defp complete_patch(state, {reply, patch_state}) do
-    %{patching: {_ref, assertion, from}} = state
+    %{patching: {_task, assertion, from}} = state
 
     GenServer.reply(from, reply)
 
