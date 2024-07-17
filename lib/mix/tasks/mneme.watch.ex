@@ -1,14 +1,29 @@
 defmodule Mix.Tasks.Mneme.Watch do
-  @shortdoc "Re-runs tests on save, interrupting Mneme prompts"
+  @shortdoc "Run tests when files change"
   @moduledoc """
-  TODO
+  Runs the tests for a project when source files change.
+
+  This task is similar to [`mix test.watch`](https://hex.pm/packages/mix_test_watch),
+  but updated to work with Mneme:
+
+    * interrupts Mneme prompts, saving out already-accepted changes
+    * tests aren't re-triggered when Mneme saves a test file after an
+      update
+
+  This task accepts the same arguments as `mix test`. For instance:
+
+  ```sh
+  # only run tests tagged with `some_tag: true`
+  $ mix mneme.watch --only some_tag
+
+  # only run tests from one file
+  $ mix mneme.watch test/my_app/my_test.exs
+  ```
   """
 
   use Mix.Task
 
-  @doc """
-  Runs `mix.test` with the given CLI arguments, restarting when files change.
-  """
+  @doc false
   @impl Mix.Task
   @spec run([String.t()]) :: no_return()
   def run(args) do
