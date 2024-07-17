@@ -364,8 +364,6 @@ defmodule Mneme do
   """
   @doc section: :setup
   def start(opts \\ []) do
-    maybe_reenable_ansi()
-
     opts =
       if Keyword.has_key?(opts, :restart) do
         [
@@ -389,12 +387,6 @@ defmodule Mneme do
     end
 
     :ok
-  end
-
-  defp maybe_reenable_ansi do
-    if System.get_env("MIX_MNEME_WATCH") == "true" do
-      Application.put_env(:elixir, :ansi_enabled, true)
-    end
   end
 
   defp start_server! do
