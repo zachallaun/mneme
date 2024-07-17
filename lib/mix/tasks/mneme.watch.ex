@@ -37,19 +37,10 @@ defmodule Mix.Tasks.Mneme.Watch do
   @impl GenServer
   def init(opts) do
     Code.compiler_options(ignore_module_conflict: true)
-
+    :ok = Mneme.Watch.ElixirFiles.watch!()
     state = struct(__MODULE__, Keyword.validate!(opts, [:cli_args]))
 
-    file_system_opts = [dirs: [File.cwd!()], name: :mneme_file_system_watcher]
-
-    case FileSystem.start_link(file_system_opts) do
-      {:ok, _} ->
-        FileSystem.subscribe(:mneme_file_system_watcher)
-        {:ok, state, {:continue, :force_schedule_tests}}
-
-      other ->
-        other
-    end
+    {:ok, state, {:continue, :force_schedule_tests}}
   end
 
   @impl GenServer
@@ -84,25 +75,18 @@ defmodule Mix.Tasks.Mneme.Watch do
   end
 
   @impl GenServer
-  def handle_info({:file_event, _pid, {path, _events}}, state) do
-    project = Mix.Project.config()
-    path = Path.relative_to_cwd(path)
+  def handle_info({:files_changed, paths}, state) do
+    case state do
+      %{testing: {%Task{}, _}} ->
+        Mneme.Server.skip_all()
 
-    if watching?(project, path) do
-      case state do
-        %{testing: {%Task{}, _}} ->
-          Mneme.Server.skip_all()
-
-        _ ->
-          :ok
-      end
-
-      state = update_in(state.saved_files, &MapSet.put(&1, path))
-
-      {:noreply, state, {:continue, :maybe_schedule_tests}}
-    else
-      {:noreply, state}
+      _ ->
+        :ok
     end
+
+    state = update_in(state.saved_files, &Enum.into(paths, &1))
+
+    {:noreply, state, {:continue, :maybe_schedule_tests}}
   end
 
   def handle_info({ref, _}, %{testing: {%Task{ref: ref}, tested_files}} = state) do
@@ -112,28 +96,6 @@ defmodule Mix.Tasks.Mneme.Watch do
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     {:noreply, state}
-  end
-
-  defp watching?(project, path) do
-    watching_directory?(project, path) and watching_extension?(path)
-  end
-
-  defp watching_directory?(project, path) do
-    elixirc_paths = project[:elixirc_paths] || ["lib"]
-    erlc_paths = project[:erlc_paths] || ["src"]
-    test_paths = project[:test_paths] || ["test"]
-
-    watching =
-      for path <- elixirc_paths ++ erlc_paths ++ test_paths do
-        String.trim_trailing(path, "/") <> "/"
-      end
-
-    String.starts_with?(path, watching)
-  end
-
-  defp watching_extension?(path) do
-    watching = ~w(.erl .ex .exs .eex .leex .heex .xrl .yrl .hrl)
-    Path.extname(path) in watching
   end
 
   defp run_tests_async(cli_args) do

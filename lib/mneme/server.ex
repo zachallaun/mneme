@@ -164,6 +164,11 @@ defmodule Mneme.Server do
       case state do
         %{patching: {%Task{} = task, assertion, from}} ->
           Task.shutdown(task, :brutal_kill)
+
+          # HACK: Assume we were prompting, which means we need to move
+          # the cursor down a couple of lines.
+          IO.write("\n\n")
+
           %{state | to_patch: [{assertion, from} | state.to_patch]}
 
         _ ->
