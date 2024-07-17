@@ -3,8 +3,6 @@ defmodule LRCPTest do
   use Mneme, dry_run: true
 
   describe "parse/1" do
-    alias LRCPCorrect, as: LRCP
-
     @tag :first_example
     test "parses valid messages (1)" do
       auto_assert LRCP.parse("/connect/12345/")

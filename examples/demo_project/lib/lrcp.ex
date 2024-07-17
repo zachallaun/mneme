@@ -1,4 +1,10 @@
-defmodule LRCPCorrect do
+defmodule LRCP do
+  @moduledoc """
+  Parser for the ficticious Protohackers "Line Reversal Control Protocol".
+
+  For more, see here: https://protohackers.com/problem/7
+  """
+
   def parse("/data/" <> rest) do
     with {:ok, session, rest} <- parse_integer(rest),
          {:ok, position, rest} <- parse_integer(rest),
@@ -11,9 +17,8 @@ defmodule LRCPCorrect do
   end
 
   def parse("/connect/" <> rest) do
-    with {:ok, session, ""} <- parse_integer(rest) do
-      {:ok, {:connect, session: session}}
-    else
+    case parse_integer(rest) do
+      {:ok, session, ""} -> {:ok, {:connect, session: session}}
       {:ok, _, rest} -> {:error, rest}
       error -> error
     end
@@ -30,9 +35,8 @@ defmodule LRCPCorrect do
   end
 
   def parse("/close/" <> rest) do
-    with {:ok, session, ""} <- parse_integer(rest) do
-      {:ok, {:close, session: session}}
-    else
+    case parse_integer(rest) do
+      {:ok, session, ""} -> {:ok, {:close, session: session}}
       {:ok, _, rest} -> {:error, rest}
       error -> error
     end
