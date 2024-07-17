@@ -110,19 +110,10 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:register_assertion, %Assertion{stage: :new} = assertion}, from, state) do
-    state = update_in(state.to_patch, &[{assertion, from} | &1])
-    {:noreply, state, {:continue, :process_next}}
-  end
-
-  def handle_call({:register_assertion, %Assertion{stage: :update} = assertion}, from, state) do
-    %{options: opts} = assertion
-
-    if opts.force_update || opts.target == :ex_unit do
-      state = update_in(state.to_patch, &[{assertion, from} | &1])
-      {:noreply, state, {:continue, :process_next}}
-    else
-      {:reply, {:ok, assertion}, state, {:continue, :process_next}}
+  def handle_call({:register_assertion, %Assertion{} = assertion}, from, state) do
+    case do_register_assertion(assertion, from, state) do
+      {:run_now, state} -> {:reply, {:ok, assertion}, state, {:continue, :process_next}}
+      {:await_patch, state} -> {:noreply, state, {:continue, :process_next}}
     end
   end
 
@@ -218,6 +209,22 @@ defmodule Mneme.Server do
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     {:noreply, state}
+  end
+
+  defp do_register_assertion(%Assertion{stage: :new} = assertion, from, state) do
+    state = update_in(state.to_patch, &[{assertion, from} | &1])
+    {:await_patch, state}
+  end
+
+  defp do_register_assertion(%Assertion{stage: :update} = assertion, from, state) do
+    %{options: opts} = assertion
+
+    if opts.force_update || opts.target == :ex_unit do
+      state = update_in(state.to_patch, &[{assertion, from} | &1])
+      {:await_patch, state}
+    else
+      {:run_now, state}
+    end
   end
 
   defp schedule_patch(state, {assertion, from}) do
