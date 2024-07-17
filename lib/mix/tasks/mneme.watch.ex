@@ -6,11 +6,28 @@ defmodule Mix.Tasks.Mneme.Watch do
   This task is similar to [`mix test.watch`](https://hex.pm/packages/mix_test_watch),
   but updated to work with Mneme:
 
-    * interrupts Mneme prompts, saving out already-accepted changes
-    * tests aren't re-triggered when Mneme saves a test file after an
-      update
+    * interrupts Mneme prompts, saving already-accepted changes
+    * doesn't re-trigger when test files are updated by Mneme
 
-  This task accepts the same arguments as `mix test`. For instance:
+  ## Setup
+
+  To ensure `mix mneme.watch` runs in the test environment, add a
+  `:preferred_cli_env` entry in `mix.exs`:
+
+      def project do
+        [
+          ...
+          preferred_cli_env: [
+            "mneme.watch": :test
+          ],
+          ...
+        ]
+      end
+
+  ## Command line options
+
+  This task runs `mix test` under the hood and passes all CLI arguments
+  to it directly. For instance:
 
   ```sh
   # only run tests tagged with `some_tag: true`
@@ -19,6 +36,8 @@ defmodule Mix.Tasks.Mneme.Watch do
   # only run tests from one file
   $ mix mneme.watch test/my_app/my_test.exs
   ```
+
+  See the `mix test` documentation for more information.
   """
 
   use Mix.Task
