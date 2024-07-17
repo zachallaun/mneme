@@ -38,6 +38,10 @@ defmodule Mneme.Patcher do
   """
   @spec finalize!(state) :: :ok | {:error, term()}
   def finalize!(project) do
+    project
+    |> Rewrite.paths()
+    |> Mneme.Watch.TestRunner.notify_about_to_save()
+
     case Rewrite.write_all(project) do
       {:ok, _project} ->
         :ok

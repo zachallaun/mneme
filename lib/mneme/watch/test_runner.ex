@@ -3,11 +3,22 @@ defmodule Mneme.Watch.TestRunner do
 
   use GenServer
 
-  defstruct [:cli_args, :testing, saved_files: MapSet.new()]
+  defstruct [:cli_args, :testing, paths: [], about_to_save: []]
 
   @doc false
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @doc """
+  Notify the test runner of files about to be saved so that they can
+  be ignored in the next files changed event.
+  """
+  def notify_about_to_save(paths) when is_list(paths) do
+    case GenServer.whereis(__MODULE__) do
+      nil -> :ok
+      test_runner -> GenServer.cast(test_runner, {:notify_about_to_save, paths})
+    end
   end
 
   @impl GenServer
@@ -21,57 +32,61 @@ defmodule Mneme.Watch.TestRunner do
 
   @impl GenServer
   def handle_continue(:force_schedule_tests, state) do
-    {:noreply, %{state | testing: {run_tests_async(state.cli_args), state.saved_files}}}
+    {:noreply, %{state | testing: run_tests_async(state.cli_args)}}
   end
 
-  def handle_continue(:maybe_schedule_tests, %{testing: {%Task{}, _}} = state) do
+  def handle_continue(:maybe_schedule_tests, %{testing: %Task{}} = state) do
+    {:noreply, state}
+  end
+
+  def handle_continue(:maybe_schedule_tests, %{paths: []} = state) do
     {:noreply, state}
   end
 
   def handle_continue(:maybe_schedule_tests, state) do
-    if MapSet.size(state.saved_files) > 0 do
-      IO.puts("\r")
+    IO.write("\r\n")
 
-      for file <- state.saved_files do
-        Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), file])
-      end
+    state.paths
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.each(fn path ->
+      Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), path])
+    end)
 
-      IO.puts("")
+    IO.write("\n")
 
-      state = %{
-        state
-        | testing: {run_tests_async(state.cli_args), state.saved_files},
-          saved_files: MapSet.new()
-      }
+    state = %{state | testing: run_tests_async(state.cli_args), paths: []}
 
-      {:noreply, state}
-    else
-      {:noreply, state}
-    end
+    {:noreply, state}
   end
 
   @impl GenServer
   def handle_info({:files_changed, paths}, state) do
-    case state do
-      %{testing: {%Task{}, _}} ->
-        Mneme.Server.skip_all()
+    relevant_paths = paths -- state.about_to_save
 
-      _ ->
-        :ok
+    state =
+      state
+      |> Map.put(:about_to_save, [])
+      |> Map.update!(:paths, &(relevant_paths ++ &1))
+
+    if state.testing do
+      Mneme.Server.skip_all()
     end
-
-    state = update_in(state.saved_files, &Enum.into(paths, &1))
 
     {:noreply, state, {:continue, :maybe_schedule_tests}}
   end
 
-  def handle_info({ref, _}, %{testing: {%Task{ref: ref}, tested_files}} = state) do
-    state = update_in(state.saved_files, &MapSet.difference(&1, tested_files))
+  def handle_info({ref, _}, %{testing: %Task{ref: ref}} = state) do
     {:noreply, %{state | testing: nil}, {:continue, :maybe_schedule_tests}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast({:notify_about_to_save, paths}, state) do
+    {:noreply, put_in(state.about_to_save, paths)}
   end
 
   defp run_tests_async(cli_args) do

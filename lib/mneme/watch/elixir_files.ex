@@ -65,10 +65,10 @@ defmodule Mneme.Watch.ElixirFiles do
 
   defp maybe_add_path(%__MODULE__{} = state, full_path) do
     project = Mix.Project.config()
-    path = Path.relative_to_cwd(full_path)
+    relative_path = Path.relative_to_cwd(full_path)
 
-    if watching?(project, path) do
-      update_in(state.paths, &[path | &1])
+    if watching?(project, relative_path) do
+      update_in(state.paths, &[full_path | &1])
     else
       state
     end

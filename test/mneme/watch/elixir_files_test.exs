@@ -53,10 +53,10 @@ defmodule Mneme.Watch.ElixirFilesTest do
 
       # should be in second batch
       Process.sleep(15)
-      file_events(pid, ["lib/ex1.ex"])
+      file_events(pid, ["lib/ex1.ex", "lib/ex3.ex"])
 
       auto_assert_received {:files_changed, ["lib/ex2.ex", "lib/ex1.ex"]}
-      auto_assert_receive {:files_changed, ["lib/ex1.ex"]}
+      auto_assert_receive {:files_changed, ["lib/ex3.ex", "lib/ex1.ex"]}
     end
   end
 end
