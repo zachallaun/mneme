@@ -38,6 +38,7 @@ But, unlike ordinary tests, Mneme asks if you'd like the test updated for the ne
   * **Seamless integration with ExUnit:** no need to change your workflow, just run `mix test`.
   * **Interactive prompts in your terminal** when a new assertion is added or an existing one changes.
   * **Syntax-aware diffs** highlight the meaningful changes in a value.
+  * **Built-in test watcher:** see changes immediately with `mix mneme.watch`.
 
 ## Interactive tour
 
