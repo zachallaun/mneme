@@ -51,6 +51,7 @@ defmodule Mneme.MixProject do
       {:styler, "~> 1.0.0-rc.2", only: [:dev, :test], runtime: false},
       {:time_zone_info, "~> 0.7", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
+      {:patch, "~> 0.13.1", only: :test},
 
       # Docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},

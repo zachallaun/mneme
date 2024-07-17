@@ -61,7 +61,7 @@ defmodule Mneme.Patcher do
 
     case prepare_assertion(assertion, project) do
       {:ok, {assertion, node}} ->
-        patch!(project, assertion, counter, node)
+        prompt_and_patch!(project, assertion, counter, node)
 
       {:error, :not_found} ->
         {{:error, :file_changed}, project}
@@ -71,11 +71,7 @@ defmodule Mneme.Patcher do
       {{:error, {:internal, error, __STACKTRACE__}}, project}
   end
 
-  defp patch!(_, %{value: :__mneme__super_secret_test_value_goes_boom__}, _, _) do
-    raise ArgumentError, "I told you!"
-  end
-
-  defp patch!(project, assertion, counter, node) do
+  defp prompt_and_patch!(project, assertion, counter, node) do
     case prompt_change(assertion, counter) do
       :accept ->
         ast = replace_assertion_node(node, assertion.code)
@@ -100,7 +96,7 @@ defmodule Mneme.Patcher do
         {{:error, :skipped}, project}
 
       select ->
-        patch!(project, Assertion.select(assertion, select), counter, node)
+        prompt_and_patch!(project, Assertion.select(assertion, select), counter, node)
     end
   end
 
