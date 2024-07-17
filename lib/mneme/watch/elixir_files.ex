@@ -22,14 +22,21 @@ defmodule Mneme.Watch.ElixirFiles do
   """
   @spec watch!(timeout_ms: non_neg_integer()) :: :ok
   def watch!(opts \\ []) do
+    :ok = Application.ensure_started(:file_system)
+
     opts =
       opts
       |> Keyword.validate!([:timeout_ms])
       |> Keyword.put(:subscriber, self())
 
-    {:ok, _} = GenServer.start_link(__MODULE__, opts)
+    {:ok, _} = start_link(opts)
 
     :ok
+  end
+
+  @doc false
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
   @impl GenServer
