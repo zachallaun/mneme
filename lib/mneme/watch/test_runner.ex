@@ -100,6 +100,7 @@ defmodule Mneme.Watch.TestRunner do
     Mix.Task.run(:test, cli_args)
   end
 
+  @dialyzer {:nowarn_function, recompile: 0}
   defp recompile do
     IEx.Helpers.recompile()
   end
