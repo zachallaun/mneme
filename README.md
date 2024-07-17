@@ -38,6 +38,7 @@ But, unlike ordinary tests, Mneme asks if you'd like the test updated for the ne
   * **Seamless integration with ExUnit:** no need to change your workflow, just run `mix test`.
   * **Interactive prompts in your terminal** when a new assertion is added or an existing one changes.
   * **Syntax-aware diffs** highlight the meaningful changes in a value.
+  * **Built-in test watcher:** see changes immediately with `mix mneme.watch`.
 
 ## Interactive tour
 
@@ -62,7 +63,21 @@ $ elixir tour_mneme.exs
     end
     ```
 
-2.  Add `:mneme` to your `:import_deps` in `.formatter.exs`:
+2.  Add a `:preferred_cli_env` entry for `mix mneme.watch` in `mix.exs`:
+
+    ```elixir
+    def project do
+      [
+        ...
+        preferred_cli_env: [
+          "mneme.watch": :test
+        ],
+        ...
+      ]
+    end
+    ```
+
+3.  Add `:mneme` to your `:import_deps` in `.formatter.exs`:
 
     ```elixir
     [
@@ -71,14 +86,14 @@ $ elixir tour_mneme.exs
     ]
     ```
 
-3.  Start Mneme right after you start ExUnit in `test/test_helper.exs`:
+4.  Start Mneme right after you start ExUnit in `test/test_helper.exs`:
 
     ```elixir
     ExUnit.start()
     Mneme.start()
     ```
 
-4.  Add `use Mneme` wherever you `use ExUnit.Case`:
+5.  Add `use Mneme` wherever you `use ExUnit.Case`:
 
     ```elixir
     defmodule MyTest do
@@ -91,7 +106,7 @@ $ elixir tour_mneme.exs
     end
     ```
 
-5.  Run `mix test` and type `y<ENTER>` when prompted; your test should look like:
+6.  Run `mix test` and type `y<ENTER>` when prompted; your test should look like:
 
     ```elixir
     defmodule MyTest do

@@ -253,6 +253,10 @@ defmodule Mneme.Assertion do
     raise Mneme.InternalError, original_error: error, original_stacktrace: stacktrace
   end
 
+  defp handle_assertion({:error, {:internal, error}}, _, _, _) do
+    raise Mneme.InternalError, original_error: error, original_stacktrace: []
+  end
+
   defp eval(%{value: value, context: ctx} = assertion, env) do
     binding = [{{:value, :mneme}, value} | ctx.binding]
 

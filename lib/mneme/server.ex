@@ -25,6 +25,7 @@ defmodule Mneme.Server do
 
   defstruct [
     :patch_state,
+    :patching,
     :io_pid,
     :current_module,
     to_patch: [],
@@ -40,9 +41,10 @@ defmodule Mneme.Server do
 
   @type t :: %__MODULE__{
           patch_state: any(),
+          patching: {Task.t(), Assertion.t(), GenServer.from()},
           io_pid: pid(),
           current_module: module(),
-          to_patch: [{any(), from :: pid()}],
+          to_patch: [{Assertion.t(), GenServer.from()}],
           stats: %{
             counter: non_neg_integer(),
             new: non_neg_integer(),
@@ -80,6 +82,16 @@ defmodule Mneme.Server do
     GenServer.call(__MODULE__, {:patch_assertion, assertion}, :infinity)
   end
 
+  @doc """
+  Cancels any in-process patching and skips all remaining assertions.
+  """
+  def skip_all do
+    case GenServer.whereis(__MODULE__) do
+      nil -> :ok
+      server -> GenServer.call(server, :skip_all, :infinity)
+    end
+  end
+
   @doc false
   def on_formatter_init do
     {:ok, io_pid} = StringIO.open("")
@@ -98,24 +110,15 @@ defmodule Mneme.Server do
   end
 
   @impl true
-  def handle_call({:register_assertion, %Assertion{stage: :new} = assertion}, from, state) do
-    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
-    {:noreply, state, {:continue, :process_next}}
-  end
-
-  def handle_call({:register_assertion, %Assertion{stage: :update} = assertion}, from, state) do
-    %{options: opts} = assertion
-
-    if opts.force_update || opts.target == :ex_unit do
-      state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
-      {:noreply, state, {:continue, :process_next}}
-    else
-      {:reply, {:ok, assertion}, state, {:continue, :process_next}}
+  def handle_call({:register_assertion, %Assertion{} = assertion}, from, state) do
+    case do_register_assertion(assertion, from, state) do
+      {:run_now, state} -> {:reply, {:ok, assertion}, state, {:continue, :process_next}}
+      {:await_patch, state} -> {:noreply, state, {:continue, :process_next}}
     end
   end
 
   def handle_call({:patch_assertion, assertion}, from, state) do
-    state = Map.update!(state, :to_patch, &[{assertion, from} | &1])
+    state = update_in(state.to_patch, &[{assertion, from} | &1])
     {:noreply, state, {:continue, :process_next}}
   end
 
@@ -152,19 +155,100 @@ defmodule Mneme.Server do
     {:reply, :ok, state}
   end
 
+  def handle_call(:skip_all, _from, %{patching: :skip} = state) do
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:skip_all, _from, state) do
+    state =
+      case state do
+        %{patching: {%Task{} = task, assertion, from}} ->
+          Task.shutdown(task, :brutal_kill)
+
+          # HACK: Assume we were prompting, which means we need to move
+          # the cursor down a couple of lines.
+          IO.write("\n\n")
+
+          %{state | to_patch: [{assertion, from} | state.to_patch]}
+
+        _ ->
+          state
+      end
+
+    {:reply, :ok, %{state | patching: :skip}, {:continue, :process_next}}
+  end
+
   @impl true
-  def handle_continue(:process_next, state) do
+  def handle_continue(:process_next, %{patching: :skip} = state) do
     case pop_to_patch(state) do
-      {next, state} -> {:noreply, do_patch_assertion(state, next)}
+      {{_assertion, from}, state} ->
+        state =
+          state
+          |> inc_stat(:counter)
+          |> inc_stat(:skipped)
+
+        GenServer.reply(from, {:error, :skipped})
+
+        {:noreply, state, {:continue, :process_next}}
+
+      nil ->
+        {:noreply, state}
+    end
+  end
+
+  def handle_continue(:process_next, %{patching: nil} = state) do
+    case pop_to_patch(state) do
+      {next, state} -> {:noreply, schedule_patch(state, next)}
       nil -> {:noreply, state}
     end
   end
 
-  defp do_patch_assertion(state, {assertion, from}) do
+  def handle_continue(:process_next, state) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({ref, patch_result}, %{patching: {%Task{ref: ref}, _, _}} = state) do
+    {:noreply, complete_patch(state, patch_result), {:continue, :process_next}}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    {:noreply, state}
+  end
+
+  defp do_register_assertion(%Assertion{stage: :new} = assertion, from, state) do
+    state = update_in(state.to_patch, &[{assertion, from} | &1])
+    {:await_patch, state}
+  end
+
+  defp do_register_assertion(%Assertion{stage: :update} = assertion, from, state) do
+    %{options: opts} = assertion
+
+    if opts.force_update || opts.target == :ex_unit do
+      state = update_in(state.to_patch, &[{assertion, from} | &1])
+      {:await_patch, state}
+    else
+      {:run_now, state}
+    end
+  end
+
+  defp schedule_patch(state, {assertion, from}) do
+    %{patch_state: patch_state} = state
+
     state = inc_stat(state, :counter)
     counter = state.stats.counter
 
-    {reply, patch_state} = Patcher.patch!(state.patch_state, assertion, counter)
+    task =
+      Task.async(fn ->
+        Patcher.patch!(patch_state, assertion, counter)
+      end)
+
+    %{state | patching: {task, assertion, from}, current_module: assertion.context.module}
+  end
+
+  defp complete_patch(state, {reply, patch_state}) do
+    %{patching: {_task, assertion, from}} = state
+
     GenServer.reply(from, reply)
 
     state =
@@ -192,14 +276,16 @@ defmodule Mneme.Server do
 
     state
     |> Map.put(:patch_state, patch_state)
-    |> Map.put(:current_module, assertion.context.module)
+    |> Map.put(:patching, nil)
   end
 
-  defp flush_io(%{io_pid: io_pid} = state) do
+  defp flush_io(%{io_pid: io_pid} = state) when is_pid(io_pid) do
     output = StringIO.flush(io_pid)
     unless output == "", do: IO.write(output)
     state
   end
+
+  defp flush_io(state), do: state
 
   defp pop_to_patch(state), do: pop_to_patch(state, [])
 

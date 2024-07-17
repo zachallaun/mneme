@@ -4,7 +4,7 @@ defmodule Mneme.MixProject do
   @app :mneme
   @source_url "https://github.com/zachallaun/mneme"
 
-  def version, do: "0.8.2"
+  def version, do: "0.9.0-dev"
 
   def project do
     [
@@ -41,6 +41,7 @@ defmodule Mneme.MixProject do
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 1.0"},
       {:rewrite, "~> 0.10.1"},
+      {:file_system, "~> 1.0"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
@@ -50,6 +51,7 @@ defmodule Mneme.MixProject do
       {:styler, "~> 1.0.0-rc.2", only: [:dev, :test], runtime: false},
       {:time_zone_info, "~> 0.7", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
+      {:patch, "~> 0.13.1", only: :test},
 
       # Docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
@@ -83,7 +85,8 @@ defmodule Mneme.MixProject do
       dialyzer: :test,
       coveralls: :test,
       "coveralls.html": :test,
-      "test.mneme_not_started": :test
+      "test.mneme_not_started": :test,
+      "mneme.watch": :test
     ]
   end
 

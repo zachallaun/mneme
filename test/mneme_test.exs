@@ -1,6 +1,7 @@
 defmodule MnemeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   use Mneme
+  use Patch
 
   import ExUnit.CaptureIO
 
@@ -95,16 +96,18 @@ defmodule MnemeTest do
   end
 
   test "Mneme.Server doesn't blow up if something goes wrong" do
+    patch(Mneme.Patcher, :prompt_and_patch!, raises(ArgumentError, message: "boom"))
+
     message = ~r"""
     Mneme encountered an internal error. This is likely a bug in Mneme.
 
     Please consider reporting this error at https://github.com/zachallaun/mneme/issues. Thanks!
 
-    \*\* \(ArgumentError\) I told you!
+    \*\* \(ArgumentError\) boom
     """
 
     assert_raise Mneme.InternalError, message, fn ->
-      auto_assert :__mneme__super_secret_test_value_goes_boom__
+      auto_assert :should_boom
     end
   end
 end
