@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0-alpha.0 (2024-07-17)
+
+### Added
+
+  * `mix mneme.watch`, a test runner that watches source files for changes and automatically re-runs your tests. It's Mneme-aware, which means it can interrupt prompts and save already-accepted tests if a file system change is detected mid-run.
+
 ## v0.8.2 (2024-07-11)
 
 ### Added
