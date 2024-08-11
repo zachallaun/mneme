@@ -29,12 +29,10 @@ defmodule Mneme.Diff.Formatter do
     fmt_instructions = to_fmt_instructions(instructions)
     highlighted = highlight(fmt_instructions, length(lines), last_line, earlier_lines)
 
-    Enum.map(highlighted, fn
-      list when is_list(list) ->
-        Enum.filter(list, fn el -> el not in [[], ""] end)
-
-      line ->
-        line
+    Enum.map(highlighted, fn line ->
+      line
+      |> List.wrap()
+      |> Enum.reject(&(&1 in [[], ""]))
     end)
   end
 
@@ -256,10 +254,10 @@ defmodule Mneme.Diff.Formatter do
 
   defp edit_script_to_fmt_instructions(op, {{_, meta, _}, _}, edit_script) do
     %{line: l_start, column: c_start} = meta
-    del = Map.get(meta, :delimiter, "")
+    delim = Map.get(meta, :delimiter, "")
 
     {l, c} =
-      case del do
+      case delim do
         ~s(") -> {l_start, c_start + 1}
         ~s(""") -> {l_start + 1, meta.indentation + 1}
         "" -> {l_start, c_start}
@@ -274,7 +272,7 @@ defmodule Mneme.Diff.Formatter do
 
         {edit, s}, {l, c, c_start} ->
           c2 =
-            if del == ~s(") do
+            if delim == ~s(") do
               c + String.length(s) + Utils.occurrences(s, ?")
             else
               c + String.length(s)
@@ -285,9 +283,9 @@ defmodule Mneme.Diff.Formatter do
           {[fmt(op, {{l, c}, {l, c2}})], {l, c2, c_start}}
       end)
 
-    del_start = [fmt(op, {{l_start, c_start}, {l_start, c_start + String.length(del)}})]
-    del_end = [fmt(op, {{l_end, c_end}, {l_end, c_end + String.length(del)}})]
-    del_start ++ ops ++ del_end
+    delim_start = [fmt(op, {{l_start, c_start}, {l_start, c_start + String.length(delim)}})]
+    delim_end = [fmt(op, {{l_end, c_end}, {l_end, c_end + String.length(delim)}})]
+    delim_start ++ ops ++ delim_end
   end
 
   defp split_edit_script_on_newlines(edit_script) do
@@ -431,6 +429,8 @@ defmodule Mneme.Diff.Formatter do
     {{l, c}, {l, c + len}}
   end
 
+  defp tag([], _), do: []
+  defp tag("", _), do: ""
   defp tag(data, :ins), do: {data, :green}
   defp tag(data, :del), do: {data, :red}
   defp tag(data, {:ins, :highlight}), do: {data, [:bright, :green, :underline]}

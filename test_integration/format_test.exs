@@ -23,6 +23,14 @@ defmodule Mneme.Integration.FormatTest do
                    baz\
                    """} <- {:ok, "foo\nbar\nbaz"}
     end
+
+    test "should handle multiple empty lines" do
+      # k y
+      auto_assert """
+
+
+                  """ <- "\n\n"
+    end
   end
 
   describe "escaped characters" do

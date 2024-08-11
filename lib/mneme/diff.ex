@@ -57,8 +57,8 @@ defmodule Mneme.Diff do
   Diffs and formats `left` (old) and `right` (new).
   """
   @spec format(String.t(), String.t()) ::
-          {:ok, {[Formatter.formatted_line()], [Formatter.formatted_line()]}}
-          | {:error, term()}
+          {:ok, {left :: formatted, right :: formatted}} | {:error, term()}
+        when formatted: [Formatter.formatted_line()] | nil
   def format(left, right) when is_binary(left) and is_binary(right) do
     result =
       case compute(left, right) do

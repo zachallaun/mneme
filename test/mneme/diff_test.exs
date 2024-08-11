@@ -71,8 +71,8 @@ defmodule Mneme.DiffTest do
     test "formats strings" do
       auto_assert {[[{"\"foo\"", :red}]], [[{"\"bar\"", :green}]]} <- format(~s("foo"), ~s("bar"))
 
-      auto_assert {[[{"\"\"\"", :red}], {"foo", :red}, {"bar", :red}, [{"\"\"\"", :red}], []],
-                   [[{"\"\"\"", :green}], {"baz", :green}, [{"\"\"\"", :green}], []]} <-
+      auto_assert {[[{"\"\"\"", :red}], [{"foo", :red}], [{"bar", :red}], [{"\"\"\"", :red}], []],
+                   [[{"\"\"\"", :green}], [{"baz", :green}], [{"\"\"\"", :green}], []]} <-
                     format(
                       """
                       \"""
@@ -97,9 +97,9 @@ defmodule Mneme.DiffTest do
                    [
                      ["auto_assert_raise ", {"ArgumentError", :green}, ","],
                      ["                  ", {"\"\"\"", :green}],
-                     {"                  foo", :green},
-                     {"                  bar", :green},
-                     {"                  \\\#{baz}", :green},
+                     [{"                  foo", :green}],
+                     [{"                  bar", :green}],
+                     [{"                  \\\#{baz}", :green}],
                      [{"                  \"\"\"", :green}, ","],
                      ["                  fn ->"],
                      ["                    error!(\"\"\""],
@@ -303,7 +303,7 @@ defmodule Mneme.DiffTest do
     end
 
     test "formats over multiple lines" do
-      auto_assert {nil, ["[", "  1,", ["  ", {"2_000", :green}], ["]"]]} <-
+      auto_assert {nil, [["["], ["  1,"], ["  ", {"2_000", :green}], ["]"]]} <-
                     format("[\n  1\n]", "[\n  1,\n  2_000\n]")
     end
 
@@ -325,7 +325,7 @@ defmodule Mneme.DiffTest do
                     format("%{foo: 1}", "%{foo: 1, bar: 2}")
 
       auto_assert {nil,
-                   [["foo(", {"%{", :green}], {"  bar: 1", :green}, [{"}", :green}, ")"], []]} <-
+                   [["foo(", {"%{", :green}], [{"  bar: 1", :green}], [{"}", :green}, ")"], []]} <-
                     format(
                       """
                       foo()
@@ -360,11 +360,17 @@ defmodule Mneme.DiffTest do
       auto_assert {nil, [["[x, ", {"%MyStruct{foo: 1}", :green}, "]"]]} <-
                     format("[x]", "[x, %MyStruct{foo: 1}]")
 
-      auto_assert {[[{"[", :red}], {"  foo: 1,", :red}, {"  bar: 2", :red}, [{"]", :red}], []],
+      auto_assert {[
+                     [{"[", :red}],
+                     [{"  foo: 1,", :red}],
+                     [{"  bar: 2", :red}],
+                     [{"]", :red}],
+                     []
+                   ],
                    [
                      [{"%{", :green}],
-                     {"  baz: 3,", :green},
-                     {"  buzz: 4", :green},
+                     [{"  baz: 3,", :green}],
+                     [{"  buzz: 4", :green}],
                      [{"}", :green}],
                      []
                    ]} <-
@@ -559,7 +565,7 @@ defmodule Mneme.DiffTest do
                      ],
                      []
                    ],
-                   ["auto_assert %My.Qualified.Struct{} <- some_call()", []]} <-
+                   [["auto_assert %My.Qualified.Struct{} <- some_call()"], []]} <-
                     format(
                       """
                       auto_assert %My.Qualified.Struct{a: "a", b: "b", c: "c", d: "d", e: "e"} <- some_call()
