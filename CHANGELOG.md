@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0-alpha.1 (2024-08-13)
+
+### Fixed
+
+  * Fix crash that could occur when generating heredoc strings with repeated newlines ([#85](https://github.com/zachallaun/mneme/issues/85)).
+
 ## v0.9.0-alpha.0 (2024-07-17)
 
 ### Added
