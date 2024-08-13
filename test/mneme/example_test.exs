@@ -10,7 +10,7 @@ defmodule Mneme.ExampleTest do
   test "1" do
     import Mneme.DiffTestHelpers
 
-    auto_assert {nil, [["foo(", {"[", :green}], {"  1", :green}, [{"]", :green}, ")"], []]} <-
+    auto_assert {nil, [["foo(", {"[", :green}], [{"  1", :green}], [{"]", :green}, ")"], []]} <-
                   format(
                     """
                     foo()
