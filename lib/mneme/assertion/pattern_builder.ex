@@ -1,25 +1,17 @@
 defmodule Mneme.Assertion.PatternBuilder do
   @moduledoc false
 
-  import Sourceror.Identifier, only: [is_identifier: 1]
-
+  alias Mneme.Assertion.Context
   alias Mneme.Assertion.Pattern
-  alias Mneme.Utils
 
   @map_key_pattern_error :__map_key_pattern_error__
 
   @doc """
   Builds pattern expressions from a runtime value.
   """
-  @spec to_patterns(term(), Mneme.Assertion.context()) :: [Pattern.t(), ...]
-  def to_patterns(value, context) do
-    context =
-      context
-      |> Map.take([:line, :aliases, :binding, :original_pattern])
-      |> Map.put_new(:aliases, [])
-      |> Map.put_new(:binding, [])
-      |> Map.put(:keysets, get_keysets(context.original_pattern))
-      |> Map.put(:map_key_pattern?, false)
+  @spec to_patterns(term(), Context.t()) :: [Pattern.t(), ...]
+  def to_patterns(value, %Context{} = context) do
+    context = Context.with_keysets(context)
 
     {patterns, _vars} = to_patterns(value, context, [])
     patterns
@@ -34,62 +26,12 @@ defmodule Mneme.Assertion.PatternBuilder do
     end
   end
 
-  # Keysets are the lists of keys being matched in any map patterns. We
-  # extract them upfront so that map pattern generation can create
-  # patterns for those subsets as well when applicable.
-  @spec get_keysets(Macro.t(), [var]) :: [%{keys: [term(), ...], ignore_values_for: [term()]}]
-        when var: {name :: atom(), context :: atom()}
-  defp get_keysets(pattern, vars_to_include \\ [])
-
-  defp get_keysets({:when, _, [pattern, guard]}, vars_to_include) do
-    vars =
-      guard
-      |> Utils.collect_vars_from_pattern()
-      |> Enum.map(fn {name, _, context} -> {name, context} end)
-
-    get_keysets(pattern, vars ++ vars_to_include)
-  end
-
-  defp get_keysets(pattern, vars_to_include) do
-    {_, keysets} =
-      Macro.prewalk(pattern, [], fn
-        {:%{}, _, [_ | _] = kvs} = quoted, keysets ->
-          {quoted, [kvs_to_keyset(kvs, vars_to_include) | keysets]}
-
-        quoted, keysets ->
-          {quoted, keysets}
-      end)
-
-    Enum.uniq(keysets)
-  end
-
-  defp kvs_to_keyset(kvs, vars_to_include) do
-    keyset =
-      Enum.reduce(kvs, %{keys: [], ignore_values_for: []}, fn
-        {key, {:_, _, nil}}, %{keys: keys, ignore_values_for: ignore} ->
-          %{keys: [key | keys], ignore_values_for: [{key, :_} | ignore]}
-
-        {key, {name, _, ctx} = var}, %{keys: keys, ignore_values_for: ignore}
-        when is_identifier(var) ->
-          if {name, ctx} in vars_to_include do
-            %{keys: [key | keys], ignore_values_for: ignore}
-          else
-            %{keys: [key | keys], ignore_values_for: [{key, var} | ignore]}
-          end
-
-        {key, _}, keyset ->
-          update_in(keyset[:keys], &[key | &1])
-      end)
-
-    update_in(keyset[:keys], &Enum.reverse/1)
-  end
-
   defp with_meta(meta \\ [], context) do
-    Keyword.merge([line: context[:line]], meta)
+    Keyword.merge([line: context.line], meta)
   end
 
   defp fetch_pinned(value, context) when value not in [true, false, nil] do
-    case List.keyfind(context[:binding] || [], value, 1) do
+    case List.keyfind(context.binding, value, 1) do
       {name, ^value} -> {:ok, {:^, with_meta(context), [make_var(name, context)]}}
       _ -> :error
     end
@@ -514,7 +456,7 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp make_unique_var(name, context, vars) do
-    vars = Keyword.keys(context[:binding] ++ vars)
+    vars = Keyword.keys(context.binding ++ vars)
     name = get_unique_name(name, vars)
     make_var(name, context)
   end

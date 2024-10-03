@@ -3,6 +3,7 @@ defmodule Mneme.Assertion.PatternBuilderTest do
   use Mneme
   use ExUnitProperties
 
+  alias Mneme.Assertion.Context
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
   alias Mneme.Versions
@@ -180,5 +181,6 @@ defmodule Mneme.Assertion.PatternBuilderTest do
     |> Map.put_new(:line, 1)
     |> Map.put_new(:binding, [])
     |> Map.put_new(:original_pattern, nil)
+    |> then(&struct!(Context, &1))
   end
 end

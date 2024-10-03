@@ -3,7 +3,8 @@ defmodule Mneme.Assertion do
 
   import Sourceror.Identifier, only: [is_identifier: 1]
 
-  alias __MODULE__
+  alias Mneme.Assertion
+  alias Mneme.Assertion.Context
   alias Mneme.Assertion.Pattern
   alias Mneme.Assertion.PatternBuilder
   alias Mneme.Utils
@@ -31,7 +32,7 @@ defmodule Mneme.Assertion do
           code: Macro.t(),
           patterns: [Pattern.t()],
           pattern_idx: non_neg_integer(),
-          context: context,
+          context: Context.t(),
           options: map(),
           vars_bound_in_pattern: [macro_var]
         }
@@ -41,16 +42,6 @@ defmodule Mneme.Assertion do
           | :auto_assert_raise
           | :auto_assert_receive
           | :auto_assert_received
-
-  @type context :: %{
-          file: String.t(),
-          line: non_neg_integer(),
-          module: module(),
-          test: atom(),
-          aliases: list(),
-          binding: Code.binding(),
-          original_pattern: Macro.t() | nil
-        }
 
   @type target :: :mneme | :ex_unit
 
@@ -66,7 +57,7 @@ defmodule Mneme.Assertion do
       stage: stage,
       macro_ast: macro_ast,
       value: value,
-      context: context,
+      context: struct!(Context, context),
       options: Map.new(opts),
       vars_bound_in_pattern: vars
     }
