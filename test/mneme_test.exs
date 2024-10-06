@@ -90,7 +90,7 @@ defmodule MnemeTest do
 
     defp context(env) do
       env
-      |> Mneme.Assertion.assertion_context()
+      |> Mneme.Assertion.extract_assertion_context()
       |> Keyword.put(:binding, [])
     end
   end

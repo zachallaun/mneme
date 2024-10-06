@@ -76,9 +76,11 @@ defmodule Mneme.Patcher do
   end
 
   defp prompt_and_patch!(project, assertion, counter, node) do
-    case prompt_change(assertion, counter) do
+    code = Assertion.code(assertion)
+
+    case prompt_change(assertion, code, counter) do
       :accept ->
-        ast = replace_assertion_node(node, assertion.code)
+        ast = replace_assertion_node(node, code)
 
         if assertion.options.dry_run do
           {{:ok, assertion}, project}
@@ -104,12 +106,12 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, counter) do
-    diff = %{left: format(assertion.rich_ast), right: format(assertion.code)}
+  defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, code, counter) do
+    diff = %{left: format(assertion.rich_ast), right: format(code)}
     Terminal.prompt!(assertion, counter, diff)
   end
 
-  defp prompt_change(%Assertion{options: %{action: action}}, _), do: action
+  defp prompt_change(%Assertion{options: %{action: action}}, _code, _counter), do: action
 
   defp format(ast) do
     ast |> Source.Ex.format() |> String.trim()

@@ -279,8 +279,8 @@ defmodule Mneme.AssertionTest do
       })
 
     [
-      mneme: Sourceror.to_string(assertion.code, @format_opts),
-      ex_unit: Sourceror.to_string(ex_unit_assertion.code, @format_opts),
+      mneme: assertion |> Assertion.code() |> Sourceror.to_string(@format_opts),
+      ex_unit: ex_unit_assertion |> Assertion.code() |> Sourceror.to_string(@format_opts),
       eval: assertion |> Assertion.code_for_eval() |> Sourceror.to_string(@format_opts)
     ]
   end

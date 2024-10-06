@@ -81,6 +81,9 @@ defmodule Mneme.Options do
   @describe_attr :mneme_describe
   @module_attr :mneme_module
 
+  @type option :: unquote(NimbleOptions.option_typespec(@options_schema))
+  @type options :: [option]
+
   @doc """
   Register ExUnit attributes for controlling Mneme behavior.
   """
@@ -160,6 +163,7 @@ defmodule Mneme.Options do
   @doc """
   Fetch all valid Mneme options from the current test tags and environment.
   """
+  @spec options(test_tags :: map()) :: options
   def options(test_tags \\ %{}) do
     stacktrace_info = [file: test_tags[:file], line: test_tags[:line], module: test_tags[:module]]
 

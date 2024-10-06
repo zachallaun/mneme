@@ -15,7 +15,6 @@ defmodule Mneme.Assertion do
     :value,
     :macro_ast,
     :rich_ast,
-    :code,
     :patterns,
     :pattern_idx,
     :context,
@@ -29,7 +28,6 @@ defmodule Mneme.Assertion do
           value: term(),
           macro_ast: Macro.t(),
           rich_ast: Macro.t(),
-          code: Macro.t(),
           patterns: [Pattern.t()],
           pattern_idx: non_neg_integer(),
           context: Context.t(),
@@ -71,7 +69,7 @@ defmodule Mneme.Assertion do
     maybe_warn(kind, args, caller)
 
     macro_ast = {kind, Macro.Env.location(caller), args}
-    context = assertion_context(caller)
+    context = extract_assertion_context(caller)
     vars = maybe_collect_vars(kind, args, caller)
 
     quote do
@@ -158,7 +156,7 @@ defmodule Mneme.Assertion do
   end
 
   @doc false
-  def assertion_context(caller) do
+  def extract_assertion_context(caller) do
     {test, _arity} = caller.function
 
     [
@@ -288,18 +286,18 @@ defmodule Mneme.Assertion do
 
   @doc """
   Set the rich AST from Sourceror for the given assertion and generate
-  the target expression.
+  patterns.
   """
   def prepare_for_patch(%Assertion{rich_ast: nil} = assertion, ast) do
     assertion
     |> Map.put(:rich_ast, ast)
-    |> regenerate_code()
+    |> generate_patterns()
   end
 
   @doc false
-  def prepare_for_patch(assertion), do: regenerate_code(assertion)
+  def prepare_for_patch(assertion), do: generate_patterns(assertion)
 
-  defp regenerate_code(%Assertion{patterns: nil} = assertion) do
+  defp generate_patterns(%Assertion{patterns: nil} = assertion) do
     {patterns, pattern_idx} = build_and_select(assertion)
 
     assertion
@@ -307,12 +305,10 @@ defmodule Mneme.Assertion do
       patterns: patterns,
       pattern_idx: pattern_idx
     })
-    |> regenerate_code()
+    |> generate_patterns()
   end
 
-  defp regenerate_code(%Assertion{} = assertion) do
-    %{assertion | code: assertion |> to_code() |> escape_strings()}
-  end
+  defp generate_patterns(%Assertion{} = assertion), do: assertion
 
   defp build_and_select(%{kind: kind} = assertion) do
     case kind do
@@ -453,7 +449,7 @@ defmodule Mneme.Assertion do
 
   def select(%Assertion{} = assertion, :next) do
     idx = rem(assertion.pattern_idx + 1, length(assertion.patterns))
-    regenerate_code(%{assertion | pattern_idx: idx})
+    generate_patterns(%{assertion | pattern_idx: idx})
   end
 
   def select(%Assertion{} = assertion, :first) do
@@ -465,7 +461,7 @@ defmodule Mneme.Assertion do
   end
 
   defp select_pattern_index(%Assertion{} = assertion, idx) when is_integer(idx) and idx >= 0 do
-    regenerate_code(%{assertion | pattern_idx: idx})
+    generate_patterns(%{assertion | pattern_idx: idx})
   end
 
   @doc """
@@ -491,14 +487,24 @@ defmodule Mneme.Assertion do
   end
 
   @doc """
-  Generates assertion code for the given target.
+  Returns the currently selected AST for the assertion.
   """
-  def to_code(%Assertion{kind: :auto_assert_raise, options: opts} = assertion) do
+  def code(%Assertion{patterns: nil} = assertion) do
+    assertion.macro_ast
+  end
+
+  def code(%Assertion{} = assertion) do
+    assertion
+    |> build_code()
+    |> escape_strings()
+  end
+
+  defp build_code(%Assertion{kind: :auto_assert_raise, options: opts} = assertion) do
     %Pattern{expr: expr} = pattern(assertion)
     build_call(opts.target, assertion, expr)
   end
 
-  def to_code(%Assertion{rich_ast: ast, options: opts} = assertion) do
+  defp build_code(%Assertion{rich_ast: ast, options: opts} = assertion) do
     %Pattern{expr: expr, guard: guard} = pattern(assertion)
     build_call(opts.target, assertion, {block_with_line(expr, meta(ast)), guard})
   end
@@ -585,12 +591,9 @@ defmodule Mneme.Assertion do
   defp maybe_when({expr, guard}), do: {:when, [], [expr, guard]}
 
   @doc false
-  def code_for_eval(%Assertion{kind: kind, code: nil, macro_ast: ast, value: value}) do
-    code_for_eval(kind, ast, value)
-  end
-
-  def code_for_eval(%Assertion{kind: kind, code: code, value: value}) do
-    code_for_eval(kind, code, value)
+  def code_for_eval(%Assertion{} = assertion) do
+    code = code(assertion)
+    code_for_eval(assertion.kind, code, assertion.value)
   end
 
   # Output target was :ex_unit and included a guard, so the outer
