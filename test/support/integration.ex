@@ -153,10 +153,12 @@ defmodule Mneme.Integration do
       |> prune_to_version()
 
     {test_ast, test_input} = build_test_ast_and_input(ast)
-    test_code = source |> Source.update(:mneme, :quoted, test_ast) |> Source.get(:content)
+    test_code = source |> Source.update(:quoted, test_ast, by: :mneme) |> Source.get(:content)
 
     expected_ast = build_expected_ast(ast)
-    expected_code = source |> Source.update(:mneme, :quoted, expected_ast) |> Source.get(:content)
+
+    expected_code =
+      source |> Source.update(:quoted, expected_ast, by: :mneme) |> Source.get(:content)
 
     %{exit_code: exit_code} = module_metadata(ast)
 
@@ -335,7 +337,7 @@ defmodule Mneme.Integration do
       #{header} does not match:
 
       """,
-      Rewrite.TextDiff.format(expected, actual, format: [separator: "| "])
+      TextDiff.format(expected, actual, format: [separator: "| "])
     ])
   end
 
