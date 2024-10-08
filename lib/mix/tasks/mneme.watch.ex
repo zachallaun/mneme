@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Mneme.Watch do
   $ mix mneme.watch test/my_app/my_test.exs
   ```
 
-  See the `mix test` documentation for more information.
+  See `mix test` documentation for more information on CLI arguments.
   """
 
   use Mix.Task
