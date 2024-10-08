@@ -1,4 +1,5 @@
 %{
+  "file_system": {:hex, :file_system, "1.0.1", "79e8ceaddb0416f8b8cd02a0127bdbababe7bf4a23d2a395b983c1f8b3f73edd", [:mix], [], "hexpm", "4414d1f38863ddf9120720cd976fce5bdde8e91d8283353f0e31850fa89feb9e"},
   "glob_ex": {:hex, :glob_ex, "0.1.7", "eae6b6377147fb712ac45b360e6dbba00346689a87f996672fe07e97d70597b1", [:mix], [], "hexpm", "decc1c21c0c73df3c9c994412716345c1692477b9470e337f628a7e08da0da6a"},
   "libgraph": {:hex, :libgraph, "0.16.0", "3936f3eca6ef826e08880230f806bfea13193e49bf153f93edcf0239d4fd1d07", [:mix], [], "hexpm", "41ca92240e8a4138c30a7e06466acc709b0cbb795c643e9e17174a178982d6bf"},
   "nimble_options": {:hex, :nimble_options, "1.0.1", "b448018287b22584e91b5fd9c6c0ad717cb4bcdaa457957c8d57770f56625c43", [:mix], [], "hexpm", "078b2927cd9f84555be6386d56e849b0c555025ecccf7afee00ab6a9e6f63837"},

@@ -2,17 +2,15 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v0.9.0-alpha.1 (2024-08-13)
-
-### Fixed
-
-  * Fix crash that could occur when generating heredoc strings with repeated newlines ([#85](https://github.com/zachallaun/mneme/issues/85)).
-
-## v0.9.0-alpha.0 (2024-07-17)
+## v0.9.0 (2024-10-08)
 
 ### Added
 
   * `mix mneme.watch`, a test runner that watches source files for changes and automatically re-runs your tests. It's Mneme-aware, which means it can interrupt prompts and save already-accepted tests if a file system change is detected mid-run.
+
+### Fixed
+
+  * Fix crash that could occur when generating heredoc strings with repeated newlines ([#85](https://github.com/zachallaun/mneme/issues/85)).
 
 ## v0.8.2 (2024-07-11)
 
