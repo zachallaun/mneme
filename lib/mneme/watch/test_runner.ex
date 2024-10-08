@@ -27,7 +27,11 @@ defmodule Mneme.Watch.TestRunner do
     :ok = Mneme.Watch.ElixirFiles.watch!()
     state = struct(__MODULE__, Keyword.validate!(opts, [:cli_args]))
 
-    {:ok, state, {:continue, :force_schedule_tests}}
+    if check_system_restarted!() do
+      {:ok, state}
+    else
+      {:ok, state, {:continue, :force_schedule_tests}}
+    end
   end
 
   @impl GenServer
@@ -98,10 +102,28 @@ defmodule Mneme.Watch.TestRunner do
     recompile()
     Mix.Task.reenable(:test)
     Mix.Task.run(:test, cli_args)
+  catch
+    :exit, _ ->
+      write_system_restart_marker!()
+      System.restart()
   end
 
   @dialyzer {:nowarn_function, recompile: 0}
   defp recompile do
     IEx.Helpers.recompile()
+  end
+
+  defp check_system_restarted! do
+    restarted? = File.exists?(system_restart_marker())
+    _ = File.rm(system_restart_marker())
+    restarted?
+  end
+
+  defp write_system_restart_marker! do
+    File.touch!(system_restart_marker())
+  end
+
+  defp system_restart_marker do
+    Path.join([Mix.Project.manifest_path(), "mneme.watch.restart"])
   end
 end
