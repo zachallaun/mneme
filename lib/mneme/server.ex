@@ -281,7 +281,7 @@ defmodule Mneme.Server do
 
   defp flush_io(%{io_pid: io_pid} = state) when is_pid(io_pid) do
     output = StringIO.flush(io_pid)
-    unless output == "", do: IO.write(output)
+    if output != "", do: IO.write(output)
     state
   end
 
@@ -312,7 +312,7 @@ defmodule Mneme.Server do
         {:error, {:not_saved, files}} -> files
       end ++ MapSet.to_list(state.not_saved)
 
-    unless not_saved_files == [] do
+    if not_saved_files != [] do
       ensure_exit_with_error!(:not_saved, not_saved_files)
     end
 
@@ -361,7 +361,7 @@ defmodule Mneme.Server do
         format_stat(stat, stats[stat])
       end
 
-    unless formatted == [] do
+    if formatted != [] do
       Owl.IO.puts([
         "\n\n[Mneme] ",
         Enum.intersperse(formatted, ", ")

@@ -103,7 +103,7 @@ defmodule Mneme.Integration do
 
     debug_output(System.get_env("DBG"), test, code_after_test, output)
 
-    unless errors == [] do
+    if errors != [] do
       message = "\n" <> Enum.join(errors, "\n")
       raise Mneme.Integration.TestError, message: message
     end

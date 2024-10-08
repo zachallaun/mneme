@@ -1,11 +1,11 @@
 # Short demonstration of Mneme's interactive prompts.
 # Download and run in your terminal with: elixir tour_mneme.exs
 
-unless Version.match?(System.version(), "~> 1.14") do
+if !Version.match?(System.version(), "~> 1.14") do
   raise RuntimeError, "Mneme requires Elixir ~> 1.14 (current: #{System.version()})"
 end
 
-unless Code.ensure_loaded?(Mneme.MixProject) do
+if !Code.ensure_loaded?(Mneme.MixProject) do
   Mix.install([
     {:mneme, ">= 0.0.0"}
   ])
