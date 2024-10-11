@@ -408,8 +408,10 @@ defmodule Mneme do
   end
 
   defp configure!(opts) do
+    formatters = Keyword.get(ExUnit.configuration(), :formatters, []) -- [ExUnit.CLIFormatter]
+
     ExUnit.configure(
-      formatters: [Mneme.Server.ExUnitFormatter],
+      formatters: [Mneme.Server.ExUnitFormatter] ++ formatters,
       default_formatter: ExUnit.CLIFormatter,
       timeout: :infinity
     )
