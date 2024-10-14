@@ -2,6 +2,16 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.2 (2024-10-14)
+
+### Added
+
+  * Added `--exit-on-success` flag to `mix mneme.watch`, which reruns tests until all of them pass, then exits.
+
+### Fixed
+
+  * Prevent an increasing number of "Running ExUnit with seed..." messages from printing during runs of `mix mneme.watch`. This was a regression introduced in v0.9.1.
+
 ## v0.9.1 (2024-10-14)
 
 ### Fixed
