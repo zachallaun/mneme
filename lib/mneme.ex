@@ -411,7 +411,7 @@ defmodule Mneme do
 
   defp configure!(opts) do
     existing_formatters = Keyword.get(ExUnit.configuration(), :formatters, [])
-    formatters = Enum.uniq([ExUnitFormatter] ++ existing_formatters -- [ExUnit.CLIFormatter])
+    formatters = Enum.uniq([ExUnitFormatter] ++ (existing_formatters -- [ExUnit.CLIFormatter]))
 
     ExUnit.configure(
       formatters: formatters,
