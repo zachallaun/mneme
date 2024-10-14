@@ -37,7 +37,16 @@ defmodule Mix.Tasks.Mneme.Watch do
   $ mix mneme.watch test/my_app/my_test.exs
   ```
 
-  See `mix test` documentation for more information on CLI arguments.
+  ## The --stale option
+
+  The `--stale` command line option is especially useful. Run by itself,
+  `mix mneme.watch` will run all of your tests when any source file or
+  test is saved. When used with `--stale`, only tests that have gone
+  stale due to changes in `lib` will be re-run, greatly speeding up most
+  test runs.
+
+  For more information, see the `mix test` documentation for
+  [the `--stale` option](https://hexdocs.pm/mix/Mix.Tasks.Test.html#module-the-stale-option).
   """
 
   use Mix.Task
