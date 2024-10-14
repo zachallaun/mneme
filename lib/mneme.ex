@@ -88,6 +88,8 @@ defmodule Mneme do
   committed first in case you want to get back together.
   """
 
+  alias Mneme.Server.ExUnitFormatter
+
   @ex_unit_default_receive_timeout 100
 
   @doc false
@@ -408,10 +410,11 @@ defmodule Mneme do
   end
 
   defp configure!(opts) do
-    formatters = Keyword.get(ExUnit.configuration(), :formatters, []) -- [ExUnit.CLIFormatter]
+    existing_formatters = Keyword.get(ExUnit.configuration(), :formatters, [])
+    formatters = Enum.uniq([ExUnitFormatter] ++ existing_formatters -- [ExUnit.CLIFormatter])
 
     ExUnit.configure(
-      formatters: [Mneme.Server.ExUnitFormatter] ++ formatters,
+      formatters: formatters,
       default_formatter: ExUnit.CLIFormatter,
       timeout: :infinity
     )
