@@ -26,16 +26,11 @@ defmodule Mix.Tasks.Mneme.Watch do
 
   ## Command line options
 
-  This task runs `mix test` under the hood and passes all CLI arguments
-  to it directly. For instance:
+    * `--exit-on-success` - stops the test watcher the first time the
+      test suite passes.
 
-  ```sh
-  # only run tests tagged with `some_tag: true`
-  $ mix mneme.watch --only some_tag
-
-  # only run tests from one file
-  $ mix mneme.watch test/my_app/my_test.exs
-  ```
+  All other CLI arguments are passed to `mix test`, which runs under the
+  hood.
 
   ## The --stale option
 
@@ -47,6 +42,19 @@ defmodule Mix.Tasks.Mneme.Watch do
 
   For more information, see the `mix test` documentation for
   [the `--stale` option](https://hexdocs.pm/mix/Mix.Tasks.Test.html#module-the-stale-option).
+
+  ## Examples
+
+  ```sh
+  $ mix mneme.watch --only some_tag
+  # runs tests tagged with `some_tag: true`
+
+  $ mix mneme.watch test/my_app/my_test.exs
+  # runs tests in the given file
+
+  $ mix mneme.watch --stale
+  # runs stale tests
+  ```
   """
 
   use Mix.Task

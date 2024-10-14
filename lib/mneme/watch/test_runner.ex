@@ -3,7 +3,7 @@ defmodule Mneme.Watch.TestRunner do
 
   use GenServer
 
-  defstruct [:cli_args, :testing, paths: [], about_to_save: []]
+  defstruct [:cli_args, :testing, paths: [], about_to_save: [], exit_on_success?: false]
 
   @doc false
   def start_link(opts) do
@@ -25,7 +25,19 @@ defmodule Mneme.Watch.TestRunner do
   def init(opts) do
     Code.compiler_options(ignore_module_conflict: true)
     :ok = Mneme.Watch.ElixirFiles.watch!()
-    state = struct(__MODULE__, Keyword.validate!(opts, [:cli_args]))
+    [cli_args: args] = Keyword.validate!(opts, [:cli_args])
+
+    {cli_args, exit_on_success?} =
+      if "--exit-on-success" in args do
+        {args -- ["--exit-on-success"], true}
+      else
+        {args, false}
+      end
+
+    state = %__MODULE__{cli_args: cli_args, exit_on_success?: exit_on_success?}
+
+    runner = self()
+    ExUnit.after_suite(fn result -> send(runner, {:after_suite, result}) end)
 
     if check_system_restarted!() do
       {:ok, state}
@@ -85,6 +97,14 @@ defmodule Mneme.Watch.TestRunner do
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:after_suite, result}, state) do
+    if state.exit_on_success? and result.failures == 0 do
+      System.halt(0)
+    end
+
     {:noreply, state}
   end
 
