@@ -118,3 +118,75 @@ To assign keyboard shortcuts to the three tasks created above:
 ```
 
 The shortcuts above represent my own personal preferences and can be replaced with whatever you'd prefer.
+
+## Integrating `mix mneme.watch`
+
+In addition to the tasks and keyboard shortcuts above, you may want to add some tasks that use `mix mneme.watch`.
+
+```json
+{
+  "label": "Watch stale tests",
+  "type": "shell",
+  "command": "mix",
+  "args": ["mneme.watch", "--stale"],
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "focus": false
+  },
+  "group": "test"
+},
+{
+  "label": "Watch tests in current file",
+  "type": "shell",
+  "command": "mix",
+  "args": ["mneme.watch", "${relativeFile}"],
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "focus": false
+  },
+  "runOptions": {
+    "reevaluateOnRerun": false
+  },
+  "group": "test"
+},
+{
+  "label": "Watch test at cursor",
+  "type": "shell",
+  "command": "mix",
+  "args": ["mneme.watch", "${relativeFile}:${lineNumber}"],
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "focus": false
+  },
+  "runOptions": {
+    "reevaluateOnRerun": false
+  },
+  "group": "test"
+},
+```
+
+Along with their keyboard shortcuts:
+
+```json
+{
+  "key": "ctrl+space w s",
+  "command": "workbench.action.tasks.runTask",
+  "args": "Watch stale tests"
+},
+{
+  "key": "ctrl+space w f",
+  "command": "workbench.action.tasks.runTask",
+  "args": "Watch tests in current file"
+},
+{
+  "key": "ctrl+space w c",
+  "command": "workbench.action.tasks.runTask",
+  "args": "Watch test at cursor"
+},
+```
