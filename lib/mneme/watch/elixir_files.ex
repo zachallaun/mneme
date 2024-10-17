@@ -3,7 +3,7 @@ defmodule Mneme.Watch.ElixirFiles do
 
   use GenServer
 
-  defstruct [:subscriber, paths: [], timeout_ms: 200]
+  defstruct [:subscriber, :dir, paths: [], timeout_ms: 200]
 
   @doc """
   Start a file system watcher linked to the current process and
@@ -19,17 +19,17 @@ defmodule Mneme.Watch.ElixirFiles do
       emitting `:files_changed` events. Events received during this time
       are deduplicated.
 
-    * `:dirs` (default `[File.cwd!()]`) - directories to watch
+    * `:dir` (default `[File.cwd!()]`) - directories to watch
 
   """
   @spec watch!([opt]) :: :ok
-        when opt: {:timeout_ms, non_neg_integer()} | {:dirs, [Path.t()]}
+        when opt: {:timeout_ms, non_neg_integer()} | {:dir, [Path.t()]}
   def watch!(opts \\ []) do
     :ok = Application.ensure_started(:file_system)
 
     {:ok, _} =
       opts
-      |> Keyword.validate!(timeout_ms: 200, dirs: [File.cwd!()])
+      |> Keyword.validate!(timeout_ms: 200, dir: File.cwd!())
       |> Keyword.put(:subscriber, self())
       |> start_link()
 
@@ -43,16 +43,17 @@ defmodule Mneme.Watch.ElixirFiles do
 
   @impl GenServer
   def init(opts) do
-    {dirs, fields} = Keyword.pop!(opts, :dirs)
-
-    {:ok, file_system} = FileSystem.start_link(dirs: dirs)
+    dir = Keyword.fetch!(opts, :dir)
+    dbg(dir)
+    {:ok, file_system} = FileSystem.start_link(dirs: [dir])
     :ok = FileSystem.subscribe(file_system)
 
-    {:ok, struct!(__MODULE__, fields)}
+    {:ok, struct!(__MODULE__, opts)}
   end
 
   @impl GenServer
-  def handle_info({:file_event, _pid, {full_path, _events}}, state) do
+  def handle_info({:file_event, _pid, {full_path, _events}} = evt, state) do
+    dbg(evt)
     {:noreply, maybe_add_path(state, full_path), state.timeout_ms}
   end
 
@@ -69,7 +70,7 @@ defmodule Mneme.Watch.ElixirFiles do
 
   defp maybe_add_path(%__MODULE__{} = state, full_path) do
     project = Mix.Project.config()
-    relative_path = Path.relative_to_cwd(full_path)
+    relative_path = Path.relative_to(full_path, state.dir)
 
     if watching?(project, relative_path) do
       update_in(state.paths, &[full_path | &1])

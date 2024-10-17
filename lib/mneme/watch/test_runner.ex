@@ -12,6 +12,7 @@ defmodule Mneme.Watch.TestRunner do
   @callback skip_all() :: :ok
   @callback system_halt(non_neg_integer()) :: no_return()
   @callback run_tests(cli_args :: [String.t()], system_restart_marker :: Path.t()) :: term()
+  @callback io_write(term()) :: :ok
 
   defp impl, do: Application.get_env(:mneme, :watch_test_runner, __MODULE__)
 
@@ -114,16 +115,17 @@ defmodule Mneme.Watch.TestRunner do
   end
 
   def handle_continue(:maybe_schedule_tests, state) do
-    IO.write("\r\n")
+    impl().io_write("\r\n")
 
     state.paths
     |> Enum.uniq()
     |> Enum.sort()
     |> Enum.each(fn path ->
-      Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), path])
+      prefix = "reloading: " |> Owl.Data.tag(:cyan) |> Owl.Data.to_chardata()
+      impl().io_write([prefix, path, "\n"])
     end)
 
-    IO.write("\n")
+    impl().io_write("\n")
 
     state = %{state | testing: run_tests_async(state), paths: []}
 
@@ -201,6 +203,11 @@ defmodule Mneme.Watch.TestRunner do
   @impl __MODULE__
   def system_halt(status) do
     System.halt(status)
+  end
+
+  @impl __MODULE__
+  def io_write(data) do
+    IO.write(data)
   end
 
   @impl __MODULE__

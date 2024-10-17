@@ -52,6 +52,7 @@ defmodule Mneme.MixProject do
       {:time_zone_info, "~> 0.7", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
       {:patch, "~> 0.13.1", only: :test},
+      {:mox, "~> 1.2", only: :test},
 
       # Docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
