@@ -10,7 +10,8 @@ defmodule Mneme.Watch.ElixirFilesTest do
       patch(FileSystem, :start_link, {:ok, :file_system})
       patch(FileSystem, :subscribe, :ok)
 
-      pid = start_supervised!({ElixirFiles, subscriber: self(), timeout_ms: 10})
+      pid =
+        start_supervised!({ElixirFiles, subscriber: self(), timeout_ms: 10, dirs: [File.cwd!()]})
 
       {:ok, pid: pid}
     end

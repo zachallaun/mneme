@@ -15,21 +15,23 @@ defmodule Mneme.Watch.ElixirFiles do
 
   ## Options
 
-    * `:timeout_ms` (default `200`)- amount of time to wait before
+    * `:timeout_ms` (default `200`) - amount of time to wait before
       emitting `:files_changed` events. Events received during this time
       are deduplicated.
 
+    * `:dirs` (default `[File.cwd!()]`) - directories to watch
+
   """
-  @spec watch!(timeout_ms: non_neg_integer()) :: :ok
+  @spec watch!([opt]) :: :ok
+        when opt: {:timeout_ms, non_neg_integer()} | {:dirs, [Path.t()]}
   def watch!(opts \\ []) do
     :ok = Application.ensure_started(:file_system)
 
-    opts =
+    {:ok, _} =
       opts
-      |> Keyword.validate!([:timeout_ms])
+      |> Keyword.validate!(timeout_ms: 200, dirs: [File.cwd!()])
       |> Keyword.put(:subscriber, self())
-
-    {:ok, _} = start_link(opts)
+      |> start_link()
 
     :ok
   end
@@ -41,10 +43,12 @@ defmodule Mneme.Watch.ElixirFiles do
 
   @impl GenServer
   def init(opts) do
-    {:ok, file_system} = FileSystem.start_link(dirs: [File.cwd!()])
+    {dirs, fields} = Keyword.pop!(opts, :dirs)
+
+    {:ok, file_system} = FileSystem.start_link(dirs: dirs)
     :ok = FileSystem.subscribe(file_system)
 
-    {:ok, struct!(__MODULE__, opts)}
+    {:ok, struct!(__MODULE__, fields)}
   end
 
   @impl GenServer
