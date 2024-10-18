@@ -3,7 +3,7 @@ defmodule Mneme.Watch.ElixirFiles do
 
   use GenServer
 
-  defstruct [:subscriber, paths: [], timeout_ms: 200]
+  defstruct [:subscriber, :dir, paths: [], timeout_ms: 200]
 
   @doc """
   Start a file system watcher linked to the current process and
@@ -15,23 +15,30 @@ defmodule Mneme.Watch.ElixirFiles do
 
   ## Options
 
-    * `:timeout_ms` (default `200`)- amount of time to wait before
+    * `:timeout_ms` (default `200`) - amount of time to wait before
       emitting `:files_changed` events. Events received during this time
       are deduplicated.
 
+    * `:dir` (default `[File.cwd!()]`) - directories to watch
+
   """
-  @spec watch!(timeout_ms: non_neg_integer()) :: :ok
+  @spec watch!([opt]) :: pid()
+        when opt: {:timeout_ms, non_neg_integer()} | {:dir, [Path.t()]}
   def watch!(opts \\ []) do
     :ok = Application.ensure_started(:file_system)
 
-    opts =
+    {:ok, pid} =
       opts
-      |> Keyword.validate!([:timeout_ms])
+      |> Keyword.validate!(timeout_ms: 200, dir: File.cwd!())
       |> Keyword.put(:subscriber, self())
+      |> start_link()
 
-    {:ok, _} = start_link(opts)
+    pid
+  end
 
-    :ok
+  @doc false
+  def simulate_file_event(pid, path) do
+    send(pid, {:file_event, self(), {path, [:modified]}})
   end
 
   @doc false
@@ -41,7 +48,8 @@ defmodule Mneme.Watch.ElixirFiles do
 
   @impl GenServer
   def init(opts) do
-    {:ok, file_system} = FileSystem.start_link(dirs: [File.cwd!()])
+    dir = Keyword.fetch!(opts, :dir)
+    {:ok, file_system} = FileSystem.start_link(dirs: [dir])
     :ok = FileSystem.subscribe(file_system)
 
     {:ok, struct!(__MODULE__, opts)}
@@ -65,7 +73,7 @@ defmodule Mneme.Watch.ElixirFiles do
 
   defp maybe_add_path(%__MODULE__{} = state, full_path) do
     project = Mix.Project.config()
-    relative_path = Path.relative_to_cwd(full_path)
+    relative_path = Path.relative_to(full_path, state.dir)
 
     if watching?(project, relative_path) do
       update_in(state.paths, &[full_path | &1])

@@ -1,13 +1,65 @@
 defmodule Mneme.Watch.TestRunner do
   @moduledoc false
 
+  @behaviour __MODULE__
+
   use GenServer
 
-  defstruct [:cli_args, :testing, paths: [], about_to_save: [], exit_on_success?: false]
+  alias Mneme.Watch
 
-  @doc false
+  @callback compiler_options(keyword()) :: term()
+  @callback after_suite((term() -> term())) :: :ok
+  @callback skip_all() :: :ok
+  @callback system_halt(non_neg_integer()) :: no_return()
+  @callback run_tests(cli_args :: [String.t()], system_restart_marker :: Path.t()) :: term()
+  @callback io_write(term()) :: :ok
+
+  defstruct [
+    :impl,
+    :cli_args,
+    :testing,
+    :system_restart_marker,
+    :file_watcher,
+    paths: [],
+    about_to_save: [],
+    exit_on_success?: false
+  ]
+
+  @doc """
+  Starts a test runner that reruns tests when files change.
+
+  ## Options
+
+    * `:cli_args` (required) - list of command-line arguments
+
+    * `:watch` (default `[]`) - keyword options passed to
+      `Mneme.Watch.ElixirFiles.watch!/1`
+
+    * `:manifest_path` (default `Mix.Project.manifest_path/0`) - dir
+      used to track state between runs.
+
+    * `:name` (default `Mneme.Watch.TestRunner`) - registered name of
+      the started process
+
+    * `:impl` (default `Mneme.Watch.TestRunner`) - implementation module
+      for the `Mneme.Watch.TestRunner` behaviour (used for testing)
+
+  """
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    defaults = [
+      cli_args: [],
+      watch: [],
+      manifest_path: Mix.Project.manifest_path(),
+      name: __MODULE__,
+      impl: __MODULE__
+    ]
+
+    {name, opts} =
+      opts
+      |> Keyword.validate!(defaults)
+      |> Keyword.pop!(:name)
+
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @doc """
@@ -21,11 +73,20 @@ defmodule Mneme.Watch.TestRunner do
     end
   end
 
+  @doc false
+  def simulate_file_event(test_runner, path) do
+    GenServer.cast(test_runner, {:simulate_file_event, path})
+  end
+
   @impl GenServer
   def init(opts) do
-    Code.compiler_options(ignore_module_conflict: true)
-    :ok = Mneme.Watch.ElixirFiles.watch!()
-    [cli_args: args] = Keyword.validate!(opts, [:cli_args])
+    impl = Keyword.fetch!(opts, :impl)
+    args = Keyword.fetch!(opts, :cli_args)
+    watch_opts = Keyword.fetch!(opts, :watch)
+    manifest_path = Keyword.fetch!(opts, :manifest_path)
+
+    impl.compiler_options(ignore_module_conflict: true)
+    file_watcher = Watch.ElixirFiles.watch!(watch_opts)
 
     {cli_args, exit_on_success?} =
       if "--exit-on-success" in args do
@@ -34,12 +95,18 @@ defmodule Mneme.Watch.TestRunner do
         {args, false}
       end
 
-    state = %__MODULE__{cli_args: cli_args, exit_on_success?: exit_on_success?}
+    state = %__MODULE__{
+      impl: impl,
+      cli_args: cli_args,
+      exit_on_success?: exit_on_success?,
+      system_restart_marker: Path.join(manifest_path, "mneme.watch.restart"),
+      file_watcher: file_watcher
+    }
 
     runner = self()
-    ExUnit.after_suite(fn result -> send(runner, {:after_suite, result}) end)
+    impl.after_suite(fn result -> send(runner, {:after_suite, result}) end)
 
-    if check_system_restarted!() do
+    if check_system_restarted!(state.system_restart_marker) do
       {:ok, state}
     else
       {:ok, state, {:continue, :force_schedule_tests}}
@@ -48,7 +115,7 @@ defmodule Mneme.Watch.TestRunner do
 
   @impl GenServer
   def handle_continue(:force_schedule_tests, state) do
-    {:noreply, %{state | testing: run_tests_async(state.cli_args)}}
+    {:noreply, %{state | testing: run_tests_async(state)}}
   end
 
   def handle_continue(:maybe_schedule_tests, %{testing: %Task{}} = state) do
@@ -60,18 +127,22 @@ defmodule Mneme.Watch.TestRunner do
   end
 
   def handle_continue(:maybe_schedule_tests, state) do
-    IO.write("\r\n")
+    reloads =
+      state.paths
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.map(fn path ->
+        prefix = "reloading: " |> Owl.Data.tag(:cyan) |> Owl.Data.to_chardata()
+        [prefix, path, "\n"]
+      end)
 
-    state.paths
-    |> Enum.uniq()
-    |> Enum.sort()
-    |> Enum.each(fn path ->
-      Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), path])
-    end)
+    state.impl.io_write([
+      "\r\n",
+      reloads,
+      "\n"
+    ])
 
-    IO.write("\n")
-
-    state = %{state | testing: run_tests_async(state.cli_args), paths: []}
+    state = %{state | testing: run_tests_async(state), paths: []}
 
     {:noreply, state}
   end
@@ -86,7 +157,7 @@ defmodule Mneme.Watch.TestRunner do
       |> Map.update!(:paths, &(relevant_paths ++ &1))
 
     if state.testing do
-      Mneme.Server.skip_all()
+      state.impl.skip_all()
     end
 
     {:noreply, state, {:continue, :maybe_schedule_tests}}
@@ -102,7 +173,7 @@ defmodule Mneme.Watch.TestRunner do
 
   def handle_info({:after_suite, result}, state) do
     if state.exit_on_success? and result.failures == 0 do
-      System.halt(0)
+      state.impl.system_halt(0)
     end
 
     {:noreply, state}
@@ -113,37 +184,67 @@ defmodule Mneme.Watch.TestRunner do
     {:noreply, put_in(state.about_to_save, paths)}
   end
 
-  defp run_tests_async(cli_args) do
-    Task.async(fn -> run_tests(cli_args) end)
+  def handle_cast({:simulate_file_event, path}, state) do
+    Watch.ElixirFiles.simulate_file_event(state.file_watcher, path)
+    {:noreply, state}
   end
 
-  defp run_tests(cli_args) do
+  defp run_tests_async(%__MODULE__{} = state) do
+    impl = state.impl
+    cli_args = state.cli_args
+    system_restart_marker = state.system_restart_marker
+    Task.async(fn -> impl.run_tests(cli_args, system_restart_marker) end)
+  end
+
+  defp check_system_restarted!(system_restart_marker) do
+    restarted? = File.exists?(system_restart_marker)
+    _ = File.rm(system_restart_marker)
+    restarted?
+  end
+
+  defp write_system_restart_marker!(system_restart_marker) do
+    File.touch!(system_restart_marker)
+  end
+
+  @impl __MODULE__
+  def compiler_options(opts) do
+    Code.compiler_options(opts)
+  end
+
+  @impl __MODULE__
+  def after_suite(callback) do
+    ExUnit.after_suite(callback)
+  end
+
+  @impl __MODULE__
+  def skip_all do
+    Mneme.Server.skip_all()
+  end
+
+  @impl __MODULE__
+  def system_halt(status) do
+    System.halt(status)
+  end
+
+  @impl __MODULE__
+  def io_write(data) do
+    IO.write(data)
+  end
+
+  @impl __MODULE__
+  def run_tests(cli_args, system_restart_marker) do
     Code.unrequire_files(Code.required_files())
     recompile()
     Mix.Task.reenable(:test)
     Mix.Task.run(:test, cli_args)
   catch
     :exit, _ ->
-      write_system_restart_marker!()
+      write_system_restart_marker!(system_restart_marker)
       System.restart()
   end
 
   @dialyzer {:nowarn_function, recompile: 0}
   defp recompile do
     IEx.Helpers.recompile()
-  end
-
-  defp check_system_restarted! do
-    restarted? = File.exists?(system_restart_marker())
-    _ = File.rm(system_restart_marker())
-    restarted?
-  end
-
-  defp write_system_restart_marker! do
-    File.touch!(system_restart_marker())
-  end
-
-  defp system_restart_marker do
-    Path.join([Mix.Project.manifest_path(), "mneme.watch.restart"])
   end
 end

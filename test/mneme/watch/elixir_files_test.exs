@@ -10,15 +10,14 @@ defmodule Mneme.Watch.ElixirFilesTest do
       patch(FileSystem, :start_link, {:ok, :file_system})
       patch(FileSystem, :subscribe, :ok)
 
-      pid = start_supervised!({ElixirFiles, subscriber: self(), timeout_ms: 10})
+      pid =
+        start_supervised!({ElixirFiles, subscriber: self(), timeout_ms: 10, dir: File.cwd!()})
 
       {:ok, pid: pid}
     end
 
     defp file_events(pid, paths) when is_list(paths) do
-      for path <- paths do
-        send(pid, {:file_event, self(), {path, [:modified]}})
-      end
+      for path <- paths, do: ElixirFiles.simulate_file_event(pid, path)
     end
 
     test "emits files in test/", %{pid: pid} do
