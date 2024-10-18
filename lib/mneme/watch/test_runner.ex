@@ -12,6 +12,7 @@ defmodule Mneme.Watch.TestRunner do
   @callback skip_all() :: :ok
   @callback system_halt(non_neg_integer()) :: no_return()
   @callback run_tests(cli_args :: [String.t()], system_restart_marker :: Path.t()) :: term()
+  @callback io_write(term()) :: :ok
 
   defp impl, do: Application.get_env(:mneme, :watch_test_runner, __MODULE__)
 
@@ -19,6 +20,7 @@ defmodule Mneme.Watch.TestRunner do
     :cli_args,
     :testing,
     :system_restart_marker,
+    :file_watcher,
     paths: [],
     about_to_save: [],
     exit_on_success?: false
@@ -68,6 +70,11 @@ defmodule Mneme.Watch.TestRunner do
     end
   end
 
+  @doc false
+  def simulate_file_event(test_runner, path) do
+    GenServer.cast(test_runner, {:simulate_file_event, path})
+  end
+
   @impl GenServer
   def init(opts) do
     args = Keyword.fetch!(opts, :cli_args)
@@ -75,7 +82,7 @@ defmodule Mneme.Watch.TestRunner do
     manifest_path = Keyword.fetch!(opts, :manifest_path)
 
     impl().compiler_options(ignore_module_conflict: true)
-    :ok = Watch.ElixirFiles.watch!(watch_opts)
+    file_watcher = Watch.ElixirFiles.watch!(watch_opts)
 
     {cli_args, exit_on_success?} =
       if "--exit-on-success" in args do
@@ -87,7 +94,8 @@ defmodule Mneme.Watch.TestRunner do
     state = %__MODULE__{
       cli_args: cli_args,
       exit_on_success?: exit_on_success?,
-      system_restart_marker: Path.join(manifest_path, "mneme.watch.restart")
+      system_restart_marker: Path.join(manifest_path, "mneme.watch.restart"),
+      file_watcher: file_watcher
     }
 
     runner = self()
@@ -114,16 +122,20 @@ defmodule Mneme.Watch.TestRunner do
   end
 
   def handle_continue(:maybe_schedule_tests, state) do
-    IO.write("\r\n")
+    reloads =
+      state.paths
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.map(fn path ->
+        prefix = "reloading: " |> Owl.Data.tag(:cyan) |> Owl.Data.to_chardata()
+        [prefix, path, "\n"]
+      end)
 
-    state.paths
-    |> Enum.uniq()
-    |> Enum.sort()
-    |> Enum.each(fn path ->
-      Owl.IO.puts([Owl.Data.tag("reloading: ", :cyan), path])
-    end)
-
-    IO.write("\n")
+    impl().io_write([
+      "\r\n",
+      reloads,
+      "\n"
+    ])
 
     state = %{state | testing: run_tests_async(state), paths: []}
 
@@ -167,6 +179,11 @@ defmodule Mneme.Watch.TestRunner do
     {:noreply, put_in(state.about_to_save, paths)}
   end
 
+  def handle_cast({:simulate_file_event, path}, state) do
+    Watch.ElixirFiles.simulate_file_event(state.file_watcher, path)
+    {:noreply, state}
+  end
+
   defp run_tests_async(%__MODULE__{} = state) do
     cli_args = state.cli_args
     system_restart_marker = state.system_restart_marker
@@ -201,6 +218,11 @@ defmodule Mneme.Watch.TestRunner do
   @impl __MODULE__
   def system_halt(status) do
     System.halt(status)
+  end
+
+  @impl __MODULE__
+  def io_write(data) do
+    IO.write(data)
   end
 
   @impl __MODULE__
