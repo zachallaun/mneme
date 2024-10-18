@@ -1,5 +1,5 @@
 defmodule Mneme.Watch.TestRunnerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mneme
 
   import Mox
@@ -8,11 +8,9 @@ defmodule Mneme.Watch.TestRunnerTest do
 
   setup_all do
     defmock(MockTestRunner, for: TestRunner)
-    Application.put_env(:mneme, :watch_test_runner, MockTestRunner)
     :ok
   end
 
-  setup :set_mox_global
   setup :verify_on_exit!
 
   setup do
@@ -34,7 +32,8 @@ defmodule Mneme.Watch.TestRunnerTest do
       cli_args: ["--arg"],
       watch: [timeout_ms: 0, dir: tmp_dir],
       manifest_path: manifest_path,
-      name: __MODULE__.TestRunner
+      name: __MODULE__.TestRunner,
+      impl: MockTestRunner
     ]
 
     [runner_opts: opts, lib_path: lib_path, ex_file: ex_file]
@@ -45,6 +44,7 @@ defmodule Mneme.Watch.TestRunnerTest do
     ref = make_ref()
 
     mock
+    |> allow(self(), fn -> GenServer.whereis(opts[:name]) end)
     |> expect(:compiler_options, fn _ -> %{} end)
     |> expect(:after_suite, fn cb -> cb.(after_suite_results) end)
     |> expect(:run_tests, fn _, _ ->

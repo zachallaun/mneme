@@ -14,9 +14,8 @@ defmodule Mneme.Watch.TestRunner do
   @callback run_tests(cli_args :: [String.t()], system_restart_marker :: Path.t()) :: term()
   @callback io_write(term()) :: :ok
 
-  defp impl, do: Application.get_env(:mneme, :watch_test_runner, __MODULE__)
-
   defstruct [
+    :impl,
     :cli_args,
     :testing,
     :system_restart_marker,
@@ -42,13 +41,17 @@ defmodule Mneme.Watch.TestRunner do
     * `:name` (default `Mneme.Watch.TestRunner`) - registered name of
       the started process
 
+    * `:impl` (default `Mneme.Watch.TestRunner`) - implementation module
+      for the `Mneme.Watch.TestRunner` behaviour (used for testing)
+
   """
   def start_link(opts) do
     defaults = [
       cli_args: [],
       watch: [],
       manifest_path: Mix.Project.manifest_path(),
-      name: __MODULE__
+      name: __MODULE__,
+      impl: __MODULE__
     ]
 
     {name, opts} =
@@ -77,11 +80,12 @@ defmodule Mneme.Watch.TestRunner do
 
   @impl GenServer
   def init(opts) do
+    impl = Keyword.fetch!(opts, :impl)
     args = Keyword.fetch!(opts, :cli_args)
     watch_opts = Keyword.fetch!(opts, :watch)
     manifest_path = Keyword.fetch!(opts, :manifest_path)
 
-    impl().compiler_options(ignore_module_conflict: true)
+    impl.compiler_options(ignore_module_conflict: true)
     file_watcher = Watch.ElixirFiles.watch!(watch_opts)
 
     {cli_args, exit_on_success?} =
@@ -92,6 +96,7 @@ defmodule Mneme.Watch.TestRunner do
       end
 
     state = %__MODULE__{
+      impl: impl,
       cli_args: cli_args,
       exit_on_success?: exit_on_success?,
       system_restart_marker: Path.join(manifest_path, "mneme.watch.restart"),
@@ -99,7 +104,7 @@ defmodule Mneme.Watch.TestRunner do
     }
 
     runner = self()
-    impl().after_suite(fn result -> send(runner, {:after_suite, result}) end)
+    impl.after_suite(fn result -> send(runner, {:after_suite, result}) end)
 
     if check_system_restarted!(state.system_restart_marker) do
       {:ok, state}
@@ -131,7 +136,7 @@ defmodule Mneme.Watch.TestRunner do
         [prefix, path, "\n"]
       end)
 
-    impl().io_write([
+    state.impl.io_write([
       "\r\n",
       reloads,
       "\n"
@@ -152,7 +157,7 @@ defmodule Mneme.Watch.TestRunner do
       |> Map.update!(:paths, &(relevant_paths ++ &1))
 
     if state.testing do
-      impl().skip_all()
+      state.impl.skip_all()
     end
 
     {:noreply, state, {:continue, :maybe_schedule_tests}}
@@ -168,7 +173,7 @@ defmodule Mneme.Watch.TestRunner do
 
   def handle_info({:after_suite, result}, state) do
     if state.exit_on_success? and result.failures == 0 do
-      impl().system_halt(0)
+      state.impl.system_halt(0)
     end
 
     {:noreply, state}
@@ -185,9 +190,10 @@ defmodule Mneme.Watch.TestRunner do
   end
 
   defp run_tests_async(%__MODULE__{} = state) do
+    impl = state.impl
     cli_args = state.cli_args
     system_restart_marker = state.system_restart_marker
-    Task.async(fn -> impl().run_tests(cli_args, system_restart_marker) end)
+    Task.async(fn -> impl.run_tests(cli_args, system_restart_marker) end)
   end
 
   defp check_system_restarted!(system_restart_marker) do
