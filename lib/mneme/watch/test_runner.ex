@@ -80,6 +80,8 @@ defmodule Mneme.Watch.TestRunner do
 
   @impl GenServer
   def init(opts) do
+    {:ok, _} = Application.ensure_all_started(:ex_unit)
+
     impl = Keyword.fetch!(opts, :impl)
     args = Keyword.fetch!(opts, :cli_args)
     watch_opts = Keyword.fetch!(opts, :watch)
