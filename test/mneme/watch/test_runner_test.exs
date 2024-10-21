@@ -54,7 +54,7 @@ defmodule Mneme.Watch.TestRunnerTest do
 
     start_supervised!({TestRunner, opts})
 
-    assert_receive {^ref, :run_tests}
+    assert_receive {^ref, :run_tests}, 1_000
   end
 
   test "starts with valid opts", %{runner_opts: opts} do
@@ -97,10 +97,10 @@ defmodule Mneme.Watch.TestRunnerTest do
 
     TestRunner.simulate_file_event(opts[:name], file)
 
-    assert_receive {^ref, :io_write, message}
+    assert_receive {^ref, :io_write, message}, 1_000
     assert IO.chardata_to_string(message) =~ file
 
-    assert_receive {^ref, :run_tests}
+    assert_receive {^ref, :run_tests}, 1_000
   end
 
   test "reruns tests when new file added", %{runner_opts: opts, lib_path: lib_path} do
@@ -122,10 +122,10 @@ defmodule Mneme.Watch.TestRunnerTest do
 
     TestRunner.simulate_file_event(opts[:name], file)
 
-    assert_receive {^ref, :io_write, message}
+    assert_receive {^ref, :io_write, message}, 1_000
     assert IO.chardata_to_string(message) =~ file
 
-    assert_receive {^ref, :run_tests}
+    assert_receive {^ref, :run_tests}, 1_000
   end
 
   test "skips remaining tests if file is changed during a test run",
@@ -155,11 +155,11 @@ defmodule Mneme.Watch.TestRunnerTest do
 
     TestRunner.simulate_file_event(opts[:name], file)
 
-    assert_receive {^ref, :run_tests_1}
+    assert_receive {^ref, :run_tests_1}, 1_000
 
     TestRunner.simulate_file_event(opts[:name], file)
 
-    assert_receive {^ref, :skip_all}
-    assert_receive {^ref, :run_tests_2}
+    assert_receive {^ref, :skip_all}, 1_000
+    assert_receive {^ref, :run_tests_2}, 1_000
   end
 end
