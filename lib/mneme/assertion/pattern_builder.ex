@@ -253,7 +253,7 @@ defmodule Mneme.Assertion.PatternBuilder do
         |> to_patterns(context, vars)
 
       patterns =
-        if contains_empty_map_pattern?(patterns) do
+        if contains_empty_map_pattern?(patterns) or context.map_key_pattern? do
           patterns
         else
           [Pattern.new({:%{}, with_meta(context), []}) | patterns]
