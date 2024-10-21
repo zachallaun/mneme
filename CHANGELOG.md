@@ -7,6 +7,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 ### Fixed
 
   * Don't simplify structs used as keys in maps ([#96](https://github.com/zachallaun/mneme/issues/96)).
+  * [mix mneme.watch] Ensure the `:ex_unit` application is started before accessing its application config ([#95](https://github.com/zachallaun/mneme/issues/95)).
 
 ## v0.9.2 (2024-10-14)
 
