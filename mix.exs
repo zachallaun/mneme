@@ -42,6 +42,7 @@ defmodule Mneme.MixProject do
       {:sourceror, "~> 1.0"},
       {:rewrite, "~> 0.10.1"},
       {:file_system, "~> 1.0"},
+      {:igniter, "~> 0.3.0"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},

@@ -40,60 +40,29 @@ But, unlike ordinary tests, Mneme asks if you'd like the test updated for the ne
   * **Syntax-aware diffs** highlight the meaningful changes in a value.
   * **Built-in test watcher:** see changes immediately with `mix mneme.watch`.
 
-## Interactive tour
-
-If you'd like to see Mneme in action, you can download and run [examples/tour_mneme.exs](https://github.com/zachallaun/mneme/blob/main/examples/tour_mneme.exs), a standalone tour that only requires that you have Elixir installed.
-Give it a try without installing Mneme into your own project.
-
-```shell
-$ curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main/examples/tour_mneme.exs
-
-$ elixir tour_mneme.exs
-```
-
 ## Getting started
 
-1.  Add `:mneme` do your deps in `mix.exs`:
+1.  Add `:mneme` as a dependency in your `mix.exs`.
 
     ```elixir
     defp deps do
       [
-        {:mneme, ">= 0.0.0", only: [:dev, :test]}
+        {:mneme, ">= 0.0.0", only: :test}
       ]
     end
     ```
 
-2.  Add a `:preferred_cli_env` entry for `mix mneme.watch` in `mix.exs`:
+2.  Fetch dependencies and run `mix mneme.install` with `MIX_ENV=test`.
+    You're prompted with a diff before any files are saved.
 
-    ```elixir
-    def project do
-      [
-        ...
-        preferred_cli_env: [
-          "mneme.watch": :test
-        ],
-        ...
-      ]
-    end
+    ```shell
+    $ mix deps.get
+
+    # If MIX_ENV=test is not set, you will see a "task could not be found" error
+    $ MIX_ENV=test mix mneme.install
     ```
 
-3.  Add `:mneme` to your `:import_deps` in `.formatter.exs`:
-
-    ```elixir
-    [
-      import_deps: [:mneme],
-      inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
-    ]
-    ```
-
-4.  Start Mneme right after you start ExUnit in `test/test_helper.exs`:
-
-    ```elixir
-    ExUnit.start()
-    Mneme.start()
-    ```
-
-5.  Add `use Mneme` wherever you `use ExUnit.Case`:
+3.  Add `use Mneme` wherever you `use ExUnit.Case`.
 
     ```elixir
     defmodule MyTest do
@@ -106,18 +75,24 @@ $ elixir tour_mneme.exs
     end
     ```
 
-6.  Run `mix test` and type `y<ENTER>` when prompted; your test should look like:
+4.  Run `mix test` and type `y<ENTER>` when prompted.
+    The `auto_assert` call should be updated to:
 
     ```elixir
-    defmodule MyTest do
-      use ExUnit.Case, async: true
-      use Mneme
-
-      test "arithmetic" do
-        auto_assert 4 <- 2 + 2
-      end
-    end
+    auto_assert 4 <- 2 + 2
     ```
+
+## Interactive tour
+
+If you'd like to see Mneme in action, you can download and run [examples/tour_mneme.exs](https://github.com/zachallaun/mneme/blob/main/examples/tour_mneme.exs), a standalone tour that only requires that you have Elixir installed.
+Give it a try without installing Mneme into your own project.
+
+```shell
+$ curl -o tour_mneme.exs https://raw.githubusercontent.com/zachallaun/mneme/main/examples/tour_mneme.exs
+
+$ elixir tour_mneme.exs
+```
+
 
 ## Requirements
 
