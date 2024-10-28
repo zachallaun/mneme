@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.4 (2024-10-28)
+
+### Added
+
+  * `mix mneme.install`, an [Igniter](https://github.com/ash-project/igniter) task that simplifies setup.
+
 ## v0.9.3 (2024-10-21)
 
 ### Fixed
