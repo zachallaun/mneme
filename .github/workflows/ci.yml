@@ -6,7 +6,7 @@ on:
       - '**'
 jobs:
   lint:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       MIX_ENV: dev
     strategy:
@@ -15,7 +15,7 @@ jobs:
         elixir: [1.17]
         otp: [27]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Elixir
         id: beam
@@ -64,7 +64,7 @@ jobs:
         run: MIX_ENV=dev mix dialyzer --format github
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       MIX_ENV: test
     strategy:
@@ -82,7 +82,7 @@ jobs:
           - elixir: 1.16
             otp: 27
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
@@ -109,3 +109,21 @@ jobs:
       - run: mix test
 
       - run: mix test.mneme_not_started
+
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: inotify-tools
+          version: 1.0
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: 1.17.3
+          otp-version: 27.1.2
+
+      - run: bin/integration-test-mneme-install.sh
