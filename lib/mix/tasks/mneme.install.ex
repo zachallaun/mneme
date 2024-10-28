@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Mneme.Install do
       # An example invocation
       example: @example,
       # A list of environments that this should be installed in.
-      only: nil,
+      only: :test,
       # a list of positional arguments, i.e `[:file]`
       positional: [],
       # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
