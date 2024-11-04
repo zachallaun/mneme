@@ -211,6 +211,7 @@ defmodule Mneme.Options do
     |> collect_attributes(Map.get(attrs, @test_attr, []))
     |> collect_attributes(Map.get(attrs, @describe_attr, []))
     |> collect_attributes(Map.get(attrs, @module_attr, []))
+    |> collect_attributes(Application.get_env(:mneme, :cli_opts, []))
     |> collect_attributes([persistent_term_get(@config_cache, [])])
   end
 
@@ -218,12 +219,21 @@ defmodule Mneme.Options do
 
   defp collect_attributes(acc, lower_priority) do
     for_result =
-      for attrs <- lower_priority, kv <- List.wrap(attrs), reduce: %{} do
+      for attrs <- lower_priority,
+          kv <- List.wrap(attrs),
+          reduce: %{} do
         acc ->
           {k, v} =
             case kv do
               {k, v} -> {k, v}
               k when is_atom(k) -> {k, true}
+            end
+
+          v =
+            if is_binary(v) do
+              String.to_atom(v)
+            else
+              v
             end
 
           Map.update(acc, k, [v], &[v | &1])

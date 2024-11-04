@@ -237,8 +237,8 @@ defmodule Mneme.Watch.TestRunner do
   def run_tests(cli_args, system_restart_marker) do
     Code.unrequire_files(Code.required_files())
     recompile()
-    Mix.Task.reenable(:test)
-    Mix.Task.run(:test, cli_args)
+    Mix.Task.reenable("mneme.test")
+    Mix.Task.run("mneme.test", cli_args)
   catch
     :exit, _ ->
       write_system_restart_marker!(system_restart_marker)

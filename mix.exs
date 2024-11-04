@@ -89,6 +89,7 @@ defmodule Mneme.MixProject do
       coveralls: :test,
       "coveralls.html": :test,
       "test.mneme_not_started": :test,
+      "mneme.test": :test,
       "mneme.watch": :test
     ]
   end

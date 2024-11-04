@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Mneme.Watch do
-  @shortdoc "Run tests when files change"
+  @shortdoc "Runs the tests for a project when source files change."
   @moduledoc """
-  Runs the tests for a project when source files change.
+  #{@shortdoc}
 
   This task is similar to [`mix test.watch`](https://hex.pm/packages/mix_test_watch),
   but updated to work with Mneme:
@@ -18,6 +18,7 @@ defmodule Mix.Tasks.Mneme.Watch do
         [
           ...
           preferred_cli_env: [
+            "mneme.test": :test,
             "mneme.watch": :test
           ],
           ...
@@ -25,6 +26,10 @@ defmodule Mix.Tasks.Mneme.Watch do
       end
 
   ## Command line options
+
+  In addition to the options supported by `mix mneme.test` and `mix test`,
+  which this task runs under the hood, the following CLI options are
+  available:
 
     * `--exit-on-success` - stops the test watcher the first time the
       test suite passes.
