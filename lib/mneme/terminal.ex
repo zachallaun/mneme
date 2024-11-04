@@ -75,7 +75,7 @@ defmodule Mneme.Terminal do
   defp normalize_gets(_), do: nil
 
   defp format_diff(%{left: left, right: right}, %{diff: :text}) do
-    Rewrite.TextDiff.format(eof_newline(left), eof_newline(right),
+    TextDiff.format(eof_newline(left), eof_newline(right),
       line_numbers: false,
       format: [
         separator: "",

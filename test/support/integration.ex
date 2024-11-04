@@ -11,6 +11,7 @@ defmodule Mneme.Integration do
   ```
   """
 
+  alias Rewrite.DotFormatter
   alias Rewrite.Source
 
   defmodule TestError do
@@ -22,9 +23,11 @@ defmodule Mneme.Integration do
   Build integration test modules for each file matching the wildcard.
   """
   defmacro build_tests!(wildcard) when is_binary(wildcard) do
+    dot_formatter = DotFormatter.read!()
+
     wildcard
     |> Rewrite.new!()
-    |> Rewrite.map!(&set_up_source/1)
+    |> Rewrite.map!(fn source -> set_up_source(source, dot_formatter) end)
     |> Enum.map(fn source ->
       module = source |> Source.Ex.modules() |> List.last()
       "Elixir." <> module_name = to_string(module)
@@ -146,17 +149,17 @@ defmodule Mneme.Integration do
     end
   end
 
-  defp set_up_source(source) do
+  defp set_up_source(source, dot_formatter) do
     ast =
       source
       |> Source.get(:quoted)
       |> prune_to_version()
 
     {test_ast, test_input} = build_test_ast_and_input(ast)
-    test_code = source |> Source.update(:mneme, :quoted, test_ast) |> Source.get(:content)
+    test_code = DotFormatter.format_quoted!(dot_formatter, source.path, test_ast)
 
     expected_ast = build_expected_ast(ast)
-    expected_code = source |> Source.update(:mneme, :quoted, expected_ast) |> Source.get(:content)
+    expected_code = DotFormatter.format_quoted!(dot_formatter, source.path, expected_ast)
 
     %{exit_code: exit_code} = module_metadata(ast)
 
@@ -335,7 +338,7 @@ defmodule Mneme.Integration do
       #{header} does not match:
 
       """,
-      Rewrite.TextDiff.format(expected, actual, format: [separator: "| "])
+      TextDiff.format(expected, actual, format: [separator: "| "])
     ])
   end
 

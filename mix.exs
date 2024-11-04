@@ -40,7 +40,7 @@ defmodule Mneme.MixProject do
       {:owl, "~> 0.9"},
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 1.0"},
-      {:rewrite, "~> 0.10.1"},
+      {:rewrite, "~> 1.0", override: true},
       {:file_system, "~> 1.0"},
       {:igniter, "~> 0.3.0"},
 

@@ -3,6 +3,7 @@ defmodule Mneme.Patcher do
 
   alias Mneme.Assertion
   alias Mneme.Terminal
+  alias Rewrite.DotFormatter
   alias Rewrite.Source
   alias Sourceror.Zipper
 
@@ -14,7 +15,10 @@ defmodule Mneme.Patcher do
   """
   @spec init() :: state
   def init do
-    Rewrite.new()
+    Rewrite.new(
+      filetypes: [{Source.Ex, resync_quoted: false}],
+      dot_formatter: DotFormatter.read!()
+    )
   end
 
   @doc """
@@ -25,11 +29,7 @@ defmodule Mneme.Patcher do
     if Rewrite.has_source?(project, file) do
       project
     else
-      project
-      |> Rewrite.read!(file)
-      |> Rewrite.update!(file, fn %Source{} = source ->
-        Source.put_private(source, :patched_ast, Source.get(source, :quoted))
-      end)
+      Rewrite.read!(project, file)
     end
   end
 
@@ -78,8 +78,9 @@ defmodule Mneme.Patcher do
   defp prompt_and_patch!(project, assertion, counter, node) do
     code = Assertion.code(assertion)
 
-    case prompt_change(assertion, code, counter) do
+    case prompt_change(assertion, code, counter, project) do
       :accept ->
+        dot_formatter = Rewrite.dot_formatter(project)
         ast = replace_assertion_node(node, code)
 
         if assertion.options.dry_run do
@@ -87,9 +88,7 @@ defmodule Mneme.Patcher do
         else
           {:ok, project} =
             Rewrite.update(project, assertion.context.file, fn source ->
-              source
-              |> Source.update(:quoted, ast)
-              |> Source.put_private(:patched_ast, ast)
+              Source.update(source, :quoted, ast, dot_formatter: dot_formatter)
             end)
 
           {{:ok, assertion}, project}
@@ -106,22 +105,31 @@ defmodule Mneme.Patcher do
     end
   end
 
-  defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, code, counter) do
-    diff = %{left: format(assertion.rich_ast), right: format(code)}
+  defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, code, counter, project) do
+    dot_formatter = Rewrite.dot_formatter(project)
+    file = assertion.context.file
+
+    diff = %{
+      left: format(dot_formatter, file, assertion.rich_ast),
+      right: format(dot_formatter, file, code)
+    }
+
     Terminal.prompt!(assertion, counter, diff)
   end
 
-  defp prompt_change(%Assertion{options: %{action: action}}, _code, _counter), do: action
+  defp prompt_change(%Assertion{options: %{action: action}}, _code, _counter, _project),
+    do: action
 
-  defp format(ast) do
-    ast |> Source.Ex.format() |> String.trim()
+  defp format(dot_formatter, file, ast) do
+    DotFormatter.format_quoted!(dot_formatter, file, ast)
   end
 
   defp prepare_assertion(assertion, project) do
     source = Rewrite.source!(project, assertion.context.file)
 
     zipper =
-      source.private[:patched_ast]
+      source
+      |> Source.get(:quoted)
       |> Zipper.zip()
       |> Zipper.find(&Assertion.same?(assertion, &1))
 
