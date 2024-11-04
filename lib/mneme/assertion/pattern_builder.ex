@@ -244,6 +244,11 @@ defmodule Mneme.Assertion.PatternBuilder do
   end
 
   defp struct_to_patterns(struct, map, context, vars, extra_notes) do
+    # NOTE: It's not totally clear that this is required, but it's
+    # hopefully a fix for periodic cases where Mneme is generating maps
+    # with a `:__struct__` key instead of using the existing struct.
+    Code.ensure_loaded(struct)
+
     if function_exported?(struct, :__struct__, 0) do
       defaults = struct.__struct__()
 
