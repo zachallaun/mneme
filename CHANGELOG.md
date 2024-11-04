@@ -2,6 +2,18 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased (v0.10.0-dev)
+
+### Added
+
+  * `mix mneme.test`, which is functionally equivalent to `mix test` except that it allows Mneme's configuration options to be passed at the command line.
+
+### Changed
+
+  * `mix mneme.watch` now uses `mix mneme.test` under the hood so that it can accept the same options.
+    * This means that `mneme.test` needs to be added to your `:preferred_cli_env` in `mix.exs`: `preferred_cli_env: ["mneme.test": :test, "mneme.watch": :test]`.
+    * Running `MIX_ENV=test mix mneme.install` will update this for you.
+
 ## v0.9.4 (2024-10-28)
 
 ### Added
