@@ -87,7 +87,8 @@ defmodule Mix.Tasks.Mneme.Install do
   end
 
   @doc false
-  def igniter(igniter, _argv) do
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
     igniter
     |> update_preferred_cli_env()
     |> update_import_deps()

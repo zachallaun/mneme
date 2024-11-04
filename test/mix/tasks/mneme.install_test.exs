@@ -30,6 +30,8 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                 5 6   |
 
 
+
+
                 Update: mix.exs
 
                      ...|
@@ -47,6 +49,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
 
                 1 1   |ExUnit.start()
                   2 + |Mneme.start()
+
 
                 """ <- test_project() |> Igniter.compose_task("mneme.install") |> igniter_diff()
   end

@@ -40,9 +40,10 @@ defmodule Mneme.MixProject do
       {:owl, "~> 0.9"},
       {:nimble_options, "~> 1.0"},
       {:sourceror, "~> 1.0"},
-      {:rewrite, "~> 1.0", override: true},
+      {:rewrite, "~> 1.0"},
+      {:text_diff, "~> 0.1"},
       {:file_system, "~> 1.0"},
-      {:igniter, "~> 0.3.0"},
+      {:igniter, "~> 0.4.0 or ~> 0.3.76"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
