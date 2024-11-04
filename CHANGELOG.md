@@ -14,6 +14,10 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
     * This means that `mneme.test` needs to be added to your `:preferred_cli_env` in `mix.exs`: `preferred_cli_env: ["mneme.test": :test, "mneme.watch": :test]`.
     * Running `MIX_ENV=test mix mneme.install` will update this for you.
 
+### Fixed
+
+  * Ensure that the module is loaded before generating struct patterns ([#102](https://github.com/zachallaun/mneme/issues/102)).
+
 ## v0.9.4 (2024-10-28)
 
 ### Added
