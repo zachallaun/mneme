@@ -399,6 +399,9 @@ defmodule Mneme.Assertion do
 
   defp simplify_expr(expr) do
     Sourceror.prewalk(expr, fn
+      {:__block__, _, [s]} = string_block, state when is_binary(s) ->
+        {string_block, state}
+
       {:__block__, _meta, [arg]}, state ->
         {arg, state}
 
@@ -412,6 +415,17 @@ defmodule Mneme.Assertion do
 
   # Opaque expression similarity score. More similar expressions should
   # have a higher value, but the exact value should be not be relied on.
+  defp similarity_score(left, right)
+
+  defp similarity_score({:__block__, s1_meta, [s1]}, {:__block__, s2_meta, [s2]})
+       when is_binary(s1) and is_binary(s2) do
+    if s1_meta[:delimiter] == s2_meta[:delimiter] do
+      1
+    else
+      0
+    end
+  end
+
   defp similarity_score({name, _, args1}, {name, _, args2}) do
     1 + similarity_score(args1, args2)
   end

@@ -70,6 +70,22 @@ defmodule Mneme.Integration.BasicTest do
 
     # y
     auto_assert "foo\rbar" <- "foo\rbar"
+
+    # y
+    auto_assert """
+                foo
+                bar
+                """ <- """
+                foo
+                baz
+                """,
+                """
+                foo
+                baz
+                """ <- """
+                foo
+                baz
+                """
   end
 
   test "tuples" do
