@@ -39,7 +39,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                  9  9   |      start_permanent: Mix.env() == :prod,
                 10    - |      deps: deps()
                    10 + |      deps: deps(),
-                   11 + |      preferred_cli_env: ["mneme.watch": :test]
+                   11 + |      preferred_cli_env: ["mneme.test": :test, "mneme.watch": :test]
                 11 12   |    ]
                 12 13   |  end
                      ...|
@@ -84,9 +84,10 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                    7  7   |      preferred_cli_env: [
                    8    - |        "existing.task": :dev
                       8 + |        "existing.task": :dev,
-                      9 + |        "mneme.watch": :test
-                   9 10   |      ]
-                  10 11   |    ]
+                      9 + |        "mneme.test": :test,
+                     10 + |        "mneme.watch": :test
+                   9 11   |      ]
+                  10 12   |    ]
                        ...|
 
                   """ <-
@@ -95,7 +96,35 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                     |> igniter_diff(only: "mix.exs")
     end
 
-    test "when :preferred_cli_env already contains mneme.watch" do
+    test "when :preferred_cli_env already contains mneme tasks" do
+      test_project =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule Test.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :test,
+                  preferred_cli_env: [
+                    "mneme.test": :test,
+                    "mneme.watch": :test
+                  ]
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      auto_assert "" <-
+                    test_project
+                    |> Igniter.compose_task("mneme.install")
+                    |> igniter_diff(only: "mix.exs")
+    end
+
+    test "when :preferred_cli_env already contains only mneme.watch" do
       test_project =
         test_project(
           files: %{
@@ -116,7 +145,20 @@ defmodule Mix.Tasks.Mneme.InstallTest do
           }
         )
 
-      auto_assert "" <-
+      auto_assert """
+                  Update: mix.exs
+
+                       ...|
+                   6  6   |      app: :test,
+                   7  7   |      preferred_cli_env: [
+                   8    - |        "mneme.watch": :test
+                      8 + |        "mneme.watch": :test,
+                      9 + |        "mneme.test": :test
+                   9 10   |      ]
+                  10 11   |    ]
+                       ...|
+
+                  """ <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
                     |> igniter_diff(only: "mix.exs")

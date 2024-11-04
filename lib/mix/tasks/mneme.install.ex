@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Mneme.Install do
 
   Running this command will automatically patch the following:
 
-    * `mix.exs` - Adds `"mneme.watch": :test` to `:preferred_cli_env`
+    * `mix.exs` - Adds Mneme's tasks to `:preferred_cli_env`
     * `.formatter.exs` - Adds `:mneme` to `:import_deps`
     * `test/test_helper.exs` - Adds `Mneme.start()` after `ExUnit.start()`
 
@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Mneme.Install do
   Since your `:mneme` dependency is usually specified with `only: :test`,
   this task should be run with `MIX_ENV=test`.
 
-  ```bash
+  ```shell
   $ #{example}
 
   Igniter:
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Mneme.Install do
    9  9   |      start_permanent: Mix.env() == :prod,
   10    - |      deps: deps()
      10 + |      deps: deps(),
-     11 + |      preferred_cli_env: ["mneme.watch": :test]
+     11 + |      preferred_cli_env: ["mneme.test": :test, "mneme.watch": :test]
   11 12   |    ]
   12 13   |  end
        ...|
@@ -99,6 +99,12 @@ defmodule Mix.Tasks.Mneme.Install do
     Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
       # First, try to update a keyword literal in the project
       with {:ok, zipper} <- Function.move_to_def(zipper, :project, 0),
+           {:ok, zipper} <-
+             Igniter.Code.Keyword.put_in_keyword(
+               zipper,
+               [:preferred_cli_env, :"mneme.test"],
+               :test
+             ),
            {:ok, zipper} <-
              Igniter.Code.Keyword.put_in_keyword(
                zipper,
