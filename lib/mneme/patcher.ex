@@ -108,11 +108,17 @@ defmodule Mneme.Patcher do
   defp prompt_change(%Assertion{options: %{action: :prompt}} = assertion, code, counter, project) do
     dot_formatter = Rewrite.dot_formatter(project)
     file = assertion.context.file
-    diff = %{left: format(dot_formatter, file, assertion.rich_ast), right: format(dot_formatter, file, code)}
+
+    diff = %{
+      left: format(dot_formatter, file, assertion.rich_ast),
+      right: format(dot_formatter, file, code)
+    }
+
     Terminal.prompt!(assertion, counter, diff)
   end
 
-  defp prompt_change(%Assertion{options: %{action: action}}, _code, _counter, _project), do: action
+  defp prompt_change(%Assertion{options: %{action: action}}, _code, _counter, _project),
+    do: action
 
   defp format(dot_formatter, file, ast) do
     DotFormatter.format_quoted!(dot_formatter, file, ast)
