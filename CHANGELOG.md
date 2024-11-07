@@ -17,6 +17,7 @@ This format is based on [Keep a Changelog](https://keepachangelog.com) and this 
 ### Fixed
 
   * Ensure that the module is loaded before generating struct patterns ([#102](https://github.com/zachallaun/mneme/issues/102)).
+  * If an existing string pattern is using `"""`, use the same by default if the string changes ([#80](https://github.com/zachallaun/mneme/issues/80)).
 
 ## v0.9.4 (2024-10-28)
 
