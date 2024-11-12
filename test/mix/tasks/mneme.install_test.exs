@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
 
   test "mix mneme.install performs all setup when a project hasn't installed Mneme" do
     auto_assert """
+
                 Update: .formatter.exs
 
                 1 1   |# Used by "mix format"
@@ -15,8 +16,6 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   4 + |  import_deps: [:mneme]
                 4 5   |]
                 5 6   |
-
-
 
 
                 Update: mix.exs
@@ -36,7 +35,6 @@ defmodule Mix.Tasks.Mneme.InstallTest do
 
                 1 1   |ExUnit.start()
                   2 + |Mneme.start()
-
 
                 """ <- test_project() |> Igniter.compose_task("mneme.install") |> diff()
   end
@@ -64,6 +62,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
         )
 
       auto_assert """
+
                   Update: mix.exs
 
                        ...|
@@ -133,6 +132,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
         )
 
       auto_assert """
+
                   Update: mix.exs
 
                        ...|
@@ -177,6 +177,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
         )
 
       auto_assert """
+
                   Update: mix.exs
 
                        ...|
@@ -225,6 +226,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
         )
 
       auto_assert """
+
                   Update: test/test_helper.exs
 
                   1 1   |ExUnit.start(exclude: :integration)
