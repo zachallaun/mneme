@@ -4,19 +4,6 @@ defmodule Mix.Tasks.Mneme.InstallTest do
 
   import Igniter.Test
 
-  defp igniter_diff(igniter, opts \\ []) do
-    sources =
-      if opts[:only] do
-        Enum.filter(igniter.rewrite.sources, fn {_, source} ->
-          source.path in List.wrap(opts[:only])
-        end)
-      else
-        igniter.rewrite.sources
-      end
-
-    Igniter.diff(sources, color?: false)
-  end
-
   test "mix mneme.install performs all setup when a project hasn't installed Mneme" do
     auto_assert """
                 Update: .formatter.exs
@@ -51,7 +38,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   2 + |Mneme.start()
 
 
-                """ <- test_project() |> Igniter.compose_task("mneme.install") |> igniter_diff()
+                """ <- test_project() |> Igniter.compose_task("mneme.install") |> diff()
   end
 
   describe "mix.exs" do
@@ -93,7 +80,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   """ <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "mix.exs")
+                    |> diff(only: "mix.exs")
     end
 
     test "when :preferred_cli_env already contains mneme tasks" do
@@ -121,7 +108,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
       auto_assert "" <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "mix.exs")
+                    |> diff(only: "mix.exs")
     end
 
     test "when :preferred_cli_env already contains only mneme.watch" do
@@ -161,7 +148,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   """ <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "mix.exs")
+                    |> diff(only: "mix.exs")
     end
 
     test "when :preferred_cli_env is a call to a local function" do
@@ -205,7 +192,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   """ <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "mix.exs")
+                    |> diff(only: "mix.exs")
     end
   end
 
@@ -224,7 +211,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
       auto_assert "" <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "test/test_helper.exs")
+                    |> diff(only: "test/test_helper.exs")
     end
 
     test "when ExUnit.start/1 has options" do
@@ -246,7 +233,7 @@ defmodule Mix.Tasks.Mneme.InstallTest do
                   """ <-
                     test_project
                     |> Igniter.compose_task("mneme.install")
-                    |> igniter_diff(only: "test/test_helper.exs")
+                    |> diff(only: "test/test_helper.exs")
     end
   end
 end
