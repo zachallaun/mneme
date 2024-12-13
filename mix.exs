@@ -17,7 +17,6 @@ defmodule Mneme.MixProject do
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls, import_cover: "cover"],
       aliases: aliases(),
-      preferred_cli_env: preferred_cli_env(),
 
       # Hex
       description: "Snapshot testing tool using familiar assertions",
@@ -25,13 +24,29 @@ defmodule Mneme.MixProject do
 
       # Docs
       name: "Mneme",
-      docs: docs()
+      docs: docs(),
+
+      # TODO: Remove when only Elixir 1.15+ is supported
+      preferred_cli_env: cli()[:preferred_envs]
     ]
   end
 
   def application do
     [
       extra_applications: [:logger]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        dialyzer: :test,
+        coveralls: :test,
+        "coveralls.html": :test,
+        "test.mneme_not_started": :test,
+        "mneme.test": :test,
+        "mneme.watch": :test
+      ]
     ]
   end
 
@@ -80,17 +95,6 @@ defmodule Mneme.MixProject do
         fn _ -> System.put_env("START_MNEME", "false") end,
         "test --only mneme_not_started test/mneme_not_started_test.exs"
       ]
-    ]
-  end
-
-  defp preferred_cli_env do
-    [
-      dialyzer: :test,
-      coveralls: :test,
-      "coveralls.html": :test,
-      "test.mneme_not_started": :test,
-      "mneme.test": :test,
-      "mneme.watch": :test
     ]
   end
 
