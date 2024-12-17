@@ -75,7 +75,16 @@ defmodule Mneme.Assertion.PatternBuilder do
   defp do_to_patterns([], _, vars), do: {[Pattern.new([])], vars}
 
   defp do_to_patterns(list, context, vars) when is_list(list) do
-    {patterns, vars} = enum_to_patterns(list, context, vars)
+    {patterns, vars} =
+      case pop_tail(list) do
+        {list, []} ->
+          enum_to_patterns(list, context, vars)
+
+        {list, improper_tail} ->
+          {patterns, vars} = enum_to_patterns(list, context, vars)
+          {[tail_pattern | _], vars} = do_to_patterns(improper_tail, context, vars)
+          {Enum.map(patterns, &Pattern.with_improper_tail(&1, tail_pattern)), vars}
+      end
 
     if List.ascii_printable?(list) do
       {patterns ++ [charlist_pattern(list, context)], vars}
@@ -474,4 +483,13 @@ defmodule Mneme.Assertion.PatternBuilder do
     name_i = :"#{name}#{i}"
     if(name_i in var_names, do: get_unique_name(name, var_names, i + 1), else: name_i)
   end
+
+  defp pop_tail([x | []]), do: {[x], []}
+
+  defp pop_tail([x | xs]) when is_list(xs) do
+    {xs, tail} = pop_tail(xs)
+    {[x | xs], tail}
+  end
+
+  defp pop_tail([x | improper_tail]), do: {[x], improper_tail}
 end

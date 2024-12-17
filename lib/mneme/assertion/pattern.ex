@@ -35,6 +35,21 @@ defmodule Mneme.Assertion.Pattern do
     Pattern.new(exprs, guard: guard, notes: notes)
   end
 
+  @doc """
+  Adds an improper tail onto a list pattern.
+  """
+  def with_improper_tail(%Pattern{expr: list} = list_pattern, %Pattern{} = tail)
+      when is_list(list) do
+    %Pattern{
+      expr: improper_tail_expr(list, tail.expr),
+      guard: combine_guards(list_pattern.guard, tail.guard),
+      notes: list_pattern.notes ++ tail.notes
+    }
+  end
+
+  defp improper_tail_expr([last], tail_expr), do: [{:|, [], [last, tail_expr]}]
+  defp improper_tail_expr([x | xs], tail_expr), do: [x | improper_tail_expr(xs, tail_expr)]
+
   defp combine_guards(nil, guard), do: guard
   defp combine_guards(guard, nil), do: guard
   defp combine_guards(g1, {_, meta, _} = g2), do: {:and, meta, [g2, g1]}

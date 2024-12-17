@@ -128,6 +128,11 @@ defmodule Mneme.Integration.BasicTest do
     auto_assert [ref] when is_reference(ref) <- l
   end
 
+  test "improper lists" do
+    # y
+    auto_assert [:x | :y] <- [:x | :y]
+  end
+
   test "charlists" do
     # y
     auto_assert [102, 111, 111] <- String.to_charlist("foo")

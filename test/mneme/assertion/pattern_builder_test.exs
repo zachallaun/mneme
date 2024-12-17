@@ -65,6 +65,10 @@ defmodule Mneme.Assertion.PatternBuilderTest do
       auto_assert ["[1, [:nested], 3]"] <- to_pattern_strings([1, [:nested], 3])
     end
 
+    test "improper lists" do
+      auto_assert ["[:x | :y]"] <- to_pattern_strings([:x | :y])
+    end
+
     test "pins and guards" do
       ref = make_ref()
       auto_assert ["ref when is_reference(ref)"] <- to_pattern_strings(ref)
