@@ -58,7 +58,7 @@ defmodule Mneme.MixProject do
       {:rewrite, "~> 1.0"},
       {:text_diff, "~> 0.1"},
       {:file_system, "~> 1.0"},
-      {:igniter, "~> 0.4.0 or ~> 0.3.76"},
+      {:igniter, "~> 0.5.0 or ~> 0.4.0 or ~> 0.3.76"},
 
       # Development / Test
       {:benchee, "~> 1.0", only: :dev},
