@@ -2,6 +2,12 @@
 
 This format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.10.2 (2025-01-24)
+
+### Changed
+
+  * [@JonasGruenwald](https://github.com/JonasGruenwald) - Support [Igniter](https://hexdocs.pm/igniter/readme.html) versions 0.5.0+ ([#106](https://github.com/zachallaun/mneme/issues/106)).
+
 ## v0.10.1 (2024-12-17)
 
 ### Fixed
