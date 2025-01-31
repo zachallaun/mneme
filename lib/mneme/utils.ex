@@ -1,6 +1,8 @@
 defmodule Mneme.Utils do
   @moduledoc false
 
+  import Sourceror.Identifier, only: [is_qualified_call: 1, is_unqualified_call: 1]
+
   @doc """
   Returns the occurrences of a given character in a string.
 
@@ -124,4 +126,38 @@ defmodule Mneme.Utils do
   end
 
   defp has_var?(pattern, name, context), do: Enum.any?(pattern, &match?({^name, _, ^context}, &1))
+
+  @doc """
+  Checks whether the given form is a function or macro call and not a
+  special form.
+
+  ## Examples
+
+      iex> function_or_macro_call?(quote(do: self()))
+      true
+
+      iex> function_or_macro_call?(quote(do: foo(1, 2, 3)))
+      true
+
+      iex> function_or_macro_call?(quote(do: Foo.bar(1, 2, 3)))
+      true
+
+      iex> function_or_macro_call?(quote(do: %{foo: 1}))
+      false
+
+      iex> function_or_macro_call?(quote(do: for(x <- xs, do: x)))
+      false
+
+      iex> function_or_macro_call?(quote(do: x = y))
+      false
+
+  """
+  def function_or_macro_call?(expr)
+
+  def function_or_macro_call?({name, _, args} = call) when is_unqualified_call(call) do
+    not Macro.special_form?(name, length(args))
+  end
+
+  def function_or_macro_call?(call) when is_qualified_call(call), do: true
+  def function_or_macro_call?(_expr), do: false
 end
