@@ -76,7 +76,7 @@ defmodule Mneme.Integration do
         test_command
       end
 
-    task = Task.async(System, :shell, [test_command])
+    task = Task.async(System, :shell, [test_command, [stderr_to_stdout: true]])
 
     {output, exit_code} =
       case Task.yield(task, 15_000) || Task.shutdown(task, :brutal_kill) do
