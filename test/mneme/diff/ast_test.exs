@@ -192,11 +192,19 @@ defmodule Mneme.Diff.ASTTest do
       auto_assert {:%{}, [closing: [line: 1, column: 3], line: 1, column: _], []} <-
                     parse_string!("%{}")
 
-      auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: _],
-                   [
-                     {{:atom, [line: 1, column: 3], :foo},
-                      {:int, [token: "1", line: 1, column: 11], 1}}
-                   ]} <- parse_string!("%{:foo => 1}")
+      if Version.match?(System.version(), "~> 1.18.2") do
+        auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: 1],
+                     [
+                       {{:atom, [assoc: [line: 1, column: 8], line: 1, column: 3], :foo},
+                        {:int, [token: "1", line: 1, column: 11], 1}}
+                     ]} <- parse_string!("%{:foo => 1}")
+      else
+        auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: _],
+                     [
+                       {{:atom, [line: 1, column: 3], :foo},
+                        {:int, [token: "1", line: 1, column: 11], 1}}
+                     ]} <- parse_string!("%{:foo => 1}")
+      end
 
       auto_assert {:%{}, [closing: [line: 1, column: 9], line: 1, column: _],
                    [
