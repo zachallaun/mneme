@@ -151,12 +151,8 @@ defmodule Mneme.Diff.Formatter do
     [fmt(op, {{l, c}, {l, c + 2}})]
   end
 
-  defp to_fmt_instructions(
-         :delimiter,
-         op,
-         {{:"..//", %{line: l, column: c}, [_, range_end, _]}, _}
-       ) do
-    {_, {l2, c2}} = bounds(range_end)
+  defp to_fmt_instructions(:delimiter, op, {{:..//, %{line: l, column: c}, [_, last, _]}, _}) do
+    {_, {l2, c2}} = bounds(last)
 
     [fmt(op, {{l, c}, {l, c + 2}}), fmt(op, {{l2, c2}, {l2, c2 + 2}})]
   end
