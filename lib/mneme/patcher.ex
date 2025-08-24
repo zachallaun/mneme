@@ -100,6 +100,9 @@ defmodule Mneme.Patcher do
       :skip ->
         {{:error, :skipped}, project}
 
+      :skip_all ->
+        {{:error, :skipped_all}, project}
+
       select ->
         prompt_and_patch!(project, Assertion.select(assertion, select), counter, node)
     end

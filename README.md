@@ -126,6 +126,7 @@ Whenever that happens, you have a few options:
 |`y`|Accept|Accept the proposed change. The assertion will be re-run and should pass.|
 |`n`|Reject|Reject the proposed change and fail the test.|
 |`s`|Skip|Skip this assertion. The test will not fail, but the `mix test` process will exit with `1`.|
+|`S`|Skip All|Skip all remaining assertions and exit. The tests will not fail, but the `mix test` process will exit with `1`.|
 |`k`|Next|If multiple patterns have been generated, cycle to the next one.|
 |`K`|Last|If multiple patterns have been generated, cycle to the last one.|
 |`j`|Previous|If multiple patterns have been generated, cycle to the previous one.|

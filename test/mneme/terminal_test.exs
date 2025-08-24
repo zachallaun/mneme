@@ -15,7 +15,7 @@ defmodule Mneme.TerminalTest do
 
                   Accept new assertion?
                   > 
-                  y yes  n no  s skip  
+                  y yes  n no  s skip  S skip all  
                   """ <- message(mock_assertion())
 
       auto_assert """
@@ -30,7 +30,7 @@ defmodule Mneme.TerminalTest do
 
                   Accept new assertion?
                   > 
-                  y yes  n no  s skip  
+                  y yes  n no  s skip  S skip all  
                   """ <- message(mock_assertion(), %{diff: :semantic})
 
       auto_assert """
@@ -43,7 +43,7 @@ defmodule Mneme.TerminalTest do
 
                   Accept new assertion?
                   > 
-                  y yes  n no  s skip  
+                  y yes  n no  s skip  S skip all  
                   """ <-
                     message(mock_assertion(), %{
                       diff: :semantic,
@@ -64,7 +64,7 @@ defmodule Mneme.TerminalTest do
 
                   Accept new assertion?
                   > 
-                  y yes  n no  s skip  ❮ J/j ●○○ k/K ❯
+                  y yes  n no  s skip  S skip all  ❮ J/j ●○○ k/K ❯
                   """ <- message(assertion)
     end
 
@@ -80,7 +80,7 @@ defmodule Mneme.TerminalTest do
 
                   Value has changed! Update pattern?
                   > 
-                  y yes  n no  s skip  
+                  y yes  n no  s skip  S skip all  
                   """ <- message(assertion)
     end
   end

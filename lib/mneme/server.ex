@@ -262,6 +262,9 @@ defmodule Mneme.Server do
         {{:error, :skipped}, _} ->
           inc_stat(state, :skipped)
 
+        {{:error, :skipped_all}, _} ->
+          inc_stat(state, :skipped)
+
         {{:error, :rejected}, _} ->
           inc_stat(state, :rejected)
 

@@ -231,6 +231,12 @@ defmodule Mneme.Assertion do
   end
 
   defp handle_assertion({:error, :skipped}, assertion, _, _), do: {assertion, []}
+
+  defp handle_assertion({:error, :skipped_all}, assertion, _, _) do
+    Mneme.Server.skip_all()
+    {assertion, []}
+  end
+
   defp handle_assertion({:error, :file_changed}, assertion, _, _), do: {assertion, []}
   defp handle_assertion({:error, :rejected}, _, _, nil), do: assertion_error!()
 

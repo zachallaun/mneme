@@ -41,6 +41,7 @@ defmodule Mneme.Terminal do
       "y" -> :accept
       "n" -> :reject
       "s" -> :skip
+      "S" -> :skip_all
       "k" -> :next
       "K" -> :last
       "j" -> :prev
@@ -292,6 +293,7 @@ defmodule Mneme.Terminal do
         [tag("y", :green), " ", tag("yes", :faint)],
         [tag("n", :red), " ", tag("no", :faint)],
         [tag("s", :yellow), " ", tag("skip", :faint)],
+        [tag("S", :yellow), " ", tag("skip all", :faint)],
         format_nav_options(assertion)
       ],
       ["  "]
