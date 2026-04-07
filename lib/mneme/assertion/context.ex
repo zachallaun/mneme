@@ -39,7 +39,7 @@ defmodule Mneme.Assertion.Context do
   """
   @spec with_keysets(t) :: t
   def with_keysets(%__MODULE__{} = context) do
-    %__MODULE__{context | keysets: get_keysets(context.original_pattern)}
+    %{context | keysets: get_keysets(context.original_pattern)}
   end
 
   # Keysets are the lists of keys being matched in any map patterns. We

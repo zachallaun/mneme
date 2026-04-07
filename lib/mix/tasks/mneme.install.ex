@@ -149,8 +149,8 @@ defmodule Mix.Tasks.Mneme.Install do
   end
 
   defp move_to_def_or_defp(zipper, call_name, arity) do
-    with :error <- Igniter.Code.Function.move_to_def(zipper, call_name, arity) do
-      Igniter.Code.Function.move_to_defp(zipper, call_name, arity)
+    with :error <- Function.move_to_def(zipper, call_name, arity) do
+      Function.move_to_defp(zipper, call_name, arity)
     end
   end
 end

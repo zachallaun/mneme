@@ -635,6 +635,11 @@ defmodule Mneme.Assertion do
     end
   end
 
+  def code_for_eval(:auto_assert, {_, _, [{_, _, [_expr, _]}]}, %Regex{source: source, opts: opts}) do
+    pattern = quote(do: %Regex{source: unquote(source), opts: unquote(opts)})
+    {:assert, [], [{:=, [], [pattern, Macro.var(:value, :mneme)]}]}
+  end
+
   def code_for_eval(:auto_assert, {_, _, [{_, _, [expected, _]}]}, _value) do
     assert_match(expected)
   end

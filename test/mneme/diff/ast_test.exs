@@ -192,25 +192,11 @@ defmodule Mneme.Diff.ASTTest do
       auto_assert {:%{}, [closing: [line: 1, column: 3], line: 1, column: _], []} <-
                     parse_string!("%{}")
 
-      if Version.match?(System.version(), "~> 1.18.2") do
-        auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: 1],
-                     [
-                       {{:atom, [assoc: [line: 1, column: 8], line: 1, column: 3], :foo},
-                        {:int, [token: "1", line: 1, column: 11], 1}}
-                     ]} <- parse_string!("%{:foo => 1}")
-      else
-        auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: _],
-                     [
-                       {{:atom, [line: 1, column: 3], :foo},
-                        {:int, [token: "1", line: 1, column: 11], 1}}
-                     ]} <- parse_string!("%{:foo => 1}")
-      end
-
-      auto_assert {:%{}, [closing: [line: 1, column: 9], line: 1, column: _],
+      auto_assert {:%{}, [closing: [line: 1, column: 12], line: 1, column: 1],
                    [
-                     {{:atom, [format: :keyword, line: 1, column: 3], :foo},
-                      {:int, [token: "1", line: 1, column: 8], 1}}
-                   ]} <- parse_string!("%{foo: 1}")
+                     {{:atom, [assoc: [line: 1, column: 8], line: 1, column: 3], :foo},
+                      {:int, [token: "1", line: 1, column: 11], 1}}
+                   ]} <- parse_string!("%{:foo => 1}")
     end
 
     test "structs" do
@@ -383,22 +369,22 @@ defmodule Mneme.Diff.ASTTest do
     test "qualified calls" do
       # anonymous fn syntax has a single arg
       auto_assert {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
-                   [closing: [line: 1, column: 6], line: 1, column: 4],
-                   []} <- parse_string!("foo.()")
+                   [closing: [line: 1, column: 6], line: 1, column: 4], []} <-
+                    parse_string!("foo.()")
 
       # usual chaining has 2 args
       auto_assert {{:., [line: 1, column: 4],
                     [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
-                   [closing: [line: 1, column: 9], line: 1, column: 5],
-                   []} <- parse_string!("foo.bar()")
+                   [closing: [line: 1, column: 9], line: 1, column: 5], []} <-
+                    parse_string!("foo.bar()")
 
       auto_assert {{:., [line: 1, column: 4],
                     [
                       {:__aliases__, [last: [line: 1, column: 1], line: 1, column: 1],
                        [{:var, [line: 1, column: 1], :Foo}]},
                       {:var, [line: 1, column: 5], :bar}
-                    ]}, [closing: [line: 1, column: 9], line: 1, column: 5],
-                   []} <- parse_string!("Foo.bar()")
+                    ]}, [closing: [line: 1, column: 9], line: 1, column: 5], []} <-
+                    parse_string!("Foo.bar()")
 
       # rightmost . is on the outside and has meta about parens, e.g. `:closing`
       # note that `{:., [], []}` is always at the head of a call, e.g. `{{:., [], []}, [], []}`
@@ -408,8 +394,8 @@ defmodule Mneme.Diff.ASTTest do
                         [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
                        [no_parens: true, line: 1, column: 5], []},
                       {:var, [line: 1, column: 9], :baz}
-                    ]}, [closing: [line: 1, column: 13], line: 1, column: 9],
-                   []} <- parse_string!("foo.bar.baz()")
+                    ]}, [closing: [line: 1, column: 13], line: 1, column: 9], []} <-
+                    parse_string!("foo.bar.baz()")
 
       # example without parens, no `:closing` meta
       auto_assert {{:., [line: 1, column: 8],
@@ -418,8 +404,7 @@ defmodule Mneme.Diff.ASTTest do
                         [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
                        [no_parens: true, line: 1, column: 5], []},
                       {:var, [line: 1, column: 9], :baz}
-                    ]}, [line: 1, column: 9],
-                   [{:int, [token: "1", line: 1, column: 13], 1}]} <-
+                    ]}, [line: 1, column: 9], [{:int, [token: "1", line: 1, column: 13], 1}]} <-
                     parse_string!("foo.bar.baz 1")
 
       # inner calls have `:closing` meta
@@ -429,8 +414,8 @@ defmodule Mneme.Diff.ASTTest do
                         [{:var, [line: 1, column: 1], :foo}, {:var, [line: 1, column: 5], :bar}]},
                        [closing: [line: 1, column: 9], line: 1, column: 5], []},
                       {:var, [line: 1, column: 11], :baz}
-                    ]}, [closing: [line: 1, column: 15], line: 1, column: 11],
-                   []} <- parse_string!("foo.bar().baz()")
+                    ]}, [closing: [line: 1, column: 15], line: 1, column: 11], []} <-
+                    parse_string!("foo.bar().baz()")
 
       # the inner `:.` tuple has a single arg and its call has closing meta, indicating
       # a `foo.()`
@@ -439,8 +424,8 @@ defmodule Mneme.Diff.ASTTest do
                       {{:., [line: 1, column: 4], [{:var, [line: 1, column: 1], :foo}]},
                        [closing: [line: 1, column: 6], line: 1, column: 4], []},
                       {:var, [line: 1, column: 8], :bar}
-                    ]}, [closing: [line: 1, column: 12], line: 1, column: 8],
-                   []} <- parse_string!("foo.().bar()")
+                    ]}, [closing: [line: 1, column: 12], line: 1, column: 8], []} <-
+                    parse_string!("foo.().bar()")
     end
 
     test "unary operators" do
