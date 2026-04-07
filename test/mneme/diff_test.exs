@@ -546,8 +546,7 @@ defmodule Mneme.DiffTest do
                        "} <- some_call()"
                      ],
                      []
-                   ],
-                   nil} <-
+                   ], nil} <-
                     format(
                       """
                       auto_assert %My.Qualified.Struct{a: "a", b: "b", c: "c", d: "d"} <- some_call()
@@ -564,8 +563,7 @@ defmodule Mneme.DiffTest do
                        "} <- some_call()"
                      ],
                      []
-                   ],
-                   [["auto_assert %My.Qualified.Struct{} <- some_call()"], []]} <-
+                   ], [["auto_assert %My.Qualified.Struct{} <- some_call()"], []]} <-
                     format(
                       """
                       auto_assert %My.Qualified.Struct{a: "a", b: "b", c: "c", d: "d", e: "e"} <- some_call()
